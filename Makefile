@@ -3,7 +3,7 @@ VERSION	:=	1.2
 
 INSTALL	=	install
 CC	:=	gcc
-CFLAGS	:=	-Wall -O2 -g
+CFLAGS	:=	-Wall -O2 -g -DVERSION=\"$(VERSION)\"
 LDFLAGS	:=	-ggdb
 LIBS	:=	 -lpthread
 
@@ -31,7 +31,7 @@ static: $(OBJ)
 	$(CC) -o stalld-static $(LDFLAGS) --static $(OBJ) $(LIBS)
 
 tests:
-	make -C tests
+	make -C tests VERSION=$(VERSION)
 
 .PHONY: install
 install:
@@ -50,7 +50,7 @@ clean:
 	@test ! -f stalld-static || rm stalld-static
 	@test ! -f src/stalld.o || rm src/stalld.o
 	@test ! -f $(TARBALL) || rm -f $(TARBALL)
-	@make -C redhat clean
+	@make -C redhat VERSION=$(VERSION) clean
 	@make -C tests clean
 	@rm -rf *~ $(OBJ)
 
@@ -61,8 +61,8 @@ tarball:  clean
 	rm -rf $(NAME)-$(VERSION)
 
 redhat: tarball
-	$(MAKE) -C redhat
+	$(MAKE) -C redhat VERSION=$(VERSION)
 
 push: tarball
 	scp $(TARBALL) $(UPSTREAM_TARBALLS)
-	make -C redhat push
+	make -C redhat VERSION=$(VERSION) push

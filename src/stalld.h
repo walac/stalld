@@ -110,10 +110,10 @@ void write_pidfile(void);
 int parse_args(int argc, char **argv);
 
 /*
- * shared variables 
+ * shared variables
  */
 extern int running;
-
+extern const char *version;
 extern int config_verbose;
 extern int config_write_kmesg;
 extern int config_log_syslog;

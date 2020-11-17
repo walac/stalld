@@ -40,6 +40,11 @@
 #include "stalld.h"
 
 /*
+ * version
+ */
+const char *version = VERSION;
+
+/*
  * logging.
  */
 int config_verbose = 0;
