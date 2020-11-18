@@ -6,7 +6,8 @@ RPMARGS	:=	--define "_topdir	$(HERE)" \
 		--define "_sourcedir	$(HERE)/SOURCES" \
 		--define "_builddir	$(HERE)/BUILD" \
 		--define "_rpmdir	$(HERE)/RPMS" \
-		--define "_srcrpmdir	$(HERE)/SRPMS"
+		--define "_srcrpmdir	$(HERE)/SRPMS" \
+		--define "version	$(VERSION)"
 INSTALL	:=	install
 UPSTREAM_TARBALLS	:= fedorapeople.org:~/public_html/
 UNITDIR	:=	/usr/lib/systemd/system

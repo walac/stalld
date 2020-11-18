@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	1.2
+Version:	%{version}
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
@@ -26,10 +26,10 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %autosetup
 
 %build
-%make_build CFLAGS="%{build_cflags}" LDFLAGS="%{build_ldflags}"
+%make_build CFLAGS="%{build_cflags} -DVERSION="\\\"%{version}\\\"""  LDFLAGS="%{build_ldflags}"
 
 %install
-%make_install DOCDIR=%{_docdir} MANDIR=%{_mandir} BINDIR=%{_bindir} DATADIR=%{_datadir}
+%make_install DOCDIR=%{_docdir} MANDIR=%{_mandir} BINDIR=%{_bindir} DATADIR=%{_datadir} VERSION=%{version}
 %make_install -C redhat UNITDIR=%{_unitdir}
 
 %files

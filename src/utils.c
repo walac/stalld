@@ -492,6 +492,7 @@ static void print_usage(void)
 
 	for(i = 0; msg[i]; i++)
 		fprintf(stderr, "%s\n", msg[i]);
+	fprintf(stderr, "  stalld version: %s\n", version);
 
 }
 
@@ -586,13 +587,14 @@ int parse_args(int argc, char **argv)
 			{"starving_threshold",	required_argument, 0, 't'},
 			{"pidfile",             required_argument, 0, 'P'},
 			{"force_fifo", 		no_argument, 	   0, 'F'},
+			{"version", 		no_argument,       0, 'V'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "lvkfAhsp:r:d:t:c:F",
+		c = getopt_long(argc, argv, "lvkfAhsp:r:d:t:c:FV",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -664,6 +666,10 @@ int parse_args(int argc, char **argv)
 			break;
 		case 'F':
 			config_force_fifo = 1;
+			break;
+		case 'V':
+			puts(version);
+			exit(0);
 			break;
 		case '?':
 			usage("Invalid option");
