@@ -1,5 +1,5 @@
 NAME	:=	stalld
-VERSION	:=	1.2
+VERSION	:=	1.3
 
 INSTALL	=	install
 CC	:=	gcc
@@ -52,7 +52,7 @@ clean:
 	@test ! -f $(TARBALL) || rm -f $(TARBALL)
 	@make -C redhat VERSION=$(VERSION) clean
 	@make -C tests clean
-	@rm -rf *~ $(OBJ)
+	@rm -rf *~ $(OBJ) *.tar.xz
 
 tarball:  clean
 	rm -rf $(NAME)-$(VERSION) && mkdir $(NAME)-$(VERSION)

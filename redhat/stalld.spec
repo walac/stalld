@@ -50,6 +50,11 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Fri Nov 20 2020 Clark Williams <williams@redhat.com> - 1.3-1
+- Readme: Add information about repositories
+- Add version management and version option
+- create doc and scripts directory and add info on releases
+
 * Mon Nov  2 2020 Clark Williams <williams@redhat.com> - 1.2-1
 - utils.c: added info() functions
 - detect and correctly parse old-style /proc/sched_debug
