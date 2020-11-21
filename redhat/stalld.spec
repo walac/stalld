@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	%{version}
+Version:	1.3
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
