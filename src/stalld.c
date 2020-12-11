@@ -1111,6 +1111,13 @@ int main(int argc, char **argv)
 	parse_args(argc, argv);
 
 	/*
+	 * Turn of throttling before trying sched
+	 * deadline.
+	 */
+	if (!config_log_only)
+		turn_off_rt_throttling();
+
+	/*
 	 * see if deadline scheduler is available
 	 */
 	if (!config_log_only)
@@ -1141,8 +1148,7 @@ int main(int argc, char **argv)
 
 	setup_signal_handling();
 
-	if(!config_log_only)
-		turn_off_rt_throttling();
+
 
 	if (!config_foreground)
 		deamonize();
