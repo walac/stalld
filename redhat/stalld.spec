@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	1.3
+Version:	1.4
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
@@ -50,6 +50,10 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Fri Dec 11 2020 Clark Williams <williams@redhat.com> - 1.4-1
+- stalld: Set rt_runtime to -1 before trying the SCHED_DEADLINE
+- Fix incorrect recursion of specfile version field
+
 * Fri Nov 20 2020 Clark Williams <williams@redhat.com> - 1.3-1
 - Readme: Add information about repositories
 - Add version management and version option
