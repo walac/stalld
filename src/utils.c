@@ -98,6 +98,13 @@ static void set_sig_handler()
 		      strerror(errno));
 		exit(errno);
 	}
+	action.sa_flags = SA_SIGINFO;
+	action.sa_sigaction = inthandler;
+	if (sigaction(SIGTERM, &action, NULL) == -1) {
+		warn("error setting SIGTERM handler: %s\n",
+		      strerror(errno));
+		exit(errno);
+	}
 }
 
 int setup_signal_handling(void)
