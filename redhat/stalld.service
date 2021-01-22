@@ -5,7 +5,9 @@ Description=Stall Monitor
 # Type=simple
 Type=forking
 EnvironmentFile=/etc/sysconfig/stalld
-ExecStart=/usr/bin/stalld $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF
+ExecStartPre=/usr/bin/throttlectl off
+ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF
+ExecStopPost=/usr/bin/throttlectl on
 
 [Install]
 WantedBy=multi-user.target

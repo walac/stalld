@@ -12,6 +12,7 @@ INSTALL	:=	install
 UPSTREAM_TARBALLS	:= fedorapeople.org:~/public_html/
 UNITDIR	:=	/usr/lib/systemd/system
 DATADIR :=	/usr/share
+BINDIR	:=	/usr/bin
 
 all:	rpm
 
@@ -34,6 +35,7 @@ install:
 	$(INSTALL) stalld.conf -m 644 $(DESTDIR)/etc/sysconfig/stalld
 	$(INSTALL) -m 755 -d $(DESTDIR)$(UNITDIR)
 	$(INSTALL) stalld.service -m 644 $(DESTDIR)$(UNITDIR)
+	$(INSTALL) ../scripts/throttlectl.sh $(DESTDIR)$(BINDIR)/throttlectl
 
 rpmlint:	rpm
 	rpmlint -i stalld.spec

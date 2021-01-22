@@ -100,7 +100,6 @@ long get_long_from_str(char *start);
 long get_long_after_colon(char *start);
 long get_variable_long_value(char *buffer, const char *variable);
 
-int turn_off_rt_throttling(void);
 int setup_signal_handling(void);
 void deamonize(void);
 int setup_hr_tick(void);
@@ -108,6 +107,8 @@ int should_monitor(int cpu);
 void usage(const char *fmt, ...);
 void write_pidfile(void);
 int parse_args(int argc, char **argv);
+int rt_throttling_is_off(void);
+int turn_off_rt_throttling(void);
 
 /*
  * shared variables
@@ -128,5 +129,6 @@ extern long config_boost_duration;
 extern long config_aggressive;
 extern int config_monitor_all_cpus;
 extern char *config_monitored_cpus;
+extern int config_systemd;
 extern char pidfile[];
 #endif /* __STALLD_H__ */
