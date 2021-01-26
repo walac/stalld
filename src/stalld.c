@@ -90,6 +90,11 @@ int config_buffer_size = BUFFER_SIZE;
 int config_task_format;
 
 /*
+ * boolean for if running under systemd
+ */
+int config_systemd;
+
+/*
  * boolean to choose between deadline and fifo
  */
 int boost_policy;
@@ -1111,11 +1116,21 @@ int main(int argc, char **argv)
 	parse_args(argc, argv);
 
 	/*
-	 * Turn of throttling before trying sched
-	 * deadline.
+	 * check RT throttling
+	 * if --systemd was specified then RT throttling should already be off
+	 * otherwise turn it off
+	 * in both cases verify that it actually got turned off since we can't
+	 * run with it on.
 	 */
-	if (!config_log_only)
+	if (config_systemd) {
+		if (!config_log_only && !rt_throttling_is_off())
+			die ("RT throttling is on! stalld cannot run...\n");
+	}
+	else if (!config_log_only) {
 		turn_off_rt_throttling();
+		if (!rt_throttling_is_off())
+			die("turning off RT throttling failed, stalld cannot run\n");
+	}
 
 	/*
 	 * see if deadline scheduler is available

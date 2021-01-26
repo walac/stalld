@@ -493,6 +493,7 @@ static void print_usage(void)
 		"                               threads on all CPU (uses more CPU/power).",
 		"	misc:",
 		"          --pidfile: write daemon pid to specified file",
+		"          -S/--systemd: running as systemd service, don't fiddle with RT throttling",
 		"          -h/--help: print this menu",
 		NULL,
 	};
@@ -595,13 +596,14 @@ int parse_args(int argc, char **argv)
 			{"pidfile",             required_argument, 0, 'P'},
 			{"force_fifo", 		no_argument, 	   0, 'F'},
 			{"version", 		no_argument,       0, 'V'},
+			{"systemd",		no_argument,       0, 'S'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "lvkfAhsp:r:d:t:c:FV",
+		c = getopt_long(argc, argv, "lvkfAhsp:r:d:t:c:FVS",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -677,6 +679,9 @@ int parse_args(int argc, char **argv)
 		case 'V':
 			puts(version);
 			exit(0);
+			break;
+		case 'S':
+			config_systemd = 1;
 			break;
 		case '?':
 			usage("Invalid option");

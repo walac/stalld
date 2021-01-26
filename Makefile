@@ -10,8 +10,8 @@ LIBS	:=	 -lpthread
 SRC	:=	$(wildcard src/*.c)
 HDR	:=	$(wildcard src/*.h)
 OBJ	:=	$(SRC:.c=.o)
-DIRS	:=	src redhat man tests
-FILES	:=	Makefile README.md gpl-2.0.txt
+DIRS	:=	src redhat man tests scripts
+FILES	:=	Makefile README.md gpl-2.0.txt scripts/throttlectl.sh
 TARBALL	:=	$(NAME)-$(VERSION).tar.xz
 UPSTREAM_TARBALLS	:= fedorapeople.org:~/public_html/
 BINDIR	:=	/usr/bin

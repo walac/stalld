@@ -87,3 +87,30 @@ int turn_off_rt_throttling(void)
 	log_msg("RT Throttling disabled\n");
 	return 0;
 }
+
+
+int rt_throttling_is_off(void)
+{
+	int ret;
+	const char *runtime = "/proc/sys/kernel/sched_rt_runtime_us";
+	int fd = open(runtime, O_RDONLY);
+	char buffer[80];
+
+	if (fd < 0)
+		die("unable to open %s to check throttling status: %s\n", runtime, strerror(errno));
+
+	ret = read(fd, buffer, sizeof(buffer));
+	if (ret <= 0)
+		die ("unable to read %s to get runtime status: %s\n", runtime, strerror(errno));
+	close(fd);
+
+	if (ret < sizeof(buffer))
+	    buffer[ret] = '\0';
+
+	if (buffer[ret-1] == '\n')
+		buffer[ret-1] = '\0';
+
+	if (strcmp(buffer, "-1") == 0)
+		return 1;
+	return 0;
+}

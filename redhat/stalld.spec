@@ -34,6 +34,7 @@ allow 10 microseconds of runtime for 1 second of clock time.
 
 %files
 %{_bindir}/%{name}
+%{_bindir}/throttlectl
 %{_unitdir}/%{name}.service
 %config(noreplace) %{_sysconfdir}/sysconfig/stalld
 %doc %{_docdir}/README.md
