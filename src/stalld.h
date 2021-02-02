@@ -9,7 +9,7 @@
 #ifndef __STALLD_H__
 #define __STALLD_H__
 
-#define BUFFER_SIZE		(100*1024)
+#define BUFFER_SIZE		(10*_SC_PAGE_SIZE)
 #define MAX_WAITING_PIDS	30
 
 #define COMM_SIZE		15
