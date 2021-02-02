@@ -265,13 +265,14 @@ int detect_task_format(void)
 			die ("detect_task_format: error reading /proc/sched_debug: %s\n", strerror(errno));
 		size += status;
 		bufsiz += BUFFER_SIZE;
-		buffer = realloc(buffer, bufsiz);
+		if ((buffer = realloc(buffer, bufsiz)) == NULL)
+			die("detect_task_format: realloc failed for %d size: %s\n", bufsiz, strerror(errno));
 		ptr = buffer + size;
 	}
 	close(fd);
 	buffer[size] = '\0';
 	config_buffer_size = bufsiz;
-	log_msg("config_buffer_size set to %d\n", config_buffer_size);
+	log_msg("initial config_buffer_size set to %d\n", config_buffer_size);
 
 	ptr = strstr(buffer, TASK_MARKER);
 	if (ptr == NULL) {
