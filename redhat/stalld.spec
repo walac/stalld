@@ -26,7 +26,7 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %autosetup
 
 %build
-%make_build CFLAGS="%{build_cflags} -DVERSION="\\\"%{version}\\\"""  LDFLAGS="%{build_ldflags}"
+%make_build CFLAGS="%{optflags} %{build_cflags} -DVERSION="\\\"%{version}\\\"""  LDFLAGS="%{build_ldflags}"
 
 %install
 %make_install DOCDIR=%{_docdir} MANDIR=%{_mandir} BINDIR=%{_bindir} DATADIR=%{_datadir} VERSION=%{version}
