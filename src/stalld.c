@@ -246,6 +246,9 @@ static inline char *nextline(char *str)
  */
 int detect_task_format(void)
 {
+	int bufsiz = BUFFER_SIZE;
+	int size = 0;
+	int fd;
 	char *buffer = malloc(BUFFER_SIZE);
 	char *ptr = buffer;
 	int retval = -1;
@@ -254,9 +257,22 @@ int detect_task_format(void)
 	if (buffer == NULL)
 		die("detect_task_format: unable to allocate %d bytes to read /proc/sched_debug");
 
-	status = read_sched_debug(buffer, BUFFER_SIZE);
-	if (status && status <= BUFFER_SIZE)
-		warn("detect_task_format: sched_debug size greater than %d bytes didn't get full read\n", BUFFER_SIZE);
+	if ((fd = open("/proc/sched_debug", O_RDONLY)) < 0)
+		die("detect_task_format: error opening /proc/sched_debug for reading: %s\n", strerror(errno));
+
+	while ((status = read(fd, ptr, BUFFER_SIZE))) {
+		if (status < 0)
+			die ("detect_task_format: error reading /proc/sched_debug: %s\n", strerror(errno));
+		size += status;
+		bufsiz += BUFFER_SIZE;
+		if ((buffer = realloc(buffer, bufsiz)) == NULL)
+			die("detect_task_format: realloc failed for %d size: %s\n", bufsiz, strerror(errno));
+		ptr = buffer + size;
+	}
+	close(fd);
+	buffer[size] = '\0';
+	config_buffer_size = bufsiz;
+	log_msg("initial config_buffer_size set to %d\n", config_buffer_size);
 
 	ptr = strstr(buffer, TASK_MARKER);
 	if (ptr == NULL) {
