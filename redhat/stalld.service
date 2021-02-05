@@ -2,8 +2,8 @@
 Description=Stall Monitor
 
 [Service]
-# Type=simple
-Type=forking
+Type=simple
+# Type=forking
 EnvironmentFile=/etc/sysconfig/stalld
 ExecStartPre=/usr/bin/throttlectl off
 ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF
