@@ -284,11 +284,44 @@ static void *blocker(void *arg)
 	return 0;
 }
 
+#define RUNTIME "/proc/sys/kernel/sched_rt_runtime_us"
+
+static void check_throttling(void)
+{
+	int fd;
+	int ret;
+	char buffer[80];
+
+
+	fd = open(RUNTIME, O_RDONLY);
+	if (fd < 0) {
+		error("unable to open %s\n", RUNTIME);
+		exit(errno);
+	}
+
+	memset(buffer, 0, sizeof(buffer));
+	ret = read(fd, buffer, sizeof(buffer));
+	if (ret < 0) {
+		error("error reading from %s\n", RUNTIME);
+		exit(errno);
+	}
+	close(fd);
+	if (strncmp(buffer, "-1", 2) != 0) {
+		errno=0;
+		error("RT Throttling not disabled, test will not work!\n");
+		exit(-1);
+	}
+}
+
+
 int main (int argc, char **argv)
 {
 	int status;
 	cpu_set_t cpuset;
 	struct sched_param param;
+
+	/* ensure that RT throttling has been disabled */
+	check_throttling();
 
 	/* handle the command line options */
 	process_command_line(argc, argv);
