@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	1.7
+Version:	1.8
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
@@ -51,6 +51,11 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Fri Feb  5 2021 Clark Williams <williams@redhat.com> - 1.8-1
+- Fix Readiness Protocol Mismatch with systemd
+- test01:  update to use buildin atomic operations
+- test01: add throttling check
+
 * Tue Feb  2 2021 Clark Williams <williams@redhat.com> - 1.7-1
 - rework detect_task_format and buffer_size logic
 - make CFLAGS for local compile match rpmbuild CFLAGS
