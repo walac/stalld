@@ -41,7 +41,8 @@ static unsigned int blockerprio = 2;
 static unsigned int blocked = 1;
 
 /* pthread barrier for synchronized start */
-static pthread_barrier_t all_threads_ready;
+static pthread_barrier_t blocker_barrier;
+static pthread_barrier_t blockee_barrier;
 
 /* thread routines */
 static void *blockee(void *arg);
@@ -178,7 +179,7 @@ static int setup_blocker(void)
 		error("failed to setup blocker thread\n");
 		exit(status);
 	}
-	debug("blocker thread id: %ld\n", blocker_tid);
+	//debug("blocker thread id: %ld\n", blocker_tid);
 	return status;
 }
 
@@ -189,7 +190,7 @@ static int setup_blockee(void)
 		error("failed to create blockee thread\n");
 		exit(status);
 	}
-	debug("blockee thread id: %ld\n", blockee_tid);
+	//debug("blockee thread id: %ld\n", blockee_tid);
 	return status;
 }
 
@@ -245,17 +246,17 @@ static void *blockee(void *arg)
 {
 	int ret;
 
-	ret = pthread_barrier_wait(&all_threads_ready);
-	debug("blockee: running\n");
+	//debug("blockee: running\n");
+	ret = pthread_barrier_wait(&blockee_barrier);
 
 	if (ret != PTHREAD_BARRIER_SERIAL_THREAD && ret != 0) {
 		error("barrier wait in blocker failed");
 		return (void *) -1;
 	}
-	while(blocked > 0) {
+	while(__atomic_load_n(&blocked, __ATOMIC_ACQUIRE) > 0) {
 		debug("blockee: executing loop body, blocked==%d\n",
 		      blocked);
-		blocked--;
+		__atomic_store_n(&blocked, 0, __ATOMIC_RELAXED);
 	}
 	debug("blockee: finished!\n");
 	return 0;
@@ -267,15 +268,16 @@ static void *blockee(void *arg)
 
 static void *blocker(void *arg)
 {
-	int ret = pthread_barrier_wait(&all_threads_ready);
+	int ret;
+
+	ret = pthread_barrier_wait(&blocker_barrier);
 
 	if (ret != PTHREAD_BARRIER_SERIAL_THREAD && ret != 0) {
 		error("barrier wait in blocker failed");
 		return (void *) -1;
 	}
-	debug("blocker: running\n");
 
-	while(blocked > 0)
+	while(__atomic_load_n(&blocked, __ATOMIC_RELAXED) > 0)
 		;
 
 	debug("blocker: finished!\n");
@@ -296,8 +298,13 @@ int main (int argc, char **argv)
 	set_sig_handler();
 
 
-	/* set up our ready barrier */
-	status = pthread_barrier_init(&all_threads_ready, NULL, 3);
+	/* set up our barriers */
+	status = pthread_barrier_init(&blocker_barrier, NULL, 2);
+	if ((status ) != 0) {
+		error("pthread_barrier_init");
+		exit(errno);
+	}
+	status = pthread_barrier_init(&blockee_barrier, NULL, 2);
 	if ((status ) != 0) {
 		error("pthread_barrier_init");
 		exit(errno);
@@ -313,13 +320,13 @@ int main (int argc, char **argv)
 		error("setting up blocker failed\n");
 		exit(errno);
 	}
-	debug("main: blocker thread started (tid: %ld)\n", blocker_tid);
+	//debug("main: blocker thread started (tid: %ld)\n", blocker_tid);
 
 	if (setup_blockee() != 0) {
 		error("setting up blockee failed\n");
 		exit(errno);
 	}
-	debug("main: blockee thread started (tid: %ld)\n", blockee_tid);
+	//debug("main: blockee thread started (tid: %ld)\n", blockee_tid);
 
 	/*
 	 * ensure that main doesn't run on the test cpu
@@ -354,9 +361,17 @@ int main (int argc, char **argv)
 	/*
 	 * start the blocker and blockee
 	 */
-	debug("main: calling pthread_barrier_wait to start threads\n");
+	debug("main: starting blocker\n");
 
-	status = pthread_barrier_wait(&all_threads_ready);
+	status = pthread_barrier_wait(&blocker_barrier);
+	if (status != PTHREAD_BARRIER_SERIAL_THREAD && status != 0) {
+		error("main error from pthread_barrier_wait");
+		exit(errno);
+	}
+	/* wait a second to let the blocker get going */
+	sleep(1);
+	debug("main: starting blockee\n");
+	status = pthread_barrier_wait(&blockee_barrier);
 	if (status != PTHREAD_BARRIER_SERIAL_THREAD && status != 0) {
 		error("main error from pthread_barrier_wait");
 		exit(errno);
