@@ -68,7 +68,7 @@ unsigned long config_force_fifo = 0;
 /*
  * control loop (time in seconds)
  */
-long config_starving_threshold = 60;
+long config_starving_threshold = 30;
 long config_boost_duration = 3;
 long config_aggressive = 0;
 
