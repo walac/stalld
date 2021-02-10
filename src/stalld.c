@@ -79,10 +79,11 @@ int config_monitor_all_cpus = 1;
 char *config_monitored_cpus;
 
 /*
- * Max known to be enough sched_debug buffer size. It increases if the
- * file gets larger.
+ * This will get set when we finish reading first time
+ * in detect_task_format. May change over time as the
+ * system gets loaded
  */
-int config_buffer_size = BUFFER_SIZE;
+int config_buffer_size;
 
 /*
  * auto-detected task format from /proc/sched_debug
@@ -104,6 +105,11 @@ int boost_policy;
  * shutting down
  */
 int running = 1;
+
+/*
+ * size of pages in bytes
+ */
+long page_size;
 
 /*
 * read the contents of /proc/sched_debug into
@@ -243,16 +249,25 @@ static inline char *nextline(char *str)
 /*
  * read /proc/sched_debug and figure out if it's old or new format
  * done once so if we fail just exit the program
+ *
+ * NOTE: A side effect of this call is to set the initial value for
+ * config_buffer_size used when reading /proc/sched_debug for
+ * parsing
  */
 int detect_task_format(void)
 {
-	int bufsiz = BUFFER_SIZE;
+	int bufsiz;
+	int bufincrement;
 	int size = 0;
 	int fd;
-	char *buffer = malloc(BUFFER_SIZE);
-	char *ptr = buffer;
+	char *buffer;
+	char *ptr;
 	int retval = -1;
 	int status;
+
+	bufsiz = bufincrement = BUFFER_PAGES * page_size;
+
+	buffer = malloc(bufsiz);
 
 	if (buffer == NULL)
 		die("detect_task_format: unable to allocate %d bytes to read /proc/sched_debug");
@@ -260,11 +275,14 @@ int detect_task_format(void)
 	if ((fd = open("/proc/sched_debug", O_RDONLY)) < 0)
 		die("detect_task_format: error opening /proc/sched_debug for reading: %s\n", strerror(errno));
 
-	while ((status = read(fd, ptr, BUFFER_SIZE))) {
+	ptr = buffer;
+	while ((status = read(fd, ptr, bufincrement))) {
 		if (status < 0)
 			die ("detect_task_format: error reading /proc/sched_debug: %s\n", strerror(errno));
+		if (status == 0)
+			break;
 		size += status;
-		bufsiz += BUFFER_SIZE;
+		bufsiz += bufincrement;
 		if ((buffer = realloc(buffer, bufsiz)) == NULL)
 			die("detect_task_format: realloc failed for %d size: %s\n", bufsiz, strerror(errno));
 		ptr = buffer + size;
@@ -1128,6 +1146,13 @@ int main(int argc, char **argv)
 	struct cpu_info *cpus;
 	int nr_cpus;
 	int i;
+
+	/*
+	 * get the system page size so we can use it
+	 * when allocating buffers
+	 */
+	if ((page_size = sysconf(_SC_PAGE_SIZE)) < 0)
+		die("Unable to get system page size: %s\n", strerror(errno));
 
 	parse_args(argc, argv);
 
