@@ -71,7 +71,7 @@ unsigned long config_force_fifo = 0;
 long config_starving_threshold = 30;
 long config_boost_duration = 3;
 long config_aggressive = 0;
-long config_granularity = 1;
+long config_granularity = 5;
 
 /*
  * XXX: Make it a cpu mask, lazy Daniel!
