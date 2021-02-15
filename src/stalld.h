@@ -130,5 +130,6 @@ extern long config_aggressive;
 extern int config_monitor_all_cpus;
 extern char *config_monitored_cpus;
 extern int config_systemd;
+extern long config_granularity;
 extern char pidfile[];
 #endif /* __STALLD_H__ */

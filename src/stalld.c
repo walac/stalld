@@ -71,6 +71,7 @@ unsigned long config_force_fifo = 0;
 long config_starving_threshold = 30;
 long config_boost_duration = 3;
 long config_aggressive = 0;
+long config_granularity = 1;
 
 /*
  * XXX: Make it a cpu mask, lazy Daniel!
@@ -974,7 +975,7 @@ void *cpu_main(void *data)
 			pthread_exit(NULL);
 		}
 
-		sleep(1);
+		sleep(config_granularity);
 	}
 
 	return NULL;
@@ -1082,7 +1083,7 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			}
 		}
 
-		sleep(MAX(config_starving_threshold/20,1));
+		sleep(config_granularity);
 	}
 }
 

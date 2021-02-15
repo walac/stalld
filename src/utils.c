@@ -491,6 +491,7 @@ static void print_usage(void)
 		"          -t/--starving_threshold: how long [s] the starving task will wait before being boosted",
 		"          -A/--aggressive_mode: dispatch one thread per run queue, even when there is no starving",
 		"                               threads on all CPU (uses more CPU/power).",
+		"	   -g/--granularity: set the granularity at which stalld checks for starving threads",
 		"	misc:",
 		"          --pidfile: write daemon pid to specified file",
 		"          -S/--systemd: running as systemd service, don't fiddle with RT throttling",
@@ -597,13 +598,14 @@ int parse_args(int argc, char **argv)
 			{"force_fifo", 		no_argument, 	   0, 'F'},
 			{"version", 		no_argument,       0, 'V'},
 			{"systemd",		no_argument,       0, 'S'},
+			{"granularity",		required_argument, 0, 'g'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "lvkfAhsp:r:d:t:c:FVS",
+		c = getopt_long(argc, argv, "lvkfAhsp:r:d:t:c:FVSg:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -682,6 +684,15 @@ int parse_args(int argc, char **argv)
 			break;
 		case 'S':
 			config_systemd = 1;
+			break;
+		case 'g':
+			config_granularity = get_long_from_str(optarg);
+			if (config_granularity < 1)
+				usage("granularity should be at least 1 second");
+
+			if (config_granularity > 600)
+				usage("granularity should not be more than 10 minutes");
+
 			break;
 		case '?':
 			usage("Invalid option");
