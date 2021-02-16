@@ -133,5 +133,6 @@ extern char *config_monitored_cpus;
 extern int config_systemd;
 extern long config_granularity;
 extern int config_idle_detection;
+extern int config_single_threaded;
 extern char pidfile[];
 #endif /* __STALLD_H__ */

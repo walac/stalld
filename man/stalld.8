@@ -73,6 +73,11 @@ dispatch one thread per cpu run-queue, even if thre are no starving
 threads (uses more power).
 .B [false]
 .TP
+.B \-O|\-\-power_mode
+run as a single threaded program, it consumes less CPU, at the price
+of less precision/granularity.
+.B [false]
+.TP
 .B \-g|\-\-granularity
 set the granularity (in seconds) at which stalld checks for starving
 threads. The lower the value the more precise will be the detection,
