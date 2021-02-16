@@ -113,7 +113,165 @@ int running = 1;
 long page_size;
 
 /*
-* read the contents of /proc/sched_debug into
+ * check the idle time before parsing sched_debug
+ */
+int config_idle_detection = 1;
+int STAT_MAX_SIZE = 4096;
+
+/*
+ * read the content of /proc/sched_debug into the
+ * input buffer.
+ */
+int read_sched_stat(char *buffer, int size)
+{
+	int position = 0;
+	int retval;
+	int fd;
+
+	fd = open("/proc/stat", O_RDONLY);
+
+	if (!fd)
+		goto out_error;
+
+	do {
+		retval = read(fd, &buffer[position], size - position);
+		if (retval < 0)
+			goto out_close_fd;
+
+		position += retval;
+
+	} while (retval > 0 && position < size);
+
+	buffer[position-1] = '\0';
+
+	close(fd);
+
+	return position;
+
+out_close_fd:
+	close(fd);
+
+out_error:
+	return 0;
+}
+
+/* format:
+cpu1 832882 9111 153357 751780 456 32198 15356 0 0 0
+cpu  user   nice system IDLE
+*/
+long get_cpu_idle_time(char *buffer, int buffer_size, int cpu)
+{
+	char cpuid[10]; /* cpuXXXXX\n */
+	char *idle_start;
+	char *end;
+
+        sprintf(cpuid, "cpu%d ", cpu);
+
+	/* CPU */
+        idle_start = strstr(buffer, cpuid);
+
+	/* find and skip space before user */
+	idle_start = strstr(idle_start, " ");
+	idle_start+=1;
+
+	/* find and skip space before nice */
+	idle_start = strstr(idle_start, " ");
+	idle_start+=1;
+
+	/* find and skip space before system */
+	idle_start = strstr(idle_start, " ");
+	idle_start+=1;
+
+	/* Here is the idle! */
+	idle_start = strstr(idle_start, " ");
+	idle_start += 1;
+
+	/* end */
+	end = strstr(idle_start, " ");
+
+	return strtol(idle_start, &end, 10);
+}
+
+int cpu_had_idle_time(struct cpu_info *cpu_info)
+{
+	char sched_stat[STAT_MAX_SIZE];
+	long idle_time;
+
+	if (!read_sched_stat(sched_stat, STAT_MAX_SIZE)) {
+		warn("fail reading sched stat file");
+		warn("disabling idle detection");
+		config_idle_detection = 0;
+		return 0;
+	}
+
+	idle_time = get_cpu_idle_time(sched_stat, STAT_MAX_SIZE, cpu_info->id);
+
+	/*
+	 * if it is different, there was a change, it does not matter
+	 * if it wrapped around.
+	 */
+	if (cpu_info->idle_time == idle_time)
+		return 0;
+
+	if (config_verbose)
+		log_msg("last idle time: %u curr idle time:%d ", cpu_info->idle_time, idle_time);
+
+	/*
+	 * the CPU had idle time!
+	 */
+        cpu_info->idle_time = idle_time;
+
+	return 1;
+}
+
+int get_cpu_busy_list(struct cpu_info *cpus, int nr_cpus, char *busy_cpu_list)
+{
+	char sched_stat[STAT_MAX_SIZE];
+	struct cpu_info *cpu;
+	int busy_count = 0;
+	long idle_time;
+	int i;
+
+	if (!read_sched_stat(sched_stat, STAT_MAX_SIZE)) {
+		warn("fail reading sched stat file");
+		warn("disabling idle detection");
+		config_idle_detection = 0;
+
+		/* assume they are all busy */
+		return nr_cpus;
+	}
+
+	for (i = 0; i < nr_cpus; i++) {
+		cpu = &cpus[i];
+		/*
+		 * Consider idle a CPU that has its own monitor.
+		 */
+		if (cpu->thread_running) {
+			if (config_verbose)
+				log_msg("\t cpu %d has its own monitor, considering idle\n", cpu->id);
+			continue;
+		}
+
+		idle_time = get_cpu_idle_time(sched_stat, STAT_MAX_SIZE, cpu->id);
+
+		if (config_verbose)
+			log_msg ("\t cpu %d had %ld idle time, and now has %ld\n", cpu->id, cpu->idle_time, idle_time);
+		/*
+		 * if the idle time did not change, the CPU is busy.
+		 */
+		if (cpu->idle_time == idle_time) {
+			busy_cpu_list[i] = 1;
+			busy_count++;
+			continue;
+		}
+
+		cpu->idle_time = idle_time;
+	}
+
+	return busy_count;
+}
+/*
+ * read the contents of /proc/sched_debug into
  * the input buffer
  */
 int read_sched_debug(char *buffer, int size)
@@ -220,9 +378,9 @@ char *alloc_and_fill_cpu_buffer(int cpu, char *sched_dbg, int sched_dbg_size)
 }
 
 /*
- * parsing helpers for skipping whitespace and chars
+ * parsing helpers for skipping whitespace and chars and
+ * detecting next line.
  */
-
 static inline char *skipchars(char *str)
 {
 	while (*str && !isspace(*str))
@@ -942,6 +1100,14 @@ void *cpu_main(void *data)
 			}
 		}
 
+		if (config_idle_detection) {
+			if (cpu_had_idle_time(cpu)) {
+				log_msg("cpu %d had idle time! skipping next phase\n", cpu->id);
+				nothing_to_do++;
+				goto skipped;
+			}
+		}
+
 		retval = read_sched_debug(cpu->buffer, cpu->buffer_size);
 		if(!retval) {
 			warn("fail reading sched debug file");
@@ -966,6 +1132,7 @@ void *cpu_main(void *data)
 			nothing_to_do++;
 		}
 
+skipped:
 		/*
 		 * it not in aggressive mode, give up after 10 cycles with
 		 * nothing to do.
@@ -1013,10 +1180,12 @@ void aggressive_main(struct cpu_info *cpus, int nr_cpus)
 
 void conservative_main(struct cpu_info *cpus, int nr_cpus)
 {
+	char busy_cpu_list[nr_cpus];
 	pthread_attr_t dettached;
 	struct cpu_info *cpu;
 	char *buffer = NULL;
 	int buffer_size = 0;
+	int has_busy_cpu;
 	int retval;
 	int i;
 
@@ -1050,8 +1219,18 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			}
 		}
 
+		if (config_idle_detection) {
+			memset(&busy_cpu_list, 0, nr_cpus);
+			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
+			if (!has_busy_cpu) {
+				if (config_verbose)
+					log_msg("all CPUs had idle time, skipping /proc/sched_debug parse\n");
+				goto skipped;
+			}
+		}
+
 		retval = read_sched_debug(buffer, buffer_size);
-		if(!retval) {
+		if (!retval) {
 			warn("Dazed and confused, but trying to continue");
 			continue;
 		}
@@ -1063,6 +1242,9 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			cpu = &cpus[i];
 
 			if (cpu->thread_running)
+				continue;
+
+			if (config_idle_detection && !busy_cpu_list[i])
 				continue;
 
 			retval = parse_cpu_info(cpu, buffer, buffer_size);
@@ -1083,6 +1265,7 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			}
 		}
 
+skipped:
 		sleep(config_granularity);
 	}
 }
@@ -1205,7 +1388,8 @@ int main(int argc, char **argv)
 
 	setup_signal_handling();
 
-
+	if (config_idle_detection)
+		STAT_MAX_SIZE = nr_cpus * page_size;
 
 	if (!config_foreground)
 		deamonize();

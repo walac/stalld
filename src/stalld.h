@@ -30,6 +30,7 @@ struct cpu_info {
        int ctxsw;
        int nr_waiting_tasks;
        int thread_running;
+       long idle_time;
        struct task_info *starving;
        pthread_t thread;
        char *buffer;
@@ -131,5 +132,6 @@ extern int config_monitor_all_cpus;
 extern char *config_monitored_cpus;
 extern int config_systemd;
 extern long config_granularity;
+extern int config_idle_detection;
 extern char pidfile[];
 #endif /* __STALLD_H__ */
