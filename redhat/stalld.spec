@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	1.8
+Version:	1.9
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
@@ -51,6 +51,15 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Wed Feb 17 2021 Clark Williams <williams@redhat.com> - 1.9-1
+- Set starvation threshold default to 30 seconds
+- rework read buffer allocation to properly find page size
+- Add the -g/--granularity option
+- Change the default granularity to five seconds
+- Implement idle detection
+- Implement the single-threaded mode
+- Add HRTICK_DL support
+
 * Fri Feb  5 2021 Clark Williams <williams@redhat.com> - 1.8-1
 - Fix Readiness Protocol Mismatch with systemd
 - test01:  update to use buildin atomic operations
