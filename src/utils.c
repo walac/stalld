@@ -511,6 +511,8 @@ static void print_usage(void)
 		"          -t/--starving_threshold: how long [s] the starving task will wait before being boosted",
 		"          -A/--aggressive_mode: dispatch one thread per run queue, even when there is no starving",
 		"                               threads on all CPU (uses more CPU/power).",
+		"	   -O/--power_mode: wors as a single threaded tool. Saves CPU, but loses precision.",
+		"	   -g/--granularity: set the granularity at which stalld checks for starving threads",
 		"	misc:",
 		"          --pidfile: write daemon pid to specified file",
 		"          -S/--systemd: running as systemd service, don't fiddle with RT throttling",
@@ -608,6 +610,7 @@ int parse_args(int argc, char **argv)
 			{"log_syslog",		no_argument,	   0, 's'},
 			{"foreground",		no_argument,	   0, 'f'},
 			{"aggressive_mode",	no_argument,	   0, 'A'},
+			{"power_mode",		no_argument,	   0, 'O'},
 			{"help",		no_argument,	   0, 'h'},
 			{"boost_period",	required_argument, 0, 'p'},
 			{"boost_runtime",	required_argument, 0, 'r'},
@@ -617,13 +620,14 @@ int parse_args(int argc, char **argv)
 			{"force_fifo", 		no_argument, 	   0, 'F'},
 			{"version", 		no_argument,       0, 'V'},
 			{"systemd",		no_argument,       0, 'S'},
+			{"granularity",		required_argument, 0, 'g'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "lvkfAhsp:r:d:t:c:FVS",
+		c = getopt_long(argc, argv, "lvkfAOhsp:r:d:t:c:FVSg:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -702,6 +706,18 @@ int parse_args(int argc, char **argv)
 			break;
 		case 'S':
 			config_systemd = 1;
+			break;
+		case 'g':
+			config_granularity = get_long_from_str(optarg);
+			if (config_granularity < 1)
+				usage("granularity should be at least 1 second");
+
+			if (config_granularity > 600)
+				usage("granularity should not be more than 10 minutes");
+
+			break;
+		case 'O':
+			config_single_threaded = 1;
 			break;
 		case '?':
 			usage("Invalid option");

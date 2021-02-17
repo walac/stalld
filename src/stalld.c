@@ -71,6 +71,7 @@ unsigned long config_force_fifo = 0;
 long config_starving_threshold = 30;
 long config_boost_duration = 3;
 long config_aggressive = 0;
+long config_granularity = 5;
 
 /*
  * XXX: Make it a cpu mask, lazy Daniel!
@@ -112,7 +113,170 @@ int running = 1;
 long page_size;
 
 /*
-* read the contents of /proc/sched_debug into
+ * config single threaded: uses less CPU, but has a lower precision.
+ */
+int config_single_threaded = 0;
+
+/*
+ * check the idle time before parsing sched_debug
+ */
+int config_idle_detection = 1;
+int STAT_MAX_SIZE = 4096;
+
+/*
+ * read the content of /proc/sched_debug into the
+ * input buffer.
+ */
+int read_sched_stat(char *buffer, int size)
+{
+	int position = 0;
+	int retval;
+	int fd;
+
+	fd = open("/proc/stat", O_RDONLY);
+
+	if (!fd)
+		goto out_error;
+
+	do {
+		retval = read(fd, &buffer[position], size - position);
+		if (retval < 0)
+			goto out_close_fd;
+
+		position += retval;
+
+	} while (retval > 0 && position < size);
+
+	buffer[position-1] = '\0';
+
+	close(fd);
+
+	return position;
+
+out_close_fd:
+	close(fd);
+
+out_error:
+	return 0;
+}
+
+/* format:
+cpu1 832882 9111 153357 751780 456 32198 15356 0 0 0
+cpu  user   nice system IDLE
+*/
+long get_cpu_idle_time(char *buffer, int buffer_size, int cpu)
+{
+	char cpuid[10]; /* cpuXXXXX\n */
+	char *idle_start;
+	char *end;
+
+        sprintf(cpuid, "cpu%d ", cpu);
+
+	/* CPU */
+        idle_start = strstr(buffer, cpuid);
+
+	/* find and skip space before user */
+	idle_start = strstr(idle_start, " ");
+	idle_start+=1;
+
+	/* find and skip space before nice */
+	idle_start = strstr(idle_start, " ");
+	idle_start+=1;
+
+	/* find and skip space before system */
+	idle_start = strstr(idle_start, " ");
+	idle_start+=1;
+
+	/* Here is the idle! */
+	idle_start = strstr(idle_start, " ");
+	idle_start += 1;
+
+	/* end */
+	end = strstr(idle_start, " ");
+
+	return strtol(idle_start, &end, 10);
+}
+
+int cpu_had_idle_time(struct cpu_info *cpu_info)
+{
+	char sched_stat[STAT_MAX_SIZE];
+	long idle_time;
+
+	if (!read_sched_stat(sched_stat, STAT_MAX_SIZE)) {
+		warn("fail reading sched stat file");
+		warn("disabling idle detection");
+		config_idle_detection = 0;
+		return 0;
+	}
+
+	idle_time = get_cpu_idle_time(sched_stat, STAT_MAX_SIZE, cpu_info->id);
+
+	/*
+	 * if it is different, there was a change, it does not matter
+	 * if it wrapped around.
+	 */
+	if (cpu_info->idle_time == idle_time)
+		return 0;
+
+	if (config_verbose)
+		log_msg("last idle time: %u curr idle time:%d ", cpu_info->idle_time, idle_time);
+
+	/*
+	 * the CPU had idle time!
+	 */
+        cpu_info->idle_time = idle_time;
+
+	return 1;
+}
+
+int get_cpu_busy_list(struct cpu_info *cpus, int nr_cpus, char *busy_cpu_list)
+{
+	char sched_stat[STAT_MAX_SIZE];
+	struct cpu_info *cpu;
+	int busy_count = 0;
+	long idle_time;
+	int i;
+
+	if (!read_sched_stat(sched_stat, STAT_MAX_SIZE)) {
+		warn("fail reading sched stat file");
+		warn("disabling idle detection");
+		config_idle_detection = 0;
+
+		/* assume they are all busy */
+		return nr_cpus;
+	}
+
+	for (i = 0; i < nr_cpus; i++) {
+		cpu = &cpus[i];
+		/*
+		 * Consider idle a CPU that has its own monitor.
+		 */
+		if (cpu->thread_running) {
+			if (config_verbose)
+				log_msg("\t cpu %d has its own monitor, considering idle\n", cpu->id);
+			continue;
+		}
+
+		idle_time = get_cpu_idle_time(sched_stat, STAT_MAX_SIZE, cpu->id);
+
+		if (config_verbose)
+			log_msg ("\t cpu %d had %ld idle time, and now has %ld\n", cpu->id, cpu->idle_time, idle_time);
+		/*
+		 * if the idle time did not change, the CPU is busy.
+		 */
+		if (cpu->idle_time == idle_time) {
+			busy_cpu_list[i] = 1;
+			busy_count++;
+			continue;
+		}
+
+		cpu->idle_time = idle_time;
+	}
+
+	return busy_count;
+}
+/*
+ * read the contents of /proc/sched_debug into
  * the input buffer
  */
 int read_sched_debug(char *buffer, int size)
@@ -219,9 +383,9 @@ char *alloc_and_fill_cpu_buffer(int cpu, char *sched_dbg, int sched_dbg_size)
 }
 
 /*
- * parsing helpers for skipping whitespace and chars
+ * parsing helpers for skipping whitespace and chars and
+ * detecting next line.
  */
-
 static inline char *skipchars(char *str)
 {
 	while (*str && !isspace(*str))
@@ -647,7 +811,28 @@ void print_waiting_tasks(struct cpu_info *cpu_info)
 
 }
 
-void merge_taks_info(struct task_info *old_tasks, int nr_old, struct task_info *new_tasks, int nr_new)
+struct cpu_starving_task_info {
+	int pid;
+	time_t since;
+};
+
+struct cpu_starving_task_info *cpu_starving_vector;
+
+void update_cpu_starving_vector(int cpu, int pid, time_t since)
+{
+	struct cpu_starving_task_info *cpu_info = &cpu_starving_vector[cpu];
+
+	/*
+	 * If there is no thread in the vector, or if the in the
+	 * vector has an earlier since (time stamp), update it.
+	 */
+	if ((cpu_info->since == 0) || cpu_info->since > since) {
+		cpu_info->pid = pid;
+		cpu_info->since = since;
+	}
+}
+
+void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct task_info *new_tasks, int nr_new)
 {
 	struct task_info *old_task;
 	struct task_info *new_task;
@@ -661,9 +846,11 @@ void merge_taks_info(struct task_info *old_tasks, int nr_old, struct task_info *
 			new_task = &new_tasks[j];
 
 			if (old_task->pid == new_task->pid) {
-				if (old_task->ctxsw == new_task->ctxsw)
+				if (old_task->ctxsw == new_task->ctxsw) {
 					new_task->since = old_task->since;
-
+					if (config_single_threaded)
+						update_cpu_starving_vector(cpu, new_task->pid, new_task->since);
+				}
 				break;
 			}
 		}
@@ -707,7 +894,7 @@ int parse_cpu_info(struct cpu_info *cpu_info, char *buffer, int buffer_size)
 	cpu_info->nr_rt_running = nr_rt_running;
 	cpu_info->nr_waiting_tasks = fill_waiting_task(cpu_buffer, cpu_info, cpu_info->nr_running);
 	if (old_tasks) {
-		merge_taks_info(old_tasks, nr_old_tasks, cpu_info->starving, cpu_info->nr_waiting_tasks);
+		merge_taks_info(cpu_info->id, old_tasks, nr_old_tasks, cpu_info->starving, cpu_info->nr_waiting_tasks);
 		free(old_tasks);
 	}
 
@@ -941,6 +1128,15 @@ void *cpu_main(void *data)
 			}
 		}
 
+		if (config_idle_detection) {
+			if (cpu_had_idle_time(cpu)) {
+				if (config_verbose)
+					log_msg("cpu %d had idle time! skipping next phase\n", cpu->id);
+				nothing_to_do++;
+				goto skipped;
+			}
+		}
+
 		retval = read_sched_debug(cpu->buffer, cpu->buffer_size);
 		if(!retval) {
 			warn("fail reading sched debug file");
@@ -965,6 +1161,7 @@ void *cpu_main(void *data)
 			nothing_to_do++;
 		}
 
+skipped:
 		/*
 		 * it not in aggressive mode, give up after 10 cycles with
 		 * nothing to do.
@@ -974,7 +1171,7 @@ void *cpu_main(void *data)
 			pthread_exit(NULL);
 		}
 
-		sleep(1);
+		sleep(config_granularity);
 	}
 
 	return NULL;
@@ -1012,10 +1209,12 @@ void aggressive_main(struct cpu_info *cpus, int nr_cpus)
 
 void conservative_main(struct cpu_info *cpus, int nr_cpus)
 {
+	char busy_cpu_list[nr_cpus];
 	pthread_attr_t dettached;
 	struct cpu_info *cpu;
 	char *buffer = NULL;
 	int buffer_size = 0;
+	int has_busy_cpu;
 	int retval;
 	int i;
 
@@ -1049,8 +1248,18 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			}
 		}
 
+		if (config_idle_detection) {
+			memset(&busy_cpu_list, 0, nr_cpus);
+			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
+			if (!has_busy_cpu) {
+				if (config_verbose)
+					log_msg("all CPUs had idle time, skipping /proc/sched_debug parse\n");
+				goto skipped;
+			}
+		}
+
 		retval = read_sched_debug(buffer, buffer_size);
-		if(!retval) {
+		if (!retval) {
 			warn("Dazed and confused, but trying to continue");
 			continue;
 		}
@@ -1062,6 +1271,9 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			cpu = &cpus[i];
 
 			if (cpu->thread_running)
+				continue;
+
+			if (config_idle_detection && !busy_cpu_list[i])
 				continue;
 
 			retval = parse_cpu_info(cpu, buffer, buffer_size);
@@ -1082,7 +1294,201 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			}
 		}
 
-		sleep(MAX(config_starving_threshold/20,1));
+skipped:
+		sleep(config_granularity);
+	}
+}
+
+int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus)
+{
+	struct cpu_starving_task_info *cpu;
+	struct sched_attr attr[nr_cpus];
+	int deboost_vector[nr_cpus];
+	time_t now = time(NULL);
+	int boosted = 0;
+	int ret;
+	int i;
+
+	/*
+	 * Boost phase.
+	 */
+	for (i = 0; i < nr_cpus; i++) {
+
+		/*
+		 * clear the deboost vector for this CPU.
+		 */
+		deboost_vector[i] = 0;
+
+		cpu = &cpu_starving_vector[i];
+
+		if (config_verbose)
+			log_msg("boosting cpu %d: pid: %d starving for %llu\n", i, cpu->pid, (now - cpu->since));
+
+		if (cpu->pid != 0 && (now - cpu->since) > config_starving_threshold) {
+
+			/*
+			 * Save the task policy.
+			 */
+			ret = get_current_policy(cpu->pid, &attr[i]);
+			/*
+			 * It is ok if a task die.
+			 */
+			if (ret < 0)
+				continue;
+
+			/*
+			 * Boost!
+			 */
+			ret = boost_with_deadline(cpu->pid);
+			/*
+			 * It is ok if a task die.
+			 */
+			if (ret < 0)
+				continue;
+
+			/*
+			 * Save it for the deboost.
+			 */
+			deboost_vector[i] = cpu->pid;
+
+			boosted++;
+		}
+	}
+
+	if (!boosted)
+		return 0;
+
+	sleep(config_boost_duration);
+
+	for (i = 0; i < nr_cpus; i++) {
+		if (deboost_vector[i] != 0)
+			restore_policy(deboost_vector[i], &attr[i]);
+	}
+
+	return boosted;
+}
+
+void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
+{
+	char busy_cpu_list[nr_cpus];
+	struct cpu_info *cpu;
+	char *buffer = NULL;
+	int buffer_size = 0;
+	int has_busy_cpu;
+	int boosted = 0;
+	int retval;
+	int i;
+
+	log_msg("single threaded mode\n");
+
+        if (boost_policy != SCHED_DEADLINE)
+		die("Single threaded mode only works with SCHED_DEADLINE");
+
+	cpu_starving_vector = malloc(sizeof(struct cpu_starving_task_info) * nr_cpus);
+	if (!cpu_starving_vector)
+		die("cannot allocate cpu starving vector");
+
+	buffer = malloc(config_buffer_size);
+	if (!buffer)
+		die("cannot allocate buffer");
+
+	buffer_size = config_buffer_size;
+
+	for (i = 0; i < nr_cpus; i++) {
+		cpus[i].id = i;
+		cpus[i].thread_running = 0;
+		cpu_starving_vector[i].pid = 0;
+		cpu_starving_vector[i].since = 0;
+	}
+
+	while (running) {
+
+		/*
+		 * Buffer size should increase. See read_sched_debug().
+		 */
+		if (config_buffer_size != buffer_size) {
+			char *old_buffer = buffer;
+			buffer = realloc(buffer, config_buffer_size);
+			if (!buffer) {
+				warn("fail to increase the buffer... continue");
+				buffer = old_buffer;
+			} else {
+				buffer_size = config_buffer_size;
+			}
+		}
+
+		if (config_idle_detection) {
+			memset(&busy_cpu_list, 0, nr_cpus);
+			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
+			if (!has_busy_cpu) {
+				if (config_verbose)
+					log_msg("all CPUs had idle time, skipping /proc/sched_debug parse\n");
+
+				goto skipped;
+			}
+		}
+
+		retval = read_sched_debug(buffer, buffer_size);
+		if (!retval) {
+			warn("Dazed and confused, but trying to continue");
+			continue;
+		}
+
+		for (i = 0; i < nr_cpus; i++) {
+			if (!should_monitor(i))
+				continue;
+
+			cpu = &cpus[i];
+
+			if (config_idle_detection && !busy_cpu_list[i])
+				continue;
+
+			retval = parse_cpu_info(cpu, buffer, buffer_size);
+			if (retval) {
+				warn("error parsing CPU info");
+				warn("Dazed and confused, but trying to continue");
+				continue;
+			}
+
+			if (config_verbose)
+				printf("\tchecking cpu %d - rt: %d - starving: %d\n",
+				       i, cpu->nr_rt_running, cpu->nr_waiting_tasks);
+
+		}
+
+		boosted = boost_cpu_starving_vector(cpu_starving_vector, nr_cpus);
+		if (!boosted)
+			goto skipped;
+
+		/* Cleanup the cpu starving vector */
+		for (i = 0; i < nr_cpus; i++) {
+			cpu_starving_vector[i].pid = 0;
+			cpu_starving_vector[i].since = 0;
+		}
+
+skipped:
+		/*
+		 * if no boost was required, just sleep.
+		 */
+		if (!boosted) {
+			sleep(config_granularity);
+			continue;
+		}
+
+		/*
+		 * if the boost duration is longer than the granularity, there
+		 * is no need for a sleep.
+		 */
+		if (config_granularity <= config_boost_duration)
+			continue;
+
+		/*
+		 * Ok, sleep for the rest of the time.
+		 *
+		 * (yeah, but is it worth to get the time to compute the overhead?
+		 * at the end, it should be less than one second anyway.)
+		 */
+		sleep(config_granularity - config_boost_duration);
 	}
 }
 
@@ -1204,17 +1610,21 @@ int main(int argc, char **argv)
 
 	setup_signal_handling();
 
-
+	if (config_idle_detection)
+		STAT_MAX_SIZE = nr_cpus * page_size;
 
 	if (!config_foreground)
 		deamonize();
 
 	write_pidfile();
 
-	if (config_aggressive)
+	if (config_single_threaded)
+		single_threaded_main(cpus, nr_cpus);
+	else if (config_aggressive)
 		aggressive_main(cpus, nr_cpus);
 	else
 		conservative_main(cpus, nr_cpus);
+
 
 	if (config_log_syslog)
 		closelog();
