@@ -334,7 +334,7 @@ void deamonize(void)
 #define _STR(x) #x
 #define STR(x) _STR(x)
 #ifndef MAXPATH
-#define MAXPATH 1024
+#define MAXPATH 4096
 #endif
 static int find_mount(const char *mount, char *debugfs)
 {
