@@ -27,6 +27,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <linux/sched.h>
+#include <regex.h>
 
 #include "stalld.h"
 

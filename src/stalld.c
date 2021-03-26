@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <linux/sched.h>
 #include <sys/file.h>
+#include <regex.h>
 
 #include "stalld.h"
 
@@ -52,6 +53,11 @@ int config_write_kmesg = 0;
 int config_log_syslog = 1;
 int config_log_only = 0;
 int config_foreground = 0;
+
+/*
+ * denylisting feature
+ */
+int config_ignore = 0;
 
 /*
  * boost parameters (time in nanoseconds).
@@ -122,6 +128,103 @@ int config_single_threaded = 0;
  */
 int config_idle_detection = 1;
 int STAT_MAX_SIZE = 4096;
+
+/*
+ * variables related to the threads to be ignored
+ */
+unsigned int nr_thread_ignore = 0;
+regex_t *compiled_regex_thread = NULL;
+
+/*
+ * variables related to the processes to be ignored
+ */
+unsigned int nr_process_ignore = 0;
+regex_t *compiled_regex_process = NULL;
+
+/*
+ * API to fetch process name from process group ID
+ */
+char *get_process_comm(int tgid) {
+	char *process_name;
+	int n;
+	FILE *fp;
+	char file_location[PROC_PID_FILE_PATH_LEN];
+
+	process_name = calloc(COMM_SIZE + 1, sizeof(char));
+	if (process_name == NULL)
+		return NULL;
+
+	n = sprintf(file_location, "/proc/%d/comm", tgid);
+	if (n < 0)
+		goto out_error;
+
+	if ((fp = fopen(file_location, "r")) == NULL)
+		goto out_error;
+
+	if (fscanf(fp, "%s", process_name) != 1)
+		goto out_close_fd;
+
+	fclose(fp);
+	return process_name;
+
+out_close_fd:
+	fclose(fp);
+out_error:
+	free(process_name);
+	return NULL;
+}
+
+/*
+ * API to fetch the process group ID for a thread/process
+ */
+int get_tgid(int pid) {
+	char file_location[PROC_PID_FILE_PATH_LEN];
+	char *status = NULL;
+	int tgid;
+	FILE *fp;
+	const char tgid_field[TGID_FIELD] = "Tgid:";
+
+	status = calloc(TMP_BUFFER_SIZE, sizeof(char));
+	if (status == NULL) {
+		return -ENOMEM;
+	}
+	int n = sprintf(file_location, "/proc/%d/status", pid);
+	if (n < 0)
+		goto out_free_mem;
+
+	if ((fp = fopen(file_location, "r")) == NULL)
+		goto out_free_mem;
+
+	/*
+	 * Iterate till we find the tgid field
+	 */
+	while (1) {
+		if (fgets(status, TMP_BUFFER_SIZE, fp) == NULL)
+			goto out_close_fd;
+		if (!(strncmp(status, tgid_field, (TGID_FIELD - 1))))
+			break;
+		/*
+		 * Zero out the buffer just in case
+		 */
+		memset(status, 0, TMP_BUFFER_SIZE);
+	}
+	/*
+	 * since we're now at the line we're interested in,
+	 * let's read in the field that we want
+	 */
+	if (sscanf(status, "%*s %d", &tgid) != 1)
+		goto out_close_fd;
+
+	fclose(fp);
+	free(status);
+	return tgid;
+
+out_close_fd:
+	fclose(fp);
+out_free_mem:
+	free(status);
+	return -EINVAL;
+}
 
 /*
  * read the content of /proc/sched_debug into the
@@ -547,6 +650,9 @@ int parse_new_task_format(char *buffer, struct task_info *task_info, int nr_entr
 
 		task->pid = strtol(start, &end, 10);
 
+		/* get the id of the thread group leader */
+		task->tgid = get_tgid(task->pid);
+
 		/*
 		 * go to the end of the pid
 		 */
@@ -747,6 +853,7 @@ int parse_old_task_format(char *buffer, struct task_info *task_info, int nr_entr
 			strncpy(task->comm, comm, comm_size);
 			task->comm[comm_size] = 0;
 			task->pid = pid;
+			task->tgid = get_tgid(task->pid);
 			task->ctxsw = ctxsw;
 			task->prio = prio;
 			task->since = time(NULL);
@@ -812,13 +919,14 @@ void print_waiting_tasks(struct cpu_info *cpu_info)
 }
 
 struct cpu_starving_task_info {
+	struct task_info task;
 	int pid;
 	time_t since;
 };
 
 struct cpu_starving_task_info *cpu_starving_vector;
 
-void update_cpu_starving_vector(int cpu, int pid, time_t since)
+void update_cpu_starving_vector(int cpu, int pid, time_t since, struct task_info *task)
 {
 	struct cpu_starving_task_info *cpu_info = &cpu_starving_vector[cpu];
 
@@ -827,6 +935,7 @@ void update_cpu_starving_vector(int cpu, int pid, time_t since)
 	 * vector has an earlier since (time stamp), update it.
 	 */
 	if ((cpu_info->since == 0) || cpu_info->since > since) {
+		memcpy(&(cpu_info->task), task, sizeof(struct task_info));
 		cpu_info->pid = pid;
 		cpu_info->since = since;
 	}
@@ -849,7 +958,7 @@ void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct ta
 				if (old_task->ctxsw == new_task->ctxsw) {
 					new_task->since = old_task->since;
 					if (config_single_threaded)
-						update_cpu_starving_vector(cpu, new_task->pid, new_task->since);
+						update_cpu_starving_vector(cpu, new_task->pid, new_task->since, new_task);
 				}
 				break;
 			}
@@ -1046,6 +1155,60 @@ int boost_starving_task(int pid)
 
 }
 
+/*
+ * API to check if the task must not be considered
+ * for priority boosting. The task's name itself will
+ * be checked or the name of the task group it is a
+ * part of will be checked
+ */
+int check_task_ignore(struct task_info *task) {
+	unsigned int i;
+	int ret = -EINVAL;
+	char *group_comm = NULL;
+	/*
+	 * check if this task's name has been passed as part of the
+	 * thread ignore regex
+	 */
+	for (i = 0; i < nr_thread_ignore; i++) {
+		ret = regexec(&compiled_regex_thread[i], task->comm, REGEXEC_NO_NMATCH,
+				REGEXEC_NO_MATCHPTR, REGEXEC_NO_FLAGS);
+		if (!ret) {
+			log_msg("Ignoring the thread %s from consideration for boosting\n", task->comm);
+			return ret;
+		}
+	}
+	ret = -EINVAL;
+
+	/*
+	 * if a valid tgid has been found and its not that of the
+	 * swapper (because its not listed on the /proc filesystem)
+	 * then proceed to fetch the name of the process
+	 */
+	if (task->tgid > SWAPPER) {
+		group_comm = get_process_comm(task->tgid);
+		if (group_comm == NULL) {
+			warn("Ran into a tgid without process name");
+			return ret;
+		}
+		/*
+		 * check if the process group that this task is a part has been
+		 * requested to be ignored
+		 */
+		for (i = 0; i < nr_process_ignore; i++) {
+			ret = regexec(&compiled_regex_process[i], group_comm, REGEXEC_NO_NMATCH,
+					REGEXEC_NO_MATCHPTR, REGEXEC_NO_FLAGS);
+			if (!ret) {
+				log_msg("Ignoring the thread %s (spawned by %s) from consideration for boosting\n", task->comm, group_comm);
+				goto free_mem;
+			}
+		}
+	}
+free_mem:
+	if (group_comm != NULL)
+		free(group_comm);
+	return ret;
+}
+
 int check_starving_tasks(struct cpu_info *cpu)
 {
 	struct task_info *tasks = cpu->starving;
@@ -1061,6 +1224,15 @@ int check_starving_tasks(struct cpu_info *cpu)
 			log_msg("%s-%d starved on CPU %d for %d seconds\n",
 				task->comm, task->pid, cpu->id,
 				(time(NULL) - task->since));
+
+			/* check if this task needs to be ignored from being boosted
+			 * if yes, update the time stamp so that it doesn't keep
+			 * getting reported as being starved
+			 */
+			if (config_ignore && !(check_task_ignore(task))) {
+				task->since = time(NULL);
+				continue;
+			}
 
 			starving+=1;
 
@@ -1325,6 +1497,12 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 			log_msg("boosting cpu %d: pid: %d starving for %llu\n", i, cpu->pid, (now - cpu->since));
 
 		if (cpu->pid != 0 && (now - cpu->since) > config_starving_threshold) {
+			/*
+			 * Check if this task name is part of a denylist
+			 * If yes, do not boost it
+			 */
+			if (config_ignore && !check_task_ignore(&cpu->task))
+				continue;
 
 			/*
 			 * Save the task policy.
@@ -1399,6 +1577,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 		cpus[i].thread_running = 0;
 		cpu_starving_vector[i].pid = 0;
 		cpu_starving_vector[i].since = 0;
+		memset(&cpu_starving_vector[i].task, 0, sizeof(struct task_info));
 	}
 
 	while (running) {
@@ -1462,6 +1641,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 
 		/* Cleanup the cpu starving vector */
 		for (i = 0; i < nr_cpus; i++) {
+			memset(&(cpu_starving_vector[i].task), 0, sizeof(struct task_info));
 			cpu_starving_vector[i].pid = 0;
 			cpu_starving_vector[i].since = 0;
 		}
@@ -1625,7 +1805,8 @@ int main(int argc, char **argv)
 	else
 		conservative_main(cpus, nr_cpus);
 
-
+	cleanup_regex(&nr_thread_ignore, &compiled_regex_thread);
+	cleanup_regex(&nr_process_ignore, &compiled_regex_process);
 	if (config_log_syslog)
 		closelog();
 

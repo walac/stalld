@@ -6,7 +6,10 @@ Type=simple
 # Type=forking
 EnvironmentFile=/etc/sysconfig/stalld
 ExecStartPre=/usr/bin/throttlectl off
-ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF
+
+# In case the regex passed to IT or IP includes C escape sequences,
+# use ${IT} or ${IP} instead of $IT or $IP
+ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF $IT $IP
 ExecStopPost=/usr/bin/throttlectl on
 
 [Install]
