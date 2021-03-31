@@ -664,7 +664,7 @@ static void parse_cpu_list(char *cpulist)
 
 	for (p = cpulist; *p; ) {
 		cpu = atoi(p);
-		if (cpu < 0 || (!cpu && *p != '0') || cpu > nr_cpus)
+		if (cpu < 0 || (!cpu && *p != '0') || cpu >= nr_cpus)
 			goto err;
 
 		while (isdigit(*p))
@@ -672,7 +672,7 @@ static void parse_cpu_list(char *cpulist)
 		if (*p == '-') {
 			p++;
 			end_cpu = atoi(p);
-			if (end_cpu < cpu || (!end_cpu && *p != '0'))
+			if (end_cpu < cpu || (!end_cpu && *p != '0') || end_cpu >= nr_cpus)
 				goto err;
 			while (isdigit(*p))
 				p++;
