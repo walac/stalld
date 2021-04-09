@@ -37,7 +37,7 @@ long get_long_from_str(char *start)
 	errno = 0;
 	value = strtol(start, &end, 10);
 	if (errno || start == end) {
-		warn("Invalid ID '%s'", value);
+		warn("Invalid ID '%s'", start);
 		return -1;
 	}
 
