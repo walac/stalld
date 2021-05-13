@@ -42,6 +42,9 @@
  */
 #define PROC_PID_FILE_PATH_LEN 30
 
+/* Daemon umask value */
+#define DAEMON_UMASK  0x133  /* 0644 */
+
 /* informnation about running tasks on a cpu */
 struct task_info {
        int pid;

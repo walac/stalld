@@ -320,7 +320,7 @@ void deamonize(void)
 	/*
 	 * Set new file permissions.
 	 */
-	umask(0);
+	umask(DAEMON_UMASK);
 
 	/*
 	 * Change the working directory to the root directory.
