@@ -92,8 +92,11 @@ static void inthandler (int signo, siginfo_t *info, void *extra)
 static void set_sig_handler()
 {
 	struct sigaction action;
+
+	memset(&action, 0, sizeof(action));
 	action.sa_flags = SA_SIGINFO;
 	action.sa_sigaction = inthandler;
+	sigemptyset(&action.sa_mask);
 	if (sigaction(SIGINT, &action, NULL) == -1) {
 		warn("error setting SIGINT handler: %s\n",
 		      strerror(errno));
@@ -221,16 +224,16 @@ void log_msg(const char *fmt, ...)
 {
 	const char *log_prefix = "stalld: ";
 	char message[1024];
+	size_t bufsz;
 	char *log;
 	int kmesg_fd;
 	va_list ap;
 
+	strncpy(message, log_prefix, sizeof(message));
 	log = message + strlen(log_prefix);
-
-	sprintf(message, log_prefix, strlen(log_prefix));
-
+	bufsz = sizeof(message) - strlen(log_prefix);
 	va_start(ap, fmt);
-	vsprintf(log, fmt, ap);
+	vsnprintf(log, bufsz, fmt, ap);
 	va_end(ap);
 
 	/*

@@ -67,7 +67,7 @@ struct cpu_info {
        struct task_info *starving;
        pthread_t thread;
        char *buffer;
-       int buffer_size;
+       size_t buffer_size;
 };
 
 #ifdef __x86_64__

@@ -90,7 +90,7 @@ char *config_monitored_cpus;
  * in detect_task_format. May change over time as the
  * system gets loaded
  */
-int config_buffer_size;
+size_t config_buffer_size;
 
 /*
  * auto-detected task format from /proc/sched_debug
@@ -267,7 +267,7 @@ out_error:
 cpu1 832882 9111 153357 751780 456 32198 15356 0 0 0
 cpu  user   nice system IDLE
 */
-long get_cpu_idle_time(char *buffer, int buffer_size, int cpu)
+long get_cpu_idle_time(char *buffer, size_t buffer_size, int cpu)
 {
 	char cpuid[10]; /* cpuXXXXX\n */
 	char *idle_start;
@@ -406,7 +406,7 @@ int read_sched_debug(char *buffer, int size)
 
 	if (position + 100 > config_buffer_size) {
 		config_buffer_size = config_buffer_size * 2;
-		log_msg("sched_debug is getting larger, increasing the buffer to %d\n", config_buffer_size);
+		log_msg("sched_debug is getting larger, increasing the buffer to %zu\n", config_buffer_size);
 	}
 
 	close(fd);
@@ -523,7 +523,7 @@ static inline char *nextline(char *str)
  */
 int detect_task_format(void)
 {
-	int bufsiz;
+	size_t bufsiz;
 	int bufincrement;
 	int size = 0;
 	int fd;
@@ -551,13 +551,13 @@ int detect_task_format(void)
 		size += status;
 		bufsiz += bufincrement;
 		if ((buffer = realloc(buffer, bufsiz)) == NULL)
-			die("detect_task_format: realloc failed for %d size: %s\n", bufsiz, strerror(errno));
+			die("detect_task_format: realloc failed for %zu size: %s\n", bufsiz, strerror(errno));
 		ptr = buffer + size;
 	}
 	close(fd);
 	buffer[size] = '\0';
 	config_buffer_size = bufsiz;
-	log_msg("initial config_buffer_size set to %d\n", config_buffer_size);
+	log_msg("initial config_buffer_size set to %zu\n", config_buffer_size);
 
 	ptr = strstr(buffer, TASK_MARKER);
 	if (ptr == NULL) {
@@ -966,7 +966,7 @@ void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct ta
 	}
 }
 
-int parse_cpu_info(struct cpu_info *cpu_info, char *buffer, int buffer_size)
+int parse_cpu_info(struct cpu_info *cpu_info, char *buffer, size_t buffer_size)
 {
 
 	struct task_info *old_tasks = cpu_info->starving;
@@ -1385,7 +1385,7 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 	pthread_attr_t dettached;
 	struct cpu_info *cpu;
 	char *buffer = NULL;
-	int buffer_size = 0;
+	size_t buffer_size = 0;
 	int has_busy_cpu;
 	int retval;
 	int i;
@@ -1551,7 +1551,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 	char busy_cpu_list[nr_cpus];
 	struct cpu_info *cpu;
 	char *buffer = NULL;
-	int buffer_size = 0;
+	size_t buffer_size = 0;
 	int has_busy_cpu;
 	int boosted = 0;
 	int retval;
@@ -1670,6 +1670,8 @@ skipped:
 		 */
 		sleep(config_granularity - config_boost_duration);
 	}
+	if (buffer)
+		free(buffer);
 }
 
 
