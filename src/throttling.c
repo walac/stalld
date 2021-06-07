@@ -47,7 +47,7 @@ static void restore_rt_throttling(int status, void *arg)
 		sprintf(buffer, "%ld", rt_runtime_us);
 		retval = write(fd, buffer, strlen(buffer));
 		if (retval < 0)
-			warn("restore_rt_throttling: error restoring rt throttling");
+			warn("error restoring rt throttling");
 
 		close(fd);
 		log_msg("RT Throttling runtime restored to %d\n", rt_runtime_us);

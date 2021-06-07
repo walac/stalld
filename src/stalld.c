@@ -735,7 +735,7 @@ static int is_runnable(int pid)
  	case 'T':
 		break;
 	default:
-		warn("is_runnable: invalid state(%c) in %s\n", *ptr, stat_path);
+		warn("invalid state(%c) in %s\n", *ptr, stat_path);
 	}
 
 out_close_fd:
@@ -879,7 +879,7 @@ int fill_waiting_task(char *buffer, struct cpu_info *cpu_info, int nr_entries)
 	case NEW_TASK_FORMAT:
 		cpu_info->starving = malloc(sizeof(struct task_info) * cpu_info->nr_running);
 		if (cpu_info->starving == NULL) {
-			warn("fill_waiting_task: failed to malloc %d task_info structs", cpu_info->nr_running);
+			warn("failed to malloc %d task_info structs", cpu_info->nr_running);
 			return 0;
 		}
 		nr_waiting = parse_new_task_format(buffer, cpu_info->starving, nr_entries);
