@@ -127,10 +127,11 @@ static inline void normalize_timespec(struct timespec *ts)
 
 void __die(const char *fmt, ...);
 void __warn(const char *fmt, ...);
-void info(const char *fmt, ...);
+void __info(const char *fmt, ...);
 
 #define die(fmt, ...)	__die("%s: " fmt, __func__, ##__VA_ARGS__)
 #define warn(fmt, ...)	__warn("%s: " fmt, __func__, ##__VA_ARGS__)
+#define info(fmt, ...)	__info("%s: " fmt, __func__, ##__VA_ARGS__)
 
 void log_msg(const char *fmt, ...);
 

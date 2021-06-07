@@ -207,7 +207,7 @@ void __warn(const char *fmt, ...)
 /*
  * print an informational message if config_verbose is true
  */
-void info(const char *fmt, ...)
+void __info(const char *fmt, ...)
 {
 	va_list ap;
 
