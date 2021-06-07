@@ -537,21 +537,21 @@ int detect_task_format(void)
 	buffer = malloc(bufsiz);
 
 	if (buffer == NULL)
-		die("detect_task_format: unable to allocate %d bytes to read /proc/sched_debug");
+		die("unable to allocate %d bytes to read /proc/sched_debug");
 
 	if ((fd = open("/proc/sched_debug", O_RDONLY)) < 0)
-		die("detect_task_format: error opening /proc/sched_debug for reading: %s\n", strerror(errno));
+		die("error opening /proc/sched_debug for reading: %s\n", strerror(errno));
 
 	ptr = buffer;
 	while ((status = read(fd, ptr, bufincrement))) {
 		if (status < 0)
-			die ("detect_task_format: error reading /proc/sched_debug: %s\n", strerror(errno));
+			die ("error reading /proc/sched_debug: %s\n", strerror(errno));
 		if (status == 0)
 			break;
 		size += status;
 		bufsiz += bufincrement;
 		if ((buffer = realloc(buffer, bufsiz)) == NULL)
-			die("detect_task_format: realloc failed for %zu size: %s\n", bufsiz, strerror(errno));
+			die("realloc failed for %zu size: %s\n", bufsiz, strerror(errno));
 		ptr = buffer + size;
 	}
 	close(fd);
@@ -893,7 +893,7 @@ int fill_waiting_task(char *buffer, struct cpu_info *cpu_info, int nr_entries)
 		nr_waiting = parse_old_task_format(buffer, cpu_info->starving, nr_entries);
 		break;
 	default:
-		die("fill_waiting_task: invalid value for config_task_format: %d\n", config_task_format);
+		die("invalid value for config_task_format: %d\n", config_task_format);
 	}
 	return nr_waiting;
 }
@@ -1696,7 +1696,7 @@ int check_policies(void)
 
 	// save off the current policy
 	if (get_current_policy(0, &attr))
-		die("check_policies: unable to get scheduling policy!");
+		die("unable to get scheduling policy!");
 
 	// try boosting to SCHED_DEADLINE
 	ret = boost_with_deadline(0);
@@ -1717,7 +1717,7 @@ int check_policies(void)
 		ret = restore_policy(0, &attr);
 		// if we can't restore the policy then quit now
 		if (ret < 0)
-			die("check_policies: unable to restore policy: %s\n", strerror(errno));
+			die("unable to restore policy: %s\n", strerror(errno));
  	}
 
 	// restore the actual runtime value

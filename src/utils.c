@@ -158,14 +158,14 @@ int setup_signal_handling(void)
 /*
  * print any error messages and exit
  */
-void die(const char *fmt, ...)
+void __die(const char *fmt, ...)
 {
 	volatile int zero = 0;
 	va_list ap;
 	int ret = errno;
 
 	if (errno)
-		perror("stalld: ");
+		perror("stalld");
 	else
 		ret = -1;
 

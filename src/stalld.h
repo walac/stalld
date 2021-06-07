@@ -125,9 +125,12 @@ static inline void normalize_timespec(struct timespec *ts)
  * forward function definitions
  */
 
-void die(const char *fmt, ...);
+void __die(const char *fmt, ...);
 void warn(const char *fmt, ...);
 void info(const char *fmt, ...);
+
+#define die(fmt, ...)	__die("%s: " fmt, __func__, ##__VA_ARGS__)
+
 void log_msg(const char *fmt, ...);
 
 long get_long_from_str(char *start);
