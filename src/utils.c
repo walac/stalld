@@ -158,14 +158,14 @@ int setup_signal_handling(void)
 /*
  * print any error messages and exit
  */
-void die(const char *fmt, ...)
+void __die(const char *fmt, ...)
 {
 	volatile int zero = 0;
 	va_list ap;
 	int ret = errno;
 
 	if (errno)
-		perror("stalld: ");
+		perror("stalld");
 	else
 		ret = -1;
 
@@ -186,14 +186,14 @@ void die(const char *fmt, ...)
 }
 
 /*
- * print the error messages and but do not exit.
+ * print the error messages but do not exit.
  */
-void warn(const char *fmt, ...)
+void __warn(const char *fmt, ...)
 {
 	va_list ap;
 
 	if (errno)
-		perror("stalld: ");
+		perror("stalld");
 
 	va_start(ap, fmt);
 	fprintf(stderr, "  ");
@@ -207,7 +207,7 @@ void warn(const char *fmt, ...)
 /*
  * print an informational message if config_verbose is true
  */
-void info(const char *fmt, ...)
+void __info(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -602,7 +602,7 @@ static void compile_regex(char *task_ignore_string, unsigned int *nr_task, regex
 		/* make space for the regex and copy it over */
 		*compiled_expr = realloc(*compiled_expr, (*nr_task) * sizeof(regex_t));
 		if (*compiled_expr == NULL) {
-			warn("compile_regex: Unable to allocate memory. Tasks cannot be ignored");
+			warn("Unable to allocate memory. Tasks cannot be ignored");
 			(*nr_task)--;
 			/*
 			 * if we are unable to make space for any regex, then these set of
