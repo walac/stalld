@@ -18,8 +18,9 @@ HDR	:=	$(wildcard src/*.h)
 OBJ	:=	$(SRC:.c=.o)
 DIRS	:=	src redhat man tests scripts
 FILES	:=	Makefile README.md gpl-2.0.txt scripts/throttlectl.sh
-TARBALL	:=	$(NAME)-$(VERSION).tar.xz
-UPSTREAM_TARBALLS	:= fedorapeople.org:~/public_html/
+CEXT	:=	bz2
+TARBALL	:=	$(NAME)-$(VERSION).tar.$(CEXT)
+TAROPTS	:=	-cvjf $(TARBALL)
 BINDIR	:=	/usr/bin
 DATADIR	:=	/usr/share
 DOCDIR	:=	$(DATADIR)/doc
@@ -58,17 +59,13 @@ clean:
 	@test ! -f $(TARBALL) || rm -f $(TARBALL)
 	@make -C redhat VERSION=$(VERSION) clean
 	@make -C tests clean
-	@rm -rf *~ $(OBJ) *.tar.xz
+	@rm -rf *~ $(OBJ) *.tar.$(CEXT)
 
 tarball:  clean
 	rm -rf $(NAME)-$(VERSION) && mkdir $(NAME)-$(VERSION)
 	cp -r $(DIRS) $(FILES) $(NAME)-$(VERSION)
-	tar -cvJf $(TARBALL) --exclude='*~' $(NAME)-$(VERSION)
+	tar $(TAROPTS) --exclude='*~' $(NAME)-$(VERSION)
 	rm -rf $(NAME)-$(VERSION)
 
 redhat: tarball
-	$(MAKE) -C redhat VERSION=$(VERSION)
-
-push: tarball
-	scp $(TARBALL) $(UPSTREAM_TARBALLS)
-	make -C redhat VERSION=$(VERSION) push
+	$(MAKE) -C redhat VERSION=$(VERSION) CEXT=$(CEXT)

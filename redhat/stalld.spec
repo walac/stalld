@@ -4,8 +4,8 @@ Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
 License:	GPLv2
-URL:		https://git.kernel.org/pub/scm/utils/stalld/stalld.git
-Source0:	https://jcwillia.fedorapeople.org/%{name}-%{version}.tar.xz
+URL:		https://gitlab.com/rt-linux-tools/%{name}/%{name}.git
+Source0:	https://gitlab.com/rt-linux-tools/%{name}/-/archive/v%{version}/%{name}-%{version}.tar.bz2
 
 BuildRequires:	glibc-devel
 BuildRequires:	gcc
