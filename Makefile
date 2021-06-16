@@ -1,5 +1,5 @@
 NAME	:=	stalld
-VERSION	:=	1.9
+VERSION	:=	1.11
 
 INSTALL	=	install
 CC	:=	gcc

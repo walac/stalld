@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	1.9
+Version:	1.11
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
@@ -51,6 +51,19 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Thu May 13 2021 Clark Williams <williams@redhat.com> - 1.11-1
+- redhat/stalld.spec: pick up gating test version for changelog
+- utils.c: set daemon umask to restrict global write/execute (1934586)
+- hardening fixes from coverity scan (1934590)
+
+* Tue Apr 27 2021 Clark Williams <williams@redhat.com> - 1.10-1
+- utils: Fix bounds check on cpu and end_cpu variables
+- stalld: Support denylisting of tasks in stalld
+- src/utils: use right argument for warning printf
+
+* Wed Feb 17 2021 Clark Williams <williams@redhat.com> - 1.9-2
+- update to pick up latest gating test
+
 * Wed Feb 17 2021 Clark Williams <williams@redhat.com> - 1.9-1
 - Set starvation threshold default to 30 seconds
 - rework read buffer allocation to properly find page size
