@@ -11,6 +11,8 @@ ExecStartPre=/usr/bin/throttlectl off
 # use ${IT} or ${IP} instead of $IT or $IP
 ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF $IT $IP
 ExecStopPost=/usr/bin/throttlectl on
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=10
 
 [Install]
 WantedBy=multi-user.target
