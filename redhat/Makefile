@@ -9,7 +9,6 @@ RPMARGS	:=	--define "_topdir	$(HERE)" \
 		--define "_srcrpmdir	$(HERE)/SRPMS" \
 		--define "version	$(VERSION)"
 INSTALL	:=	install
-UPSTREAM_TARBALLS	:= fedorapeople.org:~/public_html/
 UNITDIR	:=	/usr/lib/systemd/system
 DATADIR :=	/usr/share
 BINDIR	:=	/usr/bin
@@ -24,7 +23,7 @@ rpmdirs:
 	@[ -d SRPMS ]	|| mkdir SRPMS
 
 rpm:	rpmdirs
-	cp ../*.tar.xz SOURCES
+	cp ../*.tar.$(CEXT) SOURCES
 	rpmbuild -ba $(RPMARGS) stalld.spec
 
 clean:
@@ -40,7 +39,3 @@ install:
 rpmlint:	rpm
 	rpmlint -i stalld.spec
 	rpmlint -i SRPMS/stalld*.rpm
-
-push:	rpm
-	scp stalld.spec $(UPSTREAM_TARBALLS)
-	scp SRPMS/stalld*.rpm $(UPSTREAM_TARBALLS)
