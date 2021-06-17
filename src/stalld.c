@@ -121,7 +121,7 @@ long page_size;
 /*
  * config single threaded: uses less CPU, but has a lower precision.
  */
-int config_single_threaded = 0;
+int config_single_threaded = 1;
 
 /*
  * config adaptive multi-threaded: use a single thread when nothing
@@ -1883,12 +1883,15 @@ int main(int argc, char **argv)
 
 	write_pidfile();
 
-	if (config_single_threaded)
-		single_threaded_main(cpus, nr_cpus);
-	else if (config_aggressive)
+	/*
+	 * The less likely first.
+	 */
+	if (config_aggressive)
 		aggressive_main(cpus, nr_cpus);
-	else
+	else if (config_adaptive_multi_threaded)
 		conservative_main(cpus, nr_cpus);
+	else
+		single_threaded_main(cpus, nr_cpus);
 
 	cleanup_regex(&nr_thread_ignore, &compiled_regex_thread);
 	cleanup_regex(&nr_process_ignore, &compiled_regex_process);
