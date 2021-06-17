@@ -780,6 +780,12 @@ int parse_args(int argc, char **argv)
 			break;
 		case 'A':
 			config_aggressive = 1;
+			/*
+			 * clean the other options so the last one
+			 * in the cmd-line gets selected.
+			 */
+			config_adaptive_multi_threaded = 0;
+			config_single_threaded = 0;
 			break;
 		case 'p':
 			config_dl_period = get_long_from_str(optarg);
@@ -841,9 +847,21 @@ int parse_args(int argc, char **argv)
 			break;
 		case 'O':
 			config_single_threaded = 1;
+			/*
+			 * clean the other options so the last one
+			 * in the cmd-line gets selected.
+			 */
+			config_adaptive_multi_threaded = 0;
+			config_aggressive = 0;
 			break;
 		case 'M':
 			config_adaptive_multi_threaded = 1;
+			/*
+			 * clean the other options so the last one
+			 * in the cmd-line gets selected.
+			 */
+			config_single_threaded = 0;
+			config_aggressive = 0;
 			break;
 		case '?':
 			usage("Invalid option");
