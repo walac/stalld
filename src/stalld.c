@@ -124,6 +124,13 @@ long page_size;
 int config_single_threaded = 0;
 
 /*
+ * config adaptive multi-threaded: use a single thread when nothing
+ * is happening, but dispatches a per-cpu thread after a starving
+ * thread is waiting for half of the config_starving_threshold.
+ */
+int config_adaptive_multi_threaded = 0;
+
+/*
  * check the idle time before parsing sched_debug
  */
 int config_idle_detection = 1;
