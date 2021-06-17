@@ -880,6 +880,14 @@ int parse_args(int argc, char **argv)
 	if (config_boost_duration > config_starving_threshold)
 		usage("the boost duration cannot be longer than the starving threshold ");
 
+	if (config_force_fifo && config_single_threaded) {
+		log_msg("-F/--force_fifo does not work in single-threaded mode\n");
+		log_msg("falling back to the adaptive mode\n");
+		config_adaptive_multi_threaded = 1;
+		config_single_threaded = 0;
+		config_aggressive = 0;
+	}
+
 	/*
 	 * runtime is always < 1 ms, so enable hrtick. Unless config_log_only only is set.
 	 */
