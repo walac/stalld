@@ -966,6 +966,7 @@ struct cpu_starving_task_info {
 	struct task_info task;
 	int pid;
 	time_t since;
+	int overloaded;
 };
 
 struct cpu_starving_task_info *cpu_starving_vector;
@@ -973,6 +974,13 @@ struct cpu_starving_task_info *cpu_starving_vector;
 void update_cpu_starving_vector(int cpu, int pid, time_t since, struct task_info *task)
 {
 	struct cpu_starving_task_info *cpu_info = &cpu_starving_vector[cpu];
+
+	/*
+	 * If there is another thread already here, mark this cpu as
+	 * overloaded.
+	 */
+	if (cpu_info->pid)
+		cpu_info->overloaded = 1;
 
 	/*
 	 * If there is no thread in the vector, or if the in the
@@ -1604,6 +1612,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 	struct cpu_info *cpu;
 	char *buffer = NULL;
 	size_t buffer_size = 0;
+	int overloaded = 0;
 	int has_busy_cpu;
 	int boosted = 0;
 	int retval;
@@ -1629,6 +1638,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 		cpus[i].thread_running = 0;
 		cpu_starving_vector[i].pid = 0;
 		cpu_starving_vector[i].since = 0;
+		cpu_starving_vector[i].overloaded = 0;
 		memset(&cpu_starving_vector[i].task, 0, sizeof(struct task_info));
 	}
 
@@ -1696,6 +1706,20 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 			memset(&(cpu_starving_vector[i].task), 0, sizeof(struct task_info));
 			cpu_starving_vector[i].pid = 0;
 			cpu_starving_vector[i].since = 0;
+			if (cpu_starving_vector[i].overloaded)
+				overloaded = 1;
+			cpu_starving_vector[i].overloaded = 0;
+		}
+
+		/*
+		 * If any CPU had more than one thread starving, the system is overloaded.
+		 * Re-run the loop without sleeping for two reasons: to boost the other
+		 * thread, and to detect other starving threads on other CPUs, given
+		 * that the system seems to be overloaded.
+		 */
+		if (overloaded) {
+			overloaded = 0;
+			continue;
 		}
 
 skipped:
