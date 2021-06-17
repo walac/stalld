@@ -1545,8 +1545,8 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 
 		cpu = &cpu_starving_vector[i];
 
-		if (config_verbose)
-			log_msg("boosting cpu %d: pid: %d starving for %llu\n", i, cpu->pid, (now - cpu->since));
+		if (config_verbose && cpu->pid)
+			log_msg("\t cpu %d: pid: %d starving for %llu\n", i, cpu->pid, (now - cpu->since));
 
 		if (cpu->pid != 0 && (now - cpu->since) > config_starving_threshold) {
 			/*
