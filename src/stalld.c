@@ -870,10 +870,11 @@ int parse_old_task_format(char *buffer, struct task_info *task_info, int nr_entr
 }
 
 
-int fill_waiting_task(char *buffer, struct cpu_info *cpu_info, int nr_entries)
+int fill_waiting_task(char *buffer, struct cpu_info *cpu_info)
 {
 	int nr_waiting = -1;
 	int lines;
+	int nr_entries = cpu_info->nr_running;
 
 	switch (config_task_format) {
 	case NEW_TASK_FORMAT:
@@ -1001,7 +1002,7 @@ int parse_cpu_info(struct cpu_info *cpu_info, char *buffer, size_t buffer_size)
 
 	cpu_info->nr_running = nr_running;
 	cpu_info->nr_rt_running = nr_rt_running;
-	cpu_info->nr_waiting_tasks = fill_waiting_task(cpu_buffer, cpu_info, cpu_info->nr_running);
+	cpu_info->nr_waiting_tasks = fill_waiting_task(cpu_buffer, cpu_info);
 	if (old_tasks) {
 		merge_taks_info(cpu_info->id, old_tasks, nr_old_tasks, cpu_info->starving, cpu_info->nr_waiting_tasks);
 		free(old_tasks);
