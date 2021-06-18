@@ -267,37 +267,59 @@ out_error:
 cpu1 832882 9111 153357 751780 456 32198 15356 0 0 0
 cpu  user   nice system IDLE
 */
-long get_cpu_idle_time(char *buffer, size_t buffer_size, int cpu)
+static long get_cpu_idle_time(char *buffer, size_t buffer_size, int cpu)
 {
 	char cpuid[10]; /* cpuXXXXX\n */
 	char *idle_start;
 	char *end;
+	long val;
 
         sprintf(cpuid, "cpu%d ", cpu);
 
 	/* CPU */
         idle_start = strstr(buffer, cpuid);
+	if (!idle_start)
+		return -EINVAL;
 
 	/* find and skip space before user */
 	idle_start = strstr(idle_start, " ");
+	if (!idle_start)
+		return -EINVAL;
+
 	idle_start+=1;
 
 	/* find and skip space before nice */
 	idle_start = strstr(idle_start, " ");
+	if (!idle_start)
+		return -EINVAL;
+
 	idle_start+=1;
 
 	/* find and skip space before system */
 	idle_start = strstr(idle_start, " ");
+	if (!idle_start)
+		return -EINVAL;
+
 	idle_start+=1;
 
 	/* Here is the idle! */
 	idle_start = strstr(idle_start, " ");
+	if (!idle_start)
+		return -EINVAL;
+
 	idle_start += 1;
 
 	/* end */
 	end = strstr(idle_start, " ");
+	if (!end)
+		return -EINVAL;
 
-	return strtol(idle_start, &end, 10);
+	errno = 0;
+	val = strtol(idle_start, &end, 10);
+	if (errno != 0)
+		return -EINVAL;
+
+	return val;
 }
 
 int cpu_had_idle_time(struct cpu_info *cpu_info)
@@ -313,6 +335,10 @@ int cpu_had_idle_time(struct cpu_info *cpu_info)
 	}
 
 	idle_time = get_cpu_idle_time(sched_stat, STAT_MAX_SIZE, cpu_info->id);
+	if (idle_time < 0) {
+		warn("unable to parse idle time for cpu%d\n", cpu_info->id);
+		return 0;
+	}
 
 	/*
 	 * if it is different, there was a change, it does not matter
@@ -361,6 +387,10 @@ int get_cpu_busy_list(struct cpu_info *cpus, int nr_cpus, char *busy_cpu_list)
 		}
 
 		idle_time = get_cpu_idle_time(sched_stat, STAT_MAX_SIZE, cpu->id);
+		if (idle_time < 0) {
+			warn("unable to parse idle time for cpu%d\n", cpu->id);
+			continue;
+		}
 
 		if (config_verbose)
 			log_msg ("\t cpu %d had %ld idle time, and now has %ld\n", cpu->id, cpu->idle_time, idle_time);
