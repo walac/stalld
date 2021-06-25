@@ -900,26 +900,40 @@ int parse_old_task_format(char *buffer, struct task_info *task_info, int nr_entr
 }
 
 
-int fill_waiting_task(char *buffer, struct cpu_info *cpu_info, int nr_entries)
+int fill_waiting_task(char *buffer, struct cpu_info *cpu_info)
 {
 	int nr_waiting = -1;
-	int lines;
+	int nr_entries;
+
+	if (cpu_info == NULL) {
+		warn("NULL cpu_info pointer!\n");
+		return 0;
+	}
+	nr_entries = cpu_info->nr_running;
 
 	switch (config_task_format) {
 	case NEW_TASK_FORMAT:
-		cpu_info->starving = malloc(sizeof(struct task_info) * cpu_info->nr_running);
+		cpu_info->starving = malloc(sizeof(struct task_info) * nr_entries);
 		if (cpu_info->starving == NULL) {
-			warn("failed to malloc %d task_info structs", cpu_info->nr_running);
+			warn("failed to malloc %d task_info structs", nr_entries);
 			return 0;
 		}
 		nr_waiting = parse_new_task_format(buffer, cpu_info->starving, nr_entries);
 		break;
 	case OLD_TASK_FORMAT:
-		/* count the number of tasks listed */
-		lines = count_task_lines(buffer);
-		if (lines <= 0)
+		/*
+		 * the old task format does not output a correct value for nr_running
+		 * (the initializer for nr_entries) so count the task lines for this cpu
+		 * data and use that instead
+		 */
+		nr_entries = count_task_lines(buffer);
+		if (nr_entries <= 0)
 			return 0;
-		cpu_info->starving = malloc(sizeof(struct task_info) * lines);
+		cpu_info->starving = malloc(sizeof(struct task_info) * nr_entries);
+		if (cpu_info->starving == NULL) {
+			warn("failed to malloc %d task_info structs", nr_entries);
+			return 0;
+		}
 		nr_waiting = parse_old_task_format(buffer, cpu_info->starving, nr_entries);
 		break;
 	default:
@@ -1001,7 +1015,7 @@ int parse_cpu_info(struct cpu_info *cpu_info, char *buffer, size_t buffer_size)
 
 	struct task_info *old_tasks = cpu_info->starving;
 	int nr_old_tasks = cpu_info->nr_waiting_tasks;
-	long nr_running, nr_rt_running;
+	long nr_running = 0, nr_rt_running = 0;
 	int cpu = cpu_info->id;
 	char *cpu_buffer;
 	int retval = 0;
@@ -1021,17 +1035,24 @@ int parse_cpu_info(struct cpu_info *cpu_info, char *buffer, size_t buffer_size)
 		goto out;
 	}
 
-	nr_running = get_variable_long_value(cpu_buffer, ".nr_running");
-	nr_rt_running = get_variable_long_value(cpu_buffer, ".rt_nr_running");
-
-	if ((nr_running == -1) || (nr_rt_running == -1)) {
-		retval = -EINVAL;
-		goto out_free;
+       /*
+	* The NEW_TASK_FORMAT produces useful output values for nr_running and
+	* rt_nr_running, so in this case use them. For the old format just leave
+	* them initialized to zero.
+        */
+       if (config_task_format == NEW_TASK_FORMAT) {
+               nr_running = get_variable_long_value(cpu_buffer, ".nr_running");
+               nr_rt_running = get_variable_long_value(cpu_buffer, ".rt_nr_running");
+               if ((nr_running == -1) || (nr_rt_running == -1)) {
+                       retval = -EINVAL;
+                       goto out_free;
+               }
 	}
 
 	cpu_info->nr_running = nr_running;
 	cpu_info->nr_rt_running = nr_rt_running;
-	cpu_info->nr_waiting_tasks = fill_waiting_task(cpu_buffer, cpu_info, cpu_info->nr_running);
+
+	cpu_info->nr_waiting_tasks = fill_waiting_task(cpu_buffer, cpu_info);
 	if (old_tasks) {
 		merge_taks_info(cpu_info->id, old_tasks, nr_old_tasks, cpu_info->starving, cpu_info->nr_waiting_tasks);
 		free(old_tasks);
@@ -1356,7 +1377,8 @@ void *cpu_main(void *data)
 		if (config_verbose)
 			print_waiting_tasks(cpu);
 
-		if (cpu->nr_rt_running && cpu->nr_waiting_tasks) {
+		if ((config_task_format == NEW_TASK_FORMAT && cpu->nr_rt_running) ||
+		    cpu->nr_waiting_tasks) {
 			nothing_to_do = 0;
 			check_starving_tasks(cpu);
 		} else {
