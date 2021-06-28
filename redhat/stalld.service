@@ -13,6 +13,7 @@ ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $F
 ExecStopPost=/usr/bin/throttlectl on
 CPUSchedulingPolicy=fifo
 CPUSchedulingPriority=10
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
