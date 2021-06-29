@@ -549,7 +549,10 @@ static void print_usage(void)
 		"          -t/--starving_threshold: how long [s] the starving task will wait before being boosted",
 		"          -A/--aggressive_mode: dispatch one thread per run queue, even when there is no starving",
 		"                               threads on all CPU (uses more CPU/power).",
-		"	   -O/--power_mode: wors as a single threaded tool. Saves CPU, but loses precision.",
+		"          -M/--adaptive_mode: when a CPU shows threads starving for more than half of the",
+		"                               starving_threshold time, dispatch a specialized thread to monitor",
+		"                               it.",
+		"	   -O/--power_mode: works as a single threaded tool. Saves CPU, but loses precision.",
 		"	   -g/--granularity: set the granularity at which stalld checks for starving threads",
 		"        ignoring options:",
 		"          -i/--ignore_threads: regexes (comma-separated) of thread names that must be ignored",
@@ -720,6 +723,7 @@ int parse_args(int argc, char **argv)
 			{"foreground",		no_argument,	   0, 'f'},
 			{"aggressive_mode",	no_argument,	   0, 'A'},
 			{"power_mode",		no_argument,	   0, 'O'},
+			{"adaptive_mode",	no_argument,	   0, 'M'},
 			{"help",		no_argument,	   0, 'h'},
 			{"boost_period",	required_argument, 0, 'p'},
 			{"boost_runtime",	required_argument, 0, 'r'},
@@ -738,7 +742,7 @@ int parse_args(int argc, char **argv)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "lvkfAOhsp:r:d:t:c:FVSg:i:I:",
+		c = getopt_long(argc, argv, "lvkfAOMhsp:r:d:t:c:FVSg:i:I:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -776,6 +780,12 @@ int parse_args(int argc, char **argv)
 			break;
 		case 'A':
 			config_aggressive = 1;
+			/*
+			 * clean the other options so the last one
+			 * in the cmd-line gets selected.
+			 */
+			config_adaptive_multi_threaded = 0;
+			config_single_threaded = 0;
 			break;
 		case 'p':
 			config_dl_period = get_long_from_str(optarg);
@@ -837,6 +847,21 @@ int parse_args(int argc, char **argv)
 			break;
 		case 'O':
 			config_single_threaded = 1;
+			/*
+			 * clean the other options so the last one
+			 * in the cmd-line gets selected.
+			 */
+			config_adaptive_multi_threaded = 0;
+			config_aggressive = 0;
+			break;
+		case 'M':
+			config_adaptive_multi_threaded = 1;
+			/*
+			 * clean the other options so the last one
+			 * in the cmd-line gets selected.
+			 */
+			config_single_threaded = 0;
+			config_aggressive = 0;
 			break;
 		case '?':
 			usage("Invalid option");
@@ -854,6 +879,14 @@ int parse_args(int argc, char **argv)
 
 	if (config_boost_duration > config_starving_threshold)
 		usage("the boost duration cannot be longer than the starving threshold ");
+
+	if (config_force_fifo && config_single_threaded) {
+		log_msg("-F/--force_fifo does not work in single-threaded mode\n");
+		log_msg("falling back to the adaptive mode\n");
+		config_adaptive_multi_threaded = 1;
+		config_single_threaded = 0;
+		config_aggressive = 0;
+	}
 
 	/*
 	 * runtime is always < 1 ms, so enable hrtick. Unless config_log_only only is set.

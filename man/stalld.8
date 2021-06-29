@@ -80,6 +80,11 @@ run as a single threaded program, it consumes less CPU, at the price
 of less precision/granularity.
 .B [false]
 .TP
+.B \-M|\-\-adaptive_mode
+when a CPU shows threads starving for more than half of the
+starving_threshold time, dispatch a specialized thread to monitor it.
+.B [false]
+.TP
 .B \-g|\-\-granularity
 set the granularity (in seconds) at which stalld checks for starving
 threads. The lower the value the more precise will be the detection,

@@ -121,7 +121,14 @@ long page_size;
 /*
  * config single threaded: uses less CPU, but has a lower precision.
  */
-int config_single_threaded = 0;
+int config_single_threaded = 1;
+
+/*
+ * config adaptive multi-threaded: use a single thread when nothing
+ * is happening, but dispatches a per-cpu thread after a starving
+ * thread is waiting for half of the config_starving_threshold.
+ */
+int config_adaptive_multi_threaded = 0;
 
 /*
  * check the idle time before parsing sched_debug
@@ -966,6 +973,7 @@ struct cpu_starving_task_info {
 	struct task_info task;
 	int pid;
 	time_t since;
+	int overloaded;
 };
 
 struct cpu_starving_task_info *cpu_starving_vector;
@@ -973,6 +981,13 @@ struct cpu_starving_task_info *cpu_starving_vector;
 void update_cpu_starving_vector(int cpu, int pid, time_t since, struct task_info *task)
 {
 	struct cpu_starving_task_info *cpu_info = &cpu_starving_vector[cpu];
+
+	/*
+	 * If there is another thread already here, mark this cpu as
+	 * overloaded.
+	 */
+	if (cpu_info->pid)
+		cpu_info->overloaded = 1;
 
 	/*
 	 * If there is no thread in the vector, or if the in the
@@ -1545,8 +1560,8 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 
 		cpu = &cpu_starving_vector[i];
 
-		if (config_verbose)
-			log_msg("boosting cpu %d: pid: %d starving for %llu\n", i, cpu->pid, (now - cpu->since));
+		if (config_verbose && cpu->pid)
+			log_msg("\t cpu %d: pid: %d starving for %llu\n", i, cpu->pid, (now - cpu->since));
 
 		if (cpu->pid != 0 && (now - cpu->since) > config_starving_threshold) {
 			/*
@@ -1604,6 +1619,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 	struct cpu_info *cpu;
 	char *buffer = NULL;
 	size_t buffer_size = 0;
+	int overloaded = 0;
 	int has_busy_cpu;
 	int boosted = 0;
 	int retval;
@@ -1629,6 +1645,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 		cpus[i].thread_running = 0;
 		cpu_starving_vector[i].pid = 0;
 		cpu_starving_vector[i].since = 0;
+		cpu_starving_vector[i].overloaded = 0;
 		memset(&cpu_starving_vector[i].task, 0, sizeof(struct task_info));
 	}
 
@@ -1696,6 +1713,20 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 			memset(&(cpu_starving_vector[i].task), 0, sizeof(struct task_info));
 			cpu_starving_vector[i].pid = 0;
 			cpu_starving_vector[i].since = 0;
+			if (cpu_starving_vector[i].overloaded)
+				overloaded = 1;
+			cpu_starving_vector[i].overloaded = 0;
+		}
+
+		/*
+		 * If any CPU had more than one thread starving, the system is overloaded.
+		 * Re-run the loop without sleeping for two reasons: to boost the other
+		 * thread, and to detect other starving threads on other CPUs, given
+		 * that the system seems to be overloaded.
+		 */
+		if (overloaded) {
+			overloaded = 0;
+			continue;
 		}
 
 skipped:
@@ -1852,12 +1883,15 @@ int main(int argc, char **argv)
 
 	write_pidfile();
 
-	if (config_single_threaded)
-		single_threaded_main(cpus, nr_cpus);
-	else if (config_aggressive)
+	/*
+	 * The less likely first.
+	 */
+	if (config_aggressive)
 		aggressive_main(cpus, nr_cpus);
-	else
+	else if (config_adaptive_multi_threaded)
 		conservative_main(cpus, nr_cpus);
+	else
+		single_threaded_main(cpus, nr_cpus);
 
 	cleanup_regex(&nr_thread_ignore, &compiled_regex_thread);
 	cleanup_regex(&nr_process_ignore, &compiled_regex_process);

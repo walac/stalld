@@ -174,6 +174,7 @@ extern int config_systemd;
 extern long config_granularity;
 extern int config_idle_detection;
 extern int config_single_threaded;
+extern int config_adaptive_multi_threaded;
 extern char pidfile[];
 extern unsigned int nr_thread_ignore;
 extern unsigned int nr_process_ignore;
