@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	1.11
+Version:	1.12
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
@@ -51,6 +51,18 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Tue Jun 29 2021 Fernando Pacheco <fpacheco@redhat.com> - 1.12-1
+- stalld.8: fix diff cruft left in manpage source
+- stalld.c: clean up handling of nr_running
+- stalld.c: remove duplicate parameter to fill_waiting_task()
+- stalld: Add error handling in get_cpu_idle_time()
+- stalld.service: Run stalld as sched_fifo via systemd
+- packaging: clean up Makefiles and rpm specfile
+- stalld: Always print current function for info messages
+- stalld: Always print current function for warn messages
+- stalld: Always print current function for die messages
+- utils: change PATHMAX to 4096
+
 * Thu May 13 2021 Clark Williams <williams@redhat.com> - 1.11-1
 - redhat/stalld.spec: pick up gating test version for changelog
 - utils.c: set daemon umask to restrict global write/execute (1934586)
