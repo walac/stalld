@@ -93,7 +93,7 @@ char *config_monitored_cpus;
 size_t config_buffer_size;
 
 /*
- * auto-detected task format from /proc/sched_debug
+ * auto-detected task format from sched_debug.
  */
 int config_task_format;
 
@@ -147,6 +147,11 @@ regex_t *compiled_regex_thread = NULL;
  */
 unsigned int nr_process_ignore = 0;
 regex_t *compiled_regex_process = NULL;
+
+/*
+ * store the current sched_debug file path.
+ */
+char *config_sched_debug_path = NULL;
 
 /*
  * API to fetch process name from process group ID
@@ -234,8 +239,7 @@ out_free_mem:
 }
 
 /*
- * read the content of /proc/sched_debug into the
- * input buffer.
+ * read the content of sched_debug into the input buffer.
  */
 int read_sched_stat(char *buffer, int size)
 {
@@ -416,8 +420,7 @@ int get_cpu_busy_list(struct cpu_info *cpus, int nr_cpus, char *busy_cpu_list)
 	return busy_count;
 }
 /*
- * read the contents of /proc/sched_debug into
- * the input buffer
+ * read the contents of sched_debug into the input buffer.
  */
 int read_sched_debug(char *buffer, int size)
 {
@@ -425,7 +428,7 @@ int read_sched_debug(char *buffer, int size)
 	int retval;
 	int fd;
 
-	fd = open("/proc/sched_debug", O_RDONLY);
+	fd = open(config_sched_debug_path, O_RDONLY);
 
 	if (!fd)
 		goto out_error;
@@ -551,11 +554,11 @@ static inline char *nextline(char *str)
 #define TASK_MARKER	"runnable tasks:"
 
 /*
- * read /proc/sched_debug and figure out if it's old or new format
+ * read sched_debug and figure out if it's old or new format
  * done once so if we fail just exit the program
  *
  * NOTE: A side effect of this call is to set the initial value for
- * config_buffer_size used when reading /proc/sched_debug for
+ * config_buffer_size used when reading sched_debug for
  * parsing
  */
 int detect_task_format(void)
@@ -574,15 +577,15 @@ int detect_task_format(void)
 	buffer = malloc(bufsiz);
 
 	if (buffer == NULL)
-		die("unable to allocate %d bytes to read /proc/sched_debug");
+		die("unable to allocate %d bytes to read sched_debug");
 
-	if ((fd = open("/proc/sched_debug", O_RDONLY)) < 0)
-		die("error opening /proc/sched_debug for reading: %s\n", strerror(errno));
+	if ((fd = open(config_sched_debug_path, O_RDONLY)) < 0)
+		die("error opening sched_debug for reading: %s\n", strerror(errno));
 
 	ptr = buffer;
 	while ((status = read(fd, ptr, bufincrement))) {
 		if (status < 0)
-			die ("error reading /proc/sched_debug: %s\n", strerror(errno));
+			die ("error reading sched_debug: %s\n", strerror(errno));
 		if (status == 0)
 			break;
 		size += status;
@@ -721,7 +724,7 @@ int parse_new_task_format(char *buffer, struct task_info *task_info, int nr_entr
 }
 
 /*
- * old format of /proc/sched_debug doesn't contain state information so we have
+ * old format of sched_debug doesn't contain state information so we have
  * to pick up the pid and then open /proc/<pid>/stat to get the process state.
  */
 
@@ -1492,7 +1495,7 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
 			if (!has_busy_cpu) {
 				if (config_verbose)
-					log_msg("all CPUs had idle time, skipping /proc/sched_debug parse\n");
+					log_msg("all CPUs had idle time, skipping sched_debug parse\n");
 				goto skipped;
 			}
 		}
@@ -1670,7 +1673,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
 			if (!has_busy_cpu) {
 				if (config_verbose)
-					log_msg("all CPUs had idle time, skipping /proc/sched_debug parse\n");
+					log_msg("all CPUs had idle time, skipping sched_debug parse\n");
 
 				goto skipped;
 			}
@@ -1826,6 +1829,8 @@ int main(int argc, char **argv)
 		die("Unable to get system page size: %s\n", strerror(errno));
 
 	parse_args(argc, argv);
+
+	find_sched_debug_path();
 
 	/*
 	 * check RT throttling
