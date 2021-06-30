@@ -889,6 +889,15 @@ int parse_args(int argc, char **argv)
 	}
 
 	/*
+	 * stalld needs root permission to read kernel debug files
+	 * and to set SCHED_DEADLINE parameters.
+	 */
+	if (geteuid()) {
+		log_msg("stalld needs root permission\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/*
 	 * runtime is always < 1 ms, so enable hrtick. Unless config_log_only only is set.
 	 */
 	if (!config_log_only)
