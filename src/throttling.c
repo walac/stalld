@@ -63,6 +63,9 @@ int turn_off_rt_throttling(void)
 
 	/* get the current value of the throttling runtime */
 	fd = open(RT_RUNTIME_PATH, O_RDWR);
+	if (fd < 0)
+		die("unable to open %s: %s\n", RT_RUNTIME_PATH, strerror(errno));
+
 	status = read(fd, buffer, sizeof(buffer));
 	if (status < 0)
 		die("failed to read %s\n", RT_RUNTIME_PATH);
