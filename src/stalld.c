@@ -287,10 +287,10 @@ static long get_cpu_idle_time(char *buffer, size_t buffer_size, int cpu)
 	char *end;
 	long val;
 
-        sprintf(cpuid, "cpu%d ", cpu);
+	sprintf(cpuid, "cpu%d ", cpu);
 
 	/* CPU */
-        idle_start = strstr(buffer, cpuid);
+	idle_start = strstr(buffer, cpuid);
 	if (!idle_start)
 		return -EINVAL;
 
@@ -366,7 +366,7 @@ int cpu_had_idle_time(struct cpu_info *cpu_info)
 	/*
 	 * the CPU had idle time!
 	 */
-        cpu_info->idle_time = idle_time;
+	cpu_info->idle_time = idle_time;
 
 	return 1;
 }
@@ -1060,18 +1060,18 @@ int parse_cpu_info(struct cpu_info *cpu_info, char *buffer, size_t buffer_size)
 		goto out;
 	}
 
-       /*
-	* The NEW_TASK_FORMAT produces useful output values for nr_running and
-	* rt_nr_running, so in this case use them. For the old format just leave
-	* them initialized to zero.
-        */
-       if (config_task_format == NEW_TASK_FORMAT) {
-               nr_running = get_variable_long_value(cpu_buffer, ".nr_running");
-               nr_rt_running = get_variable_long_value(cpu_buffer, ".rt_nr_running");
-               if ((nr_running == -1) || (nr_rt_running == -1)) {
-                       retval = -EINVAL;
-                       goto out_free;
-               }
+	/*
+	 * The NEW_TASK_FORMAT produces useful output values for nr_running and
+	 * rt_nr_running, so in this case use them. For the old format just leave
+	 * them initialized to zero.
+	 */
+	if (config_task_format == NEW_TASK_FORMAT) {
+		nr_running = get_variable_long_value(cpu_buffer, ".nr_running");
+		nr_rt_running = get_variable_long_value(cpu_buffer, ".rt_nr_running");
+		if ((nr_running == -1) || (nr_rt_running == -1)) {
+			retval = -EINVAL;
+			goto out_free;
+		}
 	}
 
 	cpu_info->nr_running = nr_running;
@@ -1639,7 +1639,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 
 	log_msg("single threaded mode\n");
 
-        if (boost_policy != SCHED_DEADLINE)
+	if (boost_policy != SCHED_DEADLINE)
 		die("Single threaded mode only works with SCHED_DEADLINE");
 
 	cpu_starving_vector = malloc(sizeof(struct cpu_starving_task_info) * nr_cpus);
