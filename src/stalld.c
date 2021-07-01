@@ -793,9 +793,11 @@ out_error:
 
 static int count_task_lines(char *buffer)
 {
-	char *ptr;
-	int len = strlen(buffer);
 	int lines = 0;
+	char *ptr;
+	int len;
+
+	len = strlen(buffer);
 
 	/* find the runnable tasks: header */
 	ptr = strstr(buffer, TASK_MARKER);
@@ -829,14 +831,17 @@ int parse_old_task_format(char *buffer, struct task_info *task_info, int nr_entr
 
 	struct task_info *task;
 	int waiting_tasks = 0;
-	char *start = buffer;
+	char *buffer_end;
 	int comm_size;
+	char *start;
 	char *end;
-	char *buffer_end = start+strlen(buffer);
 
+	start = buffer;
 	start = strstr(start, TASK_MARKER);
 	start = strstr(start, "-\n");
 	start++;
+
+	buffer_end = buffer + strlen(buffer);
 
 	/*
 	 * we can't short-circuit using nr_entries, we have to scan the
@@ -1555,10 +1560,12 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 	struct cpu_starving_task_info *cpu;
 	struct sched_attr attr[nr_cpus];
 	int deboost_vector[nr_cpus];
-	time_t now = time(NULL);
 	int boosted = 0;
+	time_t now;
 	int ret;
 	int i;
+
+	now = time(NULL);
 
 	/*
 	 * Boost phase.

@@ -341,8 +341,12 @@ void deamonize(void)
  */
 char *get_regerror(int errcode, regex_t *compiled)
 {
-	size_t length = regerror(errcode, compiled, NULL, 0);
-	char *buffer = malloc(length);
+	size_t length;
+	char *buffer;
+
+	length = regerror(errcode, compiled, NULL, 0);
+
+	buffer = malloc(length);
 	if (buffer == NULL) {
 		warn("Malloc failure!!");
 		return NULL;
@@ -357,8 +361,11 @@ char *get_regerror(int errcode, regex_t *compiled)
  */
 void cleanup_regex(unsigned int *nr_task, regex_t **compiled_expr)
 {
+	regex_t *compiled;
 	unsigned int i;
-	regex_t *compiled = *compiled_expr;
+
+	compiled = *compiled_expr;
+
 	if (compiled != NULL) {
 		for (i = 0; i < *nr_task; i++) {
 			regfree(&compiled[i]);
@@ -438,10 +445,11 @@ static int try_to_open_file(char *path)
  */
 static int find_debugfs_sched_debug(void)
 {
-	const char *debugfs = find_debugfs();
+	const char *debugfs;
 	char *path;
 	int found;
 
+	debugfs = find_debugfs();
 	if (!debugfs)
 		return 0;
 
