@@ -380,9 +380,6 @@ void cleanup_regex(unsigned int *nr_task, regex_t **compiled_expr)
  */
 #define _STR(x) #x
 #define STR(x) _STR(x)
-#ifndef MAXPATH
-#define MAXPATH 4096
-#endif
 static int find_mount(const char *mount, char *debugfs)
 {
 	char type[100];
@@ -392,7 +389,7 @@ static int find_mount(const char *mount, char *debugfs)
 		return 0;
 
 	while (fscanf(fp, "%*s %"
-		      STR(MAXPATH)
+		      STR(MAX_PATH)
 		      "s %99s %*s %*d %*d\n",
 		      debugfs, type) == 2) {
 		if (strcmp(type, mount) == 0)
@@ -407,7 +404,7 @@ static int find_mount(const char *mount, char *debugfs)
 
 static const char *find_debugfs(void)
 {
-	static char debugfs[MAXPATH+1];
+	static char debugfs[MAX_DIR_PATH];
 	static int debugfs_found;
 
 	if (debugfs_found)
@@ -513,8 +510,8 @@ void find_sched_debug_path(void)
 
 int setup_hr_tick(void)
 {
-	const char *debugfs = find_debugfs();
-	char files[strlen(debugfs) + strlen("/sched_features") + 1];
+	char files[MAX_PATH];
+	const char *debugfs;
 	static int set = 0;
 	int hrtick_dl = 0;
 	struct stat st;
@@ -529,6 +526,7 @@ int setup_hr_tick(void)
 
 	set = 1;
 
+	debugfs = find_debugfs();
 	if (strlen(debugfs) == 0)
 		return 0;
 
