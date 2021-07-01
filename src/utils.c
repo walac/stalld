@@ -605,7 +605,7 @@ int should_monitor(int cpu)
 /*
  * path to file for storing daemon pid
  */
-char pidfile[PATH_MAX];
+char pidfile[MAX_PATH];
 
 void write_pidfile(void)
 {
