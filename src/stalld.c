@@ -828,13 +828,11 @@ static int count_task_lines(char *buffer)
  */
 int parse_old_task_format(char *buffer, struct task_info *task_info, int nr_entries)
 {
-
+	int pid, ctxsw, prio, comm_size;
+	char *start, *end, *buffer_end;
 	struct task_info *task;
+	char comm[COMM_SIZE+1];
 	int waiting_tasks = 0;
-	char *buffer_end;
-	int comm_size;
-	char *start;
-	char *end;
 
 	start = buffer;
 	start = strstr(start, TASK_MARKER);
@@ -848,8 +846,6 @@ int parse_old_task_format(char *buffer, struct task_info *task_info, int nr_entr
 	 * entire list of processes that is on this cpu
 	 */
 	while (*start && start < buffer_end) {
-		int pid, ctxsw, prio;
-		char comm[COMM_SIZE+1];
 		task = &task_info[waiting_tasks];
 		/*
 		 * only care about tasks that are not R (running on a CPU).
