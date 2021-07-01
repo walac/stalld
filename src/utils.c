@@ -1,6 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
  *
+ * Copyright (C) 2020-2021 Red Hat Inc, Daniel Bristot de Oliveira <bristot@redhat.com>
  * Copyright (C) 2020 Red Hat Inc, Clark Williams <williams@redhat.com>
  *
  */
@@ -410,6 +411,95 @@ static const char *find_debugfs(void)
 	debugfs_found = 1;
 
 	return debugfs;
+}
+
+/*
+ * return true if the file at *path can be read.
+ */
+static int try_to_open_file(char *path)
+{
+	int fd;
+
+	fd = open(path, O_RDONLY);
+
+	log_msg("trying to open file %s returned %d\n", path, fd);
+
+	if (fd < 0)
+		return 0;
+
+	close(fd);
+
+	return 1;
+}
+
+/*
+ * look for the sched/debug file in the debugfs.
+ */
+static int find_debugfs_sched_debug(void)
+{
+	const char *debugfs = find_debugfs();
+	char *path;
+	int found;
+
+	if (!debugfs)
+		return 0;
+
+	path = malloc(strlen(debugfs) + strlen("sched/debug") + 1);
+	if (!path)
+		return 0;
+
+	sprintf(path, "%s/%s", debugfs, "sched/debug");
+
+	found = try_to_open_file(path);
+	if (found)
+		config_sched_debug_path = path;
+	else
+		free(path);
+
+	return found;
+}
+
+/*
+ * look for the sched_debug file in the procfs.
+ */
+static int find_proc_sched_debug(void)
+{
+	char *path;
+	int found;
+
+	path = malloc(strlen("/proc/sched_debug") + 1);
+	if (!path)
+		return 0;
+
+	sprintf(path, "/proc/sched_debug");
+
+	found = try_to_open_file(path);
+	if (found)
+		config_sched_debug_path = path;
+	else
+		free(path);
+
+	return found;
+}
+
+/*
+ * look for the sched debug file on the possible locations.
+ *
+ * stalld depends on sched_debug file, if it is not found: die.
+ */
+void find_sched_debug_path(void)
+{
+	int found;
+
+	found = find_debugfs_sched_debug();
+	if (found)
+		return;
+
+	found = find_proc_sched_debug();
+	if (found)
+		return;
+
+	die("stalld could not find the sched_debug file.\n");
 }
 
 int setup_hr_tick(void)
@@ -886,6 +976,15 @@ int parse_args(int argc, char **argv)
 		config_adaptive_multi_threaded = 1;
 		config_single_threaded = 0;
 		config_aggressive = 0;
+	}
+
+	/*
+	 * stalld needs root permission to read kernel debug files
+	 * and to set SCHED_DEADLINE parameters.
+	 */
+	if (geteuid()) {
+		log_msg("stalld needs root permission\n");
+		exit(EXIT_FAILURE);
 	}
 
 	/*
