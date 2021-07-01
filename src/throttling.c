@@ -91,18 +91,19 @@ int turn_off_rt_throttling(void)
 
 int rt_throttling_is_off(void)
 {
-	const char *runtime = "/proc/sys/kernel/sched_rt_runtime_us";
 	char buffer[80];
 	int ret;
 	int fd;
 
-	fd = open(runtime, O_RDONLY);
+	fd = open(RT_RUNTIME_PATH, O_RDONLY);
 	if (fd < 0)
-		die("unable to open %s to check throttling status: %s\n", runtime, strerror(errno));
+		die("unable to open %s to check throttling status: %s\n",
+		    RT_RUNTIME_PATH, strerror(errno));
 
 	ret = read(fd, buffer, sizeof(buffer));
 	if (ret <= 0)
-		die ("unable to read %s to get runtime status: %s\n", runtime, strerror(errno));
+		die ("unable to read %s to get runtime status: %s\n",
+		     RT_RUNTIME_PATH, strerror(errno));
 
 	close(fd);
 
