@@ -37,15 +37,17 @@ static long rt_runtime_us = 0;
 
 static void restore_rt_throttling(int status, void *arg)
 {
+	char buffer[80];
 	int retval;
+	int fd;
 
 	if (rt_runtime_us != -1) {
-		int fd = open(RT_RUNTIME_PATH, O_WRONLY);
-		char buffer[80];
-
+		fd = open(RT_RUNTIME_PATH, O_WRONLY);
 		if (fd < 0)
 			die("failed to open %s\n", RT_RUNTIME_PATH);
+
 		sprintf(buffer, "%ld", rt_runtime_us);
+
 		retval = write(fd, buffer, strlen(buffer));
 		if (retval < 0)
 			warn("error restoring rt throttling");
