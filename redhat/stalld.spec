@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	1.12
+Version:	1.13
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
@@ -51,6 +51,17 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Fri Jul 02 2021 Fernando Pacheco <fpacheco@redhat.com> - 1.13-1
+- stalld: Fix log message on boost_cpu_starving_vector()
+- stalld: Add the overload control to the single-threaded mode
+- stalld: Add the adaptive mode option
+- stalld: Use the last mode set in the cmdline
+- stalld: Fallback to the adaptive mode if force_fifo is selected
+- stalld: Make single-threaded mode the default one
+- stalld.service: Always restart stalld on exit
+- utils.c: Fail if user is not root
+- utils.c: Make the path to sched_debug path dynamic
+
 * Tue Jun 29 2021 Fernando Pacheco <fpacheco@redhat.com> - 1.12-1
 - stalld.8: fix diff cruft left in manpage source
 - stalld.c: clean up handling of nr_running
