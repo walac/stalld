@@ -66,6 +66,7 @@ long get_long_after_colon(char *start)
 long get_variable_long_value(char *buffer, const char *variable)
 {
 	char *start;
+
 	/*
 	 * Line:
 	 * '  .nr_running                    : 0'
@@ -114,8 +115,8 @@ static void set_sig_handler()
 
 int setup_signal_handling(void)
 {
-	int status;
 	sigset_t sigset;
+	int status;
 
 	/* mask off all signals */
 	status = sigfillset(&sigset);
@@ -162,8 +163,8 @@ int setup_signal_handling(void)
 void __die(const char *fmt, ...)
 {
 	volatile int zero = 0;
-	va_list ap;
 	int ret = errno;
+	va_list ap;
 
 	if (errno)
 		perror("stalld");
@@ -226,9 +227,9 @@ void log_msg(const char *fmt, ...)
 	const char *log_prefix = "stalld: ";
 	char message[1024];
 	size_t bufsz;
-	char *log;
 	int kmesg_fd;
 	va_list ap;
+	char *log;
 
 	strncpy(message, log_prefix, sizeof(message));
 	log = message + strlen(log_prefix);
@@ -340,8 +341,12 @@ void deamonize(void)
  */
 char *get_regerror(int errcode, regex_t *compiled)
 {
-	size_t length = regerror(errcode, compiled, NULL, 0);
-	char *buffer = malloc(length);
+	size_t length;
+	char *buffer;
+
+	length = regerror(errcode, compiled, NULL, 0);
+
+	buffer = malloc(length);
 	if (buffer == NULL) {
 		warn("Malloc failure!!");
 		return NULL;
@@ -356,8 +361,11 @@ char *get_regerror(int errcode, regex_t *compiled)
  */
 void cleanup_regex(unsigned int *nr_task, regex_t **compiled_expr)
 {
+	regex_t *compiled;
 	unsigned int i;
-	regex_t *compiled = *compiled_expr;
+
+	compiled = *compiled_expr;
+
 	if (compiled != NULL) {
 		for (i = 0; i < *nr_task; i++) {
 			regfree(&compiled[i]);
@@ -372,9 +380,6 @@ void cleanup_regex(unsigned int *nr_task, regex_t **compiled_expr)
  */
 #define _STR(x) #x
 #define STR(x) _STR(x)
-#ifndef MAXPATH
-#define MAXPATH 4096
-#endif
 static int find_mount(const char *mount, char *debugfs)
 {
 	char type[100];
@@ -384,7 +389,7 @@ static int find_mount(const char *mount, char *debugfs)
 		return 0;
 
 	while (fscanf(fp, "%*s %"
-		      STR(MAXPATH)
+		      STR(MAX_PATH)
 		      "s %99s %*s %*d %*d\n",
 		      debugfs, type) == 2) {
 		if (strcmp(type, mount) == 0)
@@ -399,8 +404,8 @@ static int find_mount(const char *mount, char *debugfs)
 
 static const char *find_debugfs(void)
 {
+	static char debugfs[MAX_DIR_PATH];
 	static int debugfs_found;
-	static char debugfs[MAXPATH+1];
 
 	if (debugfs_found)
 		return debugfs;
@@ -437,10 +442,11 @@ static int try_to_open_file(char *path)
  */
 static int find_debugfs_sched_debug(void)
 {
-	const char *debugfs = find_debugfs();
+	const char *debugfs;
 	char *path;
 	int found;
 
+	debugfs = find_debugfs();
 	if (!debugfs)
 		return 0;
 
@@ -504,22 +510,23 @@ void find_sched_debug_path(void)
 
 int setup_hr_tick(void)
 {
-	const char *debugfs = find_debugfs();
-	char files[strlen(debugfs) + strlen("/sched_features") + 1];
-	char buf[500];
-	struct stat st;
+	char files[MAX_PATH];
+	const char *debugfs;
 	static int set = 0;
+	int hrtick_dl = 0;
+	struct stat st;
+	char buf[500];
 	char *p;
 	int ret;
 	int len;
 	int fd;
-	int hrtick_dl = 0;
 
 	if (set)
 		return 1;
 
 	set = 1;
 
+	debugfs = find_debugfs();
 	if (strlen(debugfs) == 0)
 		return 0;
 
@@ -598,7 +605,7 @@ int should_monitor(int cpu)
 /*
  * path to file for storing daemon pid
  */
-char pidfile[PATH_MAX];
+char pidfile[MAX_PATH];
 
 void write_pidfile(void)
 {
@@ -662,7 +669,6 @@ static void print_usage(void)
 
 }
 
-
 void usage(const char *fmt, ...)
 {
 	va_list ap;
@@ -684,10 +690,10 @@ static void compile_regex(char *task_ignore_string, unsigned int *nr_task, regex
 {
 	char *input = task_ignore_string;
 	char *separator = ",";
-	char *args;
-	regex_t *compiled;
-	int err;
 	char *err_str = NULL;
+	regex_t *compiled;
+	char *args;
+	int err;
 
 	args = strtok(input, separator);
 	while (args != NULL) {
@@ -819,10 +825,10 @@ int parse_args(int argc, char **argv)
 			{"boost_runtime",	required_argument, 0, 'r'},
 			{"boost_duration",	required_argument, 0, 'd'},
 			{"starving_threshold",	required_argument, 0, 't'},
-			{"pidfile",             required_argument, 0, 'P'},
+			{"pidfile",		required_argument, 0, 'P'},
 			{"force_fifo", 		no_argument, 	   0, 'F'},
-			{"version", 		no_argument,       0, 'V'},
-			{"systemd",		no_argument,       0, 'S'},
+			{"version", 		no_argument,	   0, 'V'},
+			{"systemd",		no_argument,	   0, 'S'},
 			{"granularity",		required_argument, 0, 'g'},
 			{"ignore_threads",      required_argument, 0, 'i'},
 			{"ignore_processes",    required_argument, 0, 'I'},
