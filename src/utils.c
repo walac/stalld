@@ -419,22 +419,18 @@ static const char *find_debugfs(void)
 }
 
 /*
- * return true if the file at *path can be read.
+ * return true if the file at *path exits.
  */
-static int try_to_open_file(char *path)
+static int check_file_exists(char *path)
 {
-	int fd;
+	struct stat st;
+	int retval;
 
-	fd = open(path, O_RDONLY);
+	retval = !stat(path, &st);
 
-	log_msg("trying to open file %s returned %d\n", path, fd);
+	log_msg("%s %s\n", path, retval ? "exists" : "doesn't exist");
 
-	if (fd < 0)
-		return 0;
-
-	close(fd);
-
-	return 1;
+	return retval;
 }
 
 /*
@@ -456,7 +452,7 @@ static int find_debugfs_sched_debug(void)
 
 	sprintf(path, "%s/%s", debugfs, "sched/debug");
 
-	found = try_to_open_file(path);
+	found = check_file_exists(path);
 	if (found)
 		config_sched_debug_path = path;
 	else
@@ -479,7 +475,7 @@ static int find_proc_sched_debug(void)
 
 	sprintf(path, "/proc/sched_debug");
 
-	found = try_to_open_file(path);
+	found = check_file_exists(path);
 	if (found)
 		config_sched_debug_path = path;
 	else
