@@ -510,7 +510,6 @@ int setup_hr_tick(void)
 	const char *debugfs;
 	static int set = 0;
 	int hrtick_dl = 0;
-	struct stat st;
 	char buf[500];
 	char *p;
 	int ret;
@@ -527,9 +526,12 @@ int setup_hr_tick(void)
 		return 0;
 
 	sprintf(files, "%s/sched_features", debugfs);
-	ret = stat(files, &st);
-	if (ret < 0)
+
+	ret = check_file_exists(files);
+	if (!ret) {
+		log_msg("%s doesn't exist, do not try to set HRTICK\n", files);
 		return 0;
+	}
 
 	fd = open(files, O_RDWR);
 	if (fd < 0) {
