@@ -1579,6 +1579,9 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 		if (config_verbose && cpu->pid)
 			log_msg("\t cpu %d: pid: %d starving for %llu\n", i, cpu->pid, (now - cpu->since));
 
+		if (config_log_only)
+			continue;
+
 		if (cpu->pid != 0 && (now - cpu->since) > config_starving_threshold) {
 			/*
 			 * Check if this task name is part of a denylist
@@ -1643,7 +1646,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 
 	log_msg("single threaded mode\n");
 
-	if (boost_policy != SCHED_DEADLINE)
+	if (!config_log_only && boost_policy != SCHED_DEADLINE)
 		die("Single threaded mode only works with SCHED_DEADLINE");
 
 	cpu_starving_vector = malloc(sizeof(struct cpu_starving_task_info) * nr_cpus);
