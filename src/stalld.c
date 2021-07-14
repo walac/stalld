@@ -195,14 +195,15 @@ int get_tgid(int pid)
 	const char tgid_field[TGID_FIELD] = "Tgid:";
 	char file_location[PROC_PID_FILE_PATH_LEN];
 	char *status = NULL;
-	int tgid;
+	int tgid, n;
 	FILE *fp;
 
 	status = calloc(TMP_BUFFER_SIZE, sizeof(char));
 	if (status == NULL) {
 		return -ENOMEM;
 	}
-	int n = sprintf(file_location, "/proc/%d/status", pid);
+
+	n = sprintf(file_location, "/proc/%d/status", pid);
 	if (n < 0)
 		goto out_free_mem;
 
