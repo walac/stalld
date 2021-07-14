@@ -66,6 +66,7 @@ long get_long_after_colon(char *start)
 long get_variable_long_value(char *buffer, const char *variable)
 {
 	char *start;
+
 	/*
 	 * Line:
 	 * '  .nr_running                    : 0'
@@ -114,8 +115,8 @@ static void set_sig_handler()
 
 int setup_signal_handling(void)
 {
-	int status;
 	sigset_t sigset;
+	int status;
 
 	/* mask off all signals */
 	status = sigfillset(&sigset);
@@ -162,8 +163,8 @@ int setup_signal_handling(void)
 void __die(const char *fmt, ...)
 {
 	volatile int zero = 0;
-	va_list ap;
 	int ret = errno;
+	va_list ap;
 
 	if (errno)
 		perror("stalld");
@@ -226,9 +227,9 @@ void log_msg(const char *fmt, ...)
 	const char *log_prefix = "stalld: ";
 	char message[1024];
 	size_t bufsz;
-	char *log;
 	int kmesg_fd;
 	va_list ap;
+	char *log;
 
 	strncpy(message, log_prefix, sizeof(message));
 	log = message + strlen(log_prefix);
@@ -399,8 +400,8 @@ static int find_mount(const char *mount, char *debugfs)
 
 static const char *find_debugfs(void)
 {
-	static int debugfs_found;
 	static char debugfs[MAXPATH+1];
+	static int debugfs_found;
 
 	if (debugfs_found)
 		return debugfs;
@@ -506,14 +507,14 @@ int setup_hr_tick(void)
 {
 	const char *debugfs = find_debugfs();
 	char files[strlen(debugfs) + strlen("/sched_features") + 1];
-	char buf[500];
-	struct stat st;
 	static int set = 0;
+	int hrtick_dl = 0;
+	struct stat st;
+	char buf[500];
 	char *p;
 	int ret;
 	int len;
 	int fd;
-	int hrtick_dl = 0;
 
 	if (set)
 		return 1;
@@ -662,7 +663,6 @@ static void print_usage(void)
 
 }
 
-
 void usage(const char *fmt, ...)
 {
 	va_list ap;
@@ -684,10 +684,10 @@ static void compile_regex(char *task_ignore_string, unsigned int *nr_task, regex
 {
 	char *input = task_ignore_string;
 	char *separator = ",";
-	char *args;
-	regex_t *compiled;
-	int err;
 	char *err_str = NULL;
+	regex_t *compiled;
+	char *args;
+	int err;
 
 	args = strtok(input, separator);
 	while (args != NULL) {

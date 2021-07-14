@@ -156,11 +156,12 @@ char *config_sched_debug_path = NULL;
 /*
  * API to fetch process name from process group ID
  */
-char *get_process_comm(int tgid) {
-	char *process_name;
-	int n;
-	FILE *fp;
+char *get_process_comm(int tgid)
+{
 	char file_location[PROC_PID_FILE_PATH_LEN];
+	char *process_name;
+	FILE *fp;
+	int n;
 
 	process_name = calloc(COMM_SIZE + 1, sizeof(char));
 	if (process_name == NULL)
@@ -189,12 +190,13 @@ out_error:
 /*
  * API to fetch the process group ID for a thread/process
  */
-int get_tgid(int pid) {
+int get_tgid(int pid)
+{
+	const char tgid_field[TGID_FIELD] = "Tgid:";
 	char file_location[PROC_PID_FILE_PATH_LEN];
 	char *status = NULL;
 	int tgid;
 	FILE *fp;
-	const char tgid_field[TGID_FIELD] = "Tgid:";
 
 	status = calloc(TMP_BUFFER_SIZE, sizeof(char));
 	if (status == NULL) {
@@ -563,14 +565,14 @@ static inline char *nextline(char *str)
  */
 int detect_task_format(void)
 {
-	size_t bufsiz;
 	int bufincrement;
-	int size = 0;
-	int fd;
-	char *buffer;
-	char *ptr;
 	int retval = -1;
+	size_t bufsiz;
+	char *buffer;
+	int size = 0;
+	char *ptr;
 	int status;
+	int fd;
 
 	bufsiz = bufincrement = BUFFER_PAGES * page_size;
 
@@ -594,7 +596,9 @@ int detect_task_format(void)
 			die("realloc failed for %zu size: %s\n", bufsiz, strerror(errno));
 		ptr = buffer + size;
 	}
+
 	close(fd);
+
 	buffer[size] = '\0';
 	config_buffer_size = bufsiz;
 	log_msg("initial config_buffer_size set to %zu\n", config_buffer_size);
@@ -604,16 +608,18 @@ int detect_task_format(void)
 		fprintf(stderr, "unable to find 'runnable tasks' in buffer, invalid input\n");
 		exit(-1);
 	}
+
 	ptr += strlen(TASK_MARKER) + 1;
 	ptr = skipspaces(ptr);
+
 	if (strncmp(ptr, "task", 4) == 0) {
 		retval = OLD_TASK_FORMAT;
 		log_msg("detected old task format\n");
-	}
-	else if (strncmp(ptr, "S", 1) == 0) {
+	} else if (strncmp(ptr, "S", 1) == 0) {
 		retval = NEW_TASK_FORMAT;
 		log_msg("detected new task format\n");
 	}
+
 	free(buffer);
 	return retval;
 }
@@ -730,8 +736,8 @@ int parse_new_task_format(char *buffer, struct task_info *task_info, int nr_entr
 
 static int is_runnable(int pid)
 {
-	int fd, retval, runnable = 0;
 	char stat_path[128], stat[512];
+	int fd, retval, runnable = 0;
 	char *ptr;
 
 	if (pid == 0)
@@ -820,9 +826,10 @@ static int count_task_lines(char *buffer)
  */
 int parse_old_task_format(char *buffer, struct task_info *task_info, int nr_entries)
 {
+
 	struct task_info *task;
-	char *start = buffer;
 	int waiting_tasks = 0;
+	char *start = buffer;
 	int comm_size;
 	char *end;
 	char *buffer_end = start+strlen(buffer);
@@ -954,8 +961,8 @@ int fill_waiting_task(char *buffer, struct cpu_info *cpu_info)
 
 void print_waiting_tasks(struct cpu_info *cpu_info)
 {
-	struct task_info *task;
 	time_t now = time(NULL);
+	struct task_info *task;
 	int i;
 
 	printf("CPU %d has %d waiting tasks\n", cpu_info->id, cpu_info->nr_waiting_tasks);
@@ -1094,9 +1101,9 @@ int get_current_policy(int pid, struct sched_attr *attr)
 
 int boost_with_deadline(int pid)
 {
-	int ret;
-	int flags = 0;
 	struct sched_attr attr;
+	int flags = 0;
+	int ret;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.size = sizeof(attr);
@@ -1110,15 +1117,16 @@ int boost_with_deadline(int pid)
 	    log_msg("boost_with_deadline failed to boost pid %d: %s\n", pid, strerror(errno));
 	    return ret;
 	}
+
 	log_msg("boosted pid %d using SCHED_DEADLINE\n", pid);
 	return ret;
 }
 
 int boost_with_fifo(int pid)
 {
-	int ret;
-	int flags = 0;
 	struct sched_attr attr;
+	int flags = 0;
+	int ret;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.size = sizeof(attr);
@@ -1136,8 +1144,8 @@ int boost_with_fifo(int pid)
 
 int restore_policy(int pid, struct sched_attr *attr)
 {
-	int ret;
 	int flags = 0;
+	int ret;
 
 	ret = sched_setattr(pid, attr, flags);
 	if (ret < 0)
@@ -1155,11 +1163,11 @@ int restore_policy(int pid, struct sched_attr *attr)
  */
 void do_fifo_boost(int pid, struct sched_attr *old_attr)
 {
-	int i;
 	int nr_periods = config_boost_duration / config_dl_period;
-	struct timespec runtime_ts;
 	struct timespec remainder_ts;
+	struct timespec runtime_ts;
 	struct timespec ts;
+	int i;
 
 	/*
 	 * setup the runtime sleep
@@ -1187,8 +1195,8 @@ void do_fifo_boost(int pid, struct sched_attr *old_attr)
 
 int boost_starving_task(int pid)
 {
-	int ret;
 	struct sched_attr attr;
+	int ret;
 
 	/*
 	 * Get the old prio, to be restored at the end of the
@@ -1209,9 +1217,9 @@ int boost_starving_task(int pid)
 		ret = restore_policy(pid, &attr);
 		if (ret < 0)
 			return ret;
-	}
-	else
+	} else {
 		do_fifo_boost(pid, &attr);
+	}
 
 	/*
 	 * XXX: If the proccess dies, we get an error. Deal with that
@@ -1231,9 +1239,10 @@ int boost_starving_task(int pid)
  * part of will be checked
  */
 int check_task_ignore(struct task_info *task) {
-	unsigned int i;
-	int ret = -EINVAL;
 	char *group_comm = NULL;
+	int ret = -EINVAL;
+	unsigned int i;
+
 	/*
 	 * check if this task's name has been passed as part of the
 	 * thread ignore regex
@@ -1453,9 +1462,9 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 {
 	char busy_cpu_list[nr_cpus];
 	pthread_attr_t dettached;
+	size_t buffer_size = 0;
 	struct cpu_info *cpu;
 	char *buffer = NULL;
-	size_t buffer_size = 0;
 	int has_busy_cpu;
 	int retval;
 	int i;
@@ -1619,9 +1628,9 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 {
 	char busy_cpu_list[nr_cpus];
+	size_t buffer_size = 0;
 	struct cpu_info *cpu;
 	char *buffer = NULL;
-	size_t buffer_size = 0;
 	int overloaded = 0;
 	int has_busy_cpu;
 	int boosted = 0;
@@ -1763,10 +1772,10 @@ skipped:
 
 int check_policies(void)
 {
-	int ret;
 	int saved_runtime = config_dl_runtime;
 	int boosted = SCHED_DEADLINE;
 	struct sched_attr attr;
+	int ret;
 
 	/*
 	 * if we specified fifo on the command line
