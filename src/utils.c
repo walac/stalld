@@ -504,38 +504,53 @@ void find_sched_debug_path(void)
 	die("stalld could not find the sched_debug file.\n");
 }
 
+static int fill_sched_features_path(char *path, int path_size)
+{
+	const char *debugfs;
+	int retval;
+
+	debugfs = find_debugfs();
+	if (strlen(debugfs) == 0)
+		return 0;
+
+	snprintf(path, path_size, "%s/sched/features", debugfs);
+	retval = check_file_exists(path);
+	if (retval)
+		return 1;
+
+	snprintf(path, path_size, "%s/sched_features", debugfs);
+	retval = check_file_exists(path);
+	if (retval)
+		return 1;
+
+	memset(path, 0, path_size);
+
+	return 0;
+}
+
 int setup_hr_tick(void)
 {
-	char files[MAX_PATH];
-	const char *debugfs;
+	char path[MAX_PATH];
 	static int set = 0;
 	int hrtick_dl = 0;
+	int ret, len, fd;
 	char buf[500];
 	char *p;
-	int ret;
-	int len;
-	int fd;
 
 	if (set)
 		return 1;
 
 	set = 1;
 
-	debugfs = find_debugfs();
-	if (strlen(debugfs) == 0)
-		return 0;
-
-	sprintf(files, "%s/sched_features", debugfs);
-
-	ret = check_file_exists(files);
+	ret = fill_sched_features_path(path, MAX_PATH);
 	if (!ret) {
-		log_msg("%s doesn't exist, do not try to set HRTICK\n", files);
+		log_msg("did not find sched features, do not try to set HRTICK\n");
 		return 0;
 	}
 
-	fd = open(files, O_RDWR);
+	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		log_msg("could not open %s to set HRTICK: %s", files, strerror(errno));
+		log_msg("could not open %s to set HRTICK: %s", path, strerror(errno));
 		return 0;
 	}
 
@@ -543,7 +558,7 @@ int setup_hr_tick(void)
 
 	ret = read(fd, buf, len);
 	if (ret < 0) {
-		perror(files);
+		perror(path);
 		close(fd);
 		return 0;
 	}
