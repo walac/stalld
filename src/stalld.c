@@ -293,7 +293,7 @@ static long get_cpu_idle_time(char *buffer, size_t buffer_size, int cpu)
 	/* CPU */
 	idle_start = strstr(buffer, cpuid);
 	if (!idle_start)
-		return -EINVAL;
+		return -ENODEV; /* cpu might be offline */
 
 	/* find and skip space before user */
 	idle_start = strstr(idle_start, " ");
@@ -350,7 +350,8 @@ int cpu_had_idle_time(struct cpu_info *cpu_info)
 
 	idle_time = get_cpu_idle_time(sched_stat, STAT_MAX_SIZE, cpu_info->id);
 	if (idle_time < 0) {
-		warn("unable to parse idle time for cpu%d\n", cpu_info->id);
+		if (idle_time != -ENODEV)
+			warn("unable to parse idle time for cpu%d\n", cpu_info->id);
 		return 0;
 	}
 
@@ -402,7 +403,8 @@ int get_cpu_busy_list(struct cpu_info *cpus, int nr_cpus, char *busy_cpu_list)
 
 		idle_time = get_cpu_idle_time(sched_stat, STAT_MAX_SIZE, cpu->id);
 		if (idle_time < 0) {
-			warn("unable to parse idle time for cpu%d\n", cpu->id);
+			if (idle_time != -ENODEV)
+				warn("unable to parse idle time for cpu%d\n", cpu->id);
 			continue;
 		}
 
