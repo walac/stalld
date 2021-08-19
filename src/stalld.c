@@ -252,7 +252,7 @@ int read_sched_stat(char *buffer, int size)
 
 	fd = open("/proc/stat", O_RDONLY);
 
-	if (!fd)
+	if (fd < 0)
 		goto out_error;
 
 	do {
@@ -435,7 +435,7 @@ int read_sched_debug(char *buffer, int size)
 
 	fd = open(config_sched_debug_path, O_RDONLY);
 
-	if (!fd)
+	if (fd < 0)
 		goto out_error;
 
 	do {
@@ -751,7 +751,7 @@ static int is_runnable(int pid)
 		goto out_error;
 	}
 	fd = open(stat_path, O_RDONLY);
-	if (!fd) {
+	if (fd < 0) {
 		warn("error opening stat path for task %d\n", pid);
 		goto out_error;
 	}

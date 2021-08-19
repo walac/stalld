@@ -253,7 +253,7 @@ void log_msg(const char *fmt, ...)
 		/*
 		 * Log iff possible.
 		 */
-		if (kmesg_fd) {
+		if (kmesg_fd != -1) {
 			if (write(kmesg_fd, message, strlen(message)) < 0)
 				warn("write to klog failed");
 			close(kmesg_fd);
