@@ -121,7 +121,7 @@ int setup_signal_handling(void)
 	/* mask off all signals */
 	status = sigfillset(&sigset);
 	if (status) {
-		warn("setting up full signal set %s\n", strerror(status));
+		warn("setting up full signal set %s\n", strerror(errno));
 		return status;
 	}
 	status = pthread_sigmask(SIG_BLOCK, &sigset, NULL);
@@ -133,17 +133,17 @@ int setup_signal_handling(void)
 	/* now allow SIGINT and SIGTERM to be delivered */
 	status = sigemptyset(&sigset);
 	if (status) {
-		warn("creating empty signal set: %s\n", strerror(status));
+		warn("creating empty signal set: %s\n", strerror(errno));
 		return status;
 	}
 	status = sigaddset(&sigset, SIGINT);
 	if (status) {
-		warn("adding SIGINT to signal set: %s\n", strerror(status));
+		warn("adding SIGINT to signal set: %s\n", strerror(errno));
 		return status;
 	}
 	status = sigaddset(&sigset, SIGTERM);
 	if (status) {
-		warn("adding SIGTERM to signal set: %s\n", strerror(status));
+		warn("adding SIGTERM to signal set: %s\n", strerror(errno));
 		return status;
 	}
 	status = pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
