@@ -775,6 +775,9 @@ static void parse_cpu_list(char *cpulist)
 	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
 	config_monitored_cpus = malloc(nr_cpus * sizeof(char));
+	if (!config_monitored_cpus)
+		goto err;
+
 	memset(config_monitored_cpus, 0, (nr_cpus * sizeof(char)));
 
 	for (p = cpulist; *p; ) {
