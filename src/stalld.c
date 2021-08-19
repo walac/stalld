@@ -591,8 +591,7 @@ int detect_task_format(void)
 	while ((status = read(fd, ptr, bufincrement))) {
 		if (status < 0)
 			die ("error reading sched_debug: %s\n", strerror(errno));
-		if (status == 0)
-			break;
+
 		size += status;
 		bufsiz += bufincrement;
 		if ((buffer = realloc(buffer, bufsiz)) == NULL)
