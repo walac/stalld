@@ -451,8 +451,11 @@ static void inthandler (int signo, siginfo_t *info, void *extra)
 static void set_sig_handler()
 {
 	struct sigaction action;
+
 	action.sa_flags = SA_SIGINFO;
 	action.sa_sigaction = inthandler;
+	sigemptyset(&action.sa_mask);
+
 	if (sigaction(SIGINT, &action, NULL) == -1) {
 		error("error setting SIGINT handler: %s\n",
 		      strerror(errno));
