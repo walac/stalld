@@ -53,7 +53,7 @@ static void restore_rt_throttling(int status, void *arg)
 			warn("error restoring rt throttling");
 
 		close(fd);
-		log_msg("RT Throttling runtime restored to %d\n", rt_runtime_us);
+		log_msg("RT Throttling runtime restored to %ld\n", rt_runtime_us);
 	}
 }
 

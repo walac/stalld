@@ -363,7 +363,7 @@ int cpu_had_idle_time(struct cpu_info *cpu_info)
 		return 0;
 
 	if (config_verbose)
-		log_msg("last idle time: %u curr idle time:%d ", cpu_info->idle_time, idle_time);
+		log_msg("last idle time: %ld curr idle time:%ld ", cpu_info->idle_time, idle_time);
 
 	/*
 	 * the CPU had idle time!
