@@ -112,11 +112,12 @@ int rt_throttling_is_off(void)
 
 	close(fd);
 
-	if (ret < sizeof(buffer))
-	    buffer[ret] = '\0';
-
 	if (buffer[ret-1] == '\n')
 		buffer[ret-1] = '\0';
+	else if (ret < sizeof(buffer))
+		buffer[ret] = '\0';
+	else
+		buffer[ret - 1] = '\0';
 
 	if (strcmp(buffer, "-1") == 0)
 		return 1;
