@@ -252,7 +252,7 @@ int read_sched_stat(char *buffer, int size)
 
 	fd = open("/proc/stat", O_RDONLY);
 
-	if (!fd)
+	if (fd < 0)
 		goto out_error;
 
 	do {
@@ -363,7 +363,7 @@ int cpu_had_idle_time(struct cpu_info *cpu_info)
 		return 0;
 
 	if (config_verbose)
-		log_msg("last idle time: %u curr idle time:%d ", cpu_info->idle_time, idle_time);
+		log_msg("last idle time: %ld curr idle time:%ld ", cpu_info->idle_time, idle_time);
 
 	/*
 	 * the CPU had idle time!
@@ -435,7 +435,7 @@ int read_sched_debug(char *buffer, int size)
 
 	fd = open(config_sched_debug_path, O_RDONLY);
 
-	if (!fd)
+	if (fd < 0)
 		goto out_error;
 
 	do {
@@ -591,8 +591,7 @@ int detect_task_format(void)
 	while ((status = read(fd, ptr, bufincrement))) {
 		if (status < 0)
 			die ("error reading sched_debug: %s\n", strerror(errno));
-		if (status == 0)
-			break;
+
 		size += status;
 		bufsiz += bufincrement;
 		if ((buffer = realloc(buffer, bufsiz)) == NULL)
@@ -751,7 +750,7 @@ static int is_runnable(int pid)
 		goto out_error;
 	}
 	fd = open(stat_path, O_RDONLY);
-	if (!fd) {
+	if (fd < 0) {
 		warn("error opening stat path for task %d\n", pid);
 		goto out_error;
 	}

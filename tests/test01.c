@@ -451,8 +451,11 @@ static void inthandler (int signo, siginfo_t *info, void *extra)
 static void set_sig_handler()
 {
 	struct sigaction action;
+
 	action.sa_flags = SA_SIGINFO;
 	action.sa_sigaction = inthandler;
+	sigemptyset(&action.sa_mask);
+
 	if (sigaction(SIGINT, &action, NULL) == -1) {
 		error("error setting SIGINT handler: %s\n",
 		      strerror(errno));
@@ -471,7 +474,7 @@ static int allow_signal(int signum)
 	/* mask off all signals */
 	status = sigfillset(&sigset);
 	if (status) {
-		error("setting up full signal set %s\n", strerror(status));
+		error("setting up full signal set %s\n", strerror(errno));
 		return status;
 	}
 	status = pthread_sigmask(SIG_BLOCK, &sigset, NULL);
@@ -483,12 +486,12 @@ static int allow_signal(int signum)
 	/* now allow signum to be delivered */
 	status = sigemptyset(&sigset);
 	if (status) {
-		error("creating empty signal set: %s\n", strerror(status));
+		error("creating empty signal set: %s\n", strerror(errno));
 		return status;
 	}
 	status = sigaddset(&sigset, signum);
 	if (status) {
-		error("adding %d to signal set: %s\n", signum, strerror(status));
+		error("adding %d to signal set: %s\n", signum, strerror(errno));
 		return status;
 	}
 	status = pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);

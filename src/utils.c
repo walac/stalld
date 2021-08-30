@@ -121,7 +121,7 @@ int setup_signal_handling(void)
 	/* mask off all signals */
 	status = sigfillset(&sigset);
 	if (status) {
-		warn("setting up full signal set %s\n", strerror(status));
+		warn("setting up full signal set %s\n", strerror(errno));
 		return status;
 	}
 	status = pthread_sigmask(SIG_BLOCK, &sigset, NULL);
@@ -133,17 +133,17 @@ int setup_signal_handling(void)
 	/* now allow SIGINT and SIGTERM to be delivered */
 	status = sigemptyset(&sigset);
 	if (status) {
-		warn("creating empty signal set: %s\n", strerror(status));
+		warn("creating empty signal set: %s\n", strerror(errno));
 		return status;
 	}
 	status = sigaddset(&sigset, SIGINT);
 	if (status) {
-		warn("adding SIGINT to signal set: %s\n", strerror(status));
+		warn("adding SIGINT to signal set: %s\n", strerror(errno));
 		return status;
 	}
 	status = sigaddset(&sigset, SIGTERM);
 	if (status) {
-		warn("adding SIGTERM to signal set: %s\n", strerror(status));
+		warn("adding SIGTERM to signal set: %s\n", strerror(errno));
 		return status;
 	}
 	status = pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
@@ -253,7 +253,7 @@ void log_msg(const char *fmt, ...)
 		/*
 		 * Log iff possible.
 		 */
-		if (kmesg_fd) {
+		if (kmesg_fd != -1) {
 			if (write(kmesg_fd, message, strlen(message)) < 0)
 				warn("write to klog failed");
 			close(kmesg_fd);
@@ -775,6 +775,9 @@ static void parse_cpu_list(char *cpulist)
 	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
 	config_monitored_cpus = malloc(nr_cpus * sizeof(char));
+	if (!config_monitored_cpus)
+		goto err;
+
 	memset(config_monitored_cpus, 0, (nr_cpus * sizeof(char)));
 
 	for (p = cpulist; *p; ) {
