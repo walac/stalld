@@ -1,5 +1,5 @@
 Name:		stalld
-Version:	1.14.1
+Version:	1.15
 Release:	1%{?dist}
 Summary:	Daemon that finds starving tasks and gives them a temporary boost
 
@@ -51,6 +51,15 @@ allow 10 microseconds of runtime for 1 second of clock time.
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Mon Nov 15 2021 Fernando Pacheco <fpacheco@redhat.com> - 1.15-1
+- stalld: Fix incorrect open() return value checks
+- stalld: Pass errno to strerror() on sig*set() failures
+- throttling: Always null terminate sched_rt_runtime_us output
+- stalld: Remove unreachable statement in detect_task_format()
+- tests: Fix uninitialized value action.sa_mask
+- utils: Bail if malloc() returns null in parse_cpu_list()
+- stalld: Use correct format specifier for long types
+
 * Mon Jul 19 2021 Fernando Pacheco <fpacheco@redhat.com> - 1.14.1-1
 - stalld: Coding style cleanup
 - stalld: spaces in place of <TAB>
