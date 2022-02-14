@@ -154,6 +154,11 @@ regex_t *compiled_regex_process = NULL;
 char *config_sched_debug_path = NULL;
 
 /*
+ * CPU reservation to use with SCHED_DEADLINE.
+ */
+int config_reservation = 0;
+
+/*
  * API to fetch process name from process group ID
  */
 char *get_process_comm(int tgid)
@@ -1836,6 +1841,7 @@ int main(int argc, char **argv)
 {
 	struct cpu_info *cpus;
 	int nr_cpus;
+	int retval;
 	int i;
 
 	/*
@@ -1902,6 +1908,18 @@ int main(int argc, char **argv)
 
 	if (!config_foreground)
 		deamonize();
+
+	/*
+	 * Set stalld as SCHED_DEADLINE using config_reservation %
+	 * of the CPU time.
+	 */
+	if (config_reservation) {
+		retval = set_reservation(config_granularity, config_reservation);
+		if (retval) {
+			log_msg("error setting the reservation\n");
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	write_pidfile();
 

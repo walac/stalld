@@ -637,6 +637,51 @@ void write_pidfile(void)
 	}
 }
 
+/*
+ * set_reservation - configure stalld to run with SCHED_DEADLINE
+ *
+ * Set stalld to run with reservation % of CPU time using SCHED_DEADLINE.
+ *
+ * If the period is < 4 s (see kernel.sched_deadline_period_max_us), stalld
+ * will have the dl_period set as period. If it is higher than 4s, the
+ * reservation will be configure as 1s period. This does not change the
+ * picture, as at the end, the task will receive the % of time, while
+ * avoiding have yet another knob to handle.
+ */
+int set_reservation(int period, int reservation)
+{
+	unsigned long dl_period, dl_runtime;
+	struct sched_attr attr;
+	int flags = 0;
+	int ret;
+
+	if (reservation == 0)
+		return 0;
+
+	if (period > 4)
+		period = 1;
+
+	dl_period = period * 1000 * 1000 * 1000;
+	dl_runtime = dl_period * reservation / 100;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.size = sizeof(attr);
+	attr.sched_policy   = SCHED_DEADLINE;
+	attr.sched_runtime  = dl_runtime;
+	attr.sched_deadline = dl_period;
+	attr.sched_period   = dl_period;
+
+	ret = sched_setattr(0, &attr, flags);
+	if (ret < 0) {
+		log_msg("failed to set -R/--reservation: %s\n", strerror(errno));
+		return ret;
+	}
+
+	log_msg("successfully set %d%% SCHED_DEADLINE reservation runtime/period = %lld/%lld\n",
+		reservation, dl_runtime, dl_period);
+	return 0;
+}
+
 static void print_usage(void)
 {
 	int i;
@@ -646,7 +691,8 @@ static void print_usage(void)
 		"  usage: stalld [-l] [-v] [-k] [-s] [-f] [-h] \\",
 		"          [-c cpu-list] \\",
 		"          [-p time in ns] [-r time in ns] \\",
-		"          [-d time in seconds] [-t time in seconds]",
+		"          [-d time in seconds] [-t time in seconds] \\",
+		"          [-R percentage ]",
 		"",
 		"       logging options:",
 		"          -l/--log_only: only log information (do not boost)",
@@ -668,6 +714,7 @@ static void print_usage(void)
 		"                               it.",
 		"	   -O/--power_mode: works as a single threaded tool. Saves CPU, but loses precision.",
 		"	   -g/--granularity: set the granularity at which stalld checks for starving threads",
+		"	   -R/--reservation: percentage of CPU time reserved to stalld using SCHED_DEADLINE.",
 		"        ignoring options:",
 		"          -i/--ignore_threads: regexes (comma-separated) of thread names that must be ignored",
 		"                               from being boosted",
@@ -848,6 +895,7 @@ int parse_args(int argc, char **argv)
 			{"version", 		no_argument,	   0, 'V'},
 			{"systemd",		no_argument,	   0, 'S'},
 			{"granularity",		required_argument, 0, 'g'},
+			{"reservation",		required_argument, 0, 'R'},
 			{"ignore_threads",      required_argument, 0, 'i'},
 			{"ignore_processes",    required_argument, 0, 'I'},
 			{0, 0, 0, 0}
@@ -856,7 +904,7 @@ int parse_args(int argc, char **argv)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "lvkfAOMhsp:r:d:t:c:FVSg:i:I:",
+		c = getopt_long(argc, argv, "lvkfAOMhsp:r:d:t:c:FVSg:i:I:R:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -977,6 +1025,11 @@ int parse_args(int argc, char **argv)
 			config_single_threaded = 0;
 			config_aggressive = 0;
 			break;
+		case 'R':
+			config_reservation = get_long_from_str(optarg);
+			if (config_reservation < 10 || config_reservation > 90)
+				usage("Reservation needs to be at least 10%% and at most 90%%");
+			break;
 		case '?':
 			usage("Invalid option");
 			break;
@@ -1001,6 +1054,9 @@ int parse_args(int argc, char **argv)
 		config_single_threaded = 0;
 		config_aggressive = 0;
 	}
+
+	if (config_reservation && (config_aggressive || config_adaptive_multi_threaded))
+		usage("-R/--reservation only works in the single-threaded mode");
 
 	/*
 	 * stalld needs root permission to read kernel debug files

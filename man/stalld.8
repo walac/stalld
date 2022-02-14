@@ -11,6 +11,7 @@ stalld \- detect starving threads and boost them
 [ -t time-in-sec ]
 [ -i regexes-of-thread-names ]
 [ -I regexes-of-process-names ]
+[ -R percentage ]
 .br
 
 .SH DESCRIPTION
@@ -90,6 +91,12 @@ set the granularity (in seconds) at which stalld checks for starving
 threads. The lower the value the more precise will be the detection,
 at the price of consuming more CPU time.
 .B [5 seconds]
+.TP
+.B \-R|\-\-reservation
+set the percentage of CPU time reserved for stalld via SCHED_DEADLINE.
+In this way, stalld cannot starve due to high priority threads, also
+avoid indirect starvation via priority inversion.
+.B [not set]
 .TP
 .B \-i|\-\-ignore_threads
 regexes (comma-separated) of thread names that must be ignored from

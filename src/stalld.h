@@ -150,6 +150,7 @@ int rt_throttling_is_off(void);
 int turn_off_rt_throttling(void);
 void cleanup_regex();
 void find_sched_debug_path(void);
+int set_reservation(int period, int reservation);
 
 /*
  * shared variables
@@ -182,6 +183,7 @@ extern unsigned int nr_process_ignore;
 extern regex_t *compiled_regex_thread;
 extern regex_t *compiled_regex_process;
 extern char *config_sched_debug_path;
+extern int config_reservation;
 
 #define MAX_FILE_NAME	1024
 #define MAX_PATH	4096
