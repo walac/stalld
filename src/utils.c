@@ -85,27 +85,31 @@ long get_variable_long_value(char *buffer, const char *variable)
 /*
  * SIGINT handler for main
  */
-static void inthandler (int signo, siginfo_t *info, void *extra)
+static void inthandler(int signo, siginfo_t *info, void *extra)
 {
 	log_msg("received signal %d, starting shutdown\n", signo);
 	running = 0;
 }
 
-static void set_sig_handler()
+static void set_sig_handler(void)
 {
 	struct sigaction action;
 
 	memset(&action, 0, sizeof(action));
+
 	action.sa_flags = SA_SIGINFO;
 	action.sa_sigaction = inthandler;
 	sigemptyset(&action.sa_mask);
+
 	if (sigaction(SIGINT, &action, NULL) == -1) {
 		warn("error setting SIGINT handler: %s\n",
 		      strerror(errno));
 		exit(errno);
 	}
+
 	action.sa_flags = SA_SIGINFO;
 	action.sa_sigaction = inthandler;
+
 	if (sigaction(SIGTERM, &action, NULL) == -1) {
 		warn("error setting SIGTERM handler: %s\n",
 		      strerror(errno));
@@ -124,6 +128,7 @@ int setup_signal_handling(void)
 		warn("setting up full signal set %s\n", strerror(errno));
 		return status;
 	}
+
 	status = pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 	if (status) {
 		warn("setting signal mask: %s\n", strerror(status));
@@ -136,16 +141,19 @@ int setup_signal_handling(void)
 		warn("creating empty signal set: %s\n", strerror(errno));
 		return status;
 	}
+
 	status = sigaddset(&sigset, SIGINT);
 	if (status) {
 		warn("adding SIGINT to signal set: %s\n", strerror(errno));
 		return status;
 	}
+
 	status = sigaddset(&sigset, SIGTERM);
 	if (status) {
 		warn("adding SIGTERM to signal set: %s\n", strerror(errno));
 		return status;
 	}
+
 	status = pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
 	if (status) {
 		warn("unblocking signals: %s\n", strerror(status));
@@ -205,7 +213,6 @@ void __warn(const char *fmt, ...)
 	fprintf(stderr, "\n");
 }
 
-
 /*
  * print an informational message if config_verbose is true
  */
@@ -219,8 +226,6 @@ void __info(const char *fmt, ...)
 		va_end(ap);
 	}
 }
-
-
 
 void log_msg(const char *fmt, ...)
 {
@@ -265,8 +270,8 @@ void log_msg(const char *fmt, ...)
 	 */
 	if (config_log_syslog)
 		syslog(LOG_INFO, "%s", log);
-
 }
+
 /*
  * Based on:
  * https://github.com/pasce/daemon-skeleton-linux-c
@@ -604,7 +609,6 @@ int setup_hr_tick(void)
 	return ret;
 }
 
-
 int should_monitor(int cpu)
 {
 	if (config_monitor_all_cpus)
@@ -679,7 +683,6 @@ static void print_usage(void)
 	for(i = 0; msg[i]; i++)
 		fprintf(stderr, "%s\n", msg[i]);
 	fprintf(stderr, "  stalld version: %s\n", version);
-
 }
 
 void usage(const char *fmt, ...)
@@ -693,7 +696,6 @@ void usage(const char *fmt, ...)
 	va_end(ap);
 
 	fprintf(stderr, "\n");
-
 
 	exit(EINVAL);
 }
