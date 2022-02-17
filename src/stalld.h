@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: GPL-2.0
  *
  * Copyright (C) 2020 Red Hat Inc, Daniel Bristot de Oliveira <bristot@redhat.com>
- *
  */
+
 #ifndef __STALLD_H__
 #define __STALLD_H__
 
@@ -13,16 +13,16 @@
 #define MAX_WAITING_PIDS	30
 
 /*
- *workqueue worker names are now more verbose and needs
- * to be taken into consideration.
+ * Workqueue worker names are now more verbose and needs to be
+ * taken into consideration.
+ *
  * Reference - https://lkml.org/lkml/2018/5/17/16
- * This change is also taken into consideration by
- * procps-ng
+ * This change is also taken into consideration by procps-ng
  * Commit - 2cfdbbe897f0d4e41460c7c2b92acfc5804652c8
  */
 #define COMM_SIZE		63
 
-/* macros related to the denylisting feature */
+/* Macros related to the denylisting feature. */
 #define SWAPPER 0
 #define IGNORE_THREADS 1
 #define IGNORE_PROCESSES 2
@@ -33,19 +33,21 @@
 #define TMP_BUFFER_SIZE 100
 
 /*
- * this macro defines the size of a character array
- * to save strings of the form "/proc/pid/comm" or
- * "/proc/pid/status". PIDs can be configured up to
- * (2^22) on 64 bit systems which maps to 7 digits.
- * So 30 characters worth of storage should
- * be enough
+ * This macro defines the size of a character array to save strings
+ * of the form "/proc/pid/comm" or "/proc/pid/status". PIDs can be
+ * configured up to (2^22) on 64 bit systems which maps to 7 digits.
+ * So 30 characters worth of storage should be enough.
  */
 #define PROC_PID_FILE_PATH_LEN 30
 
-/* Daemon umask value */
+/*
+ * Daemon umask value.
+ */
 #define DAEMON_UMASK  0x133  /* 0644 */
 
-/* informnation about running tasks on a cpu */
+/*
+ * Informnation about running tasks on a CPU.
+ */
 struct task_info {
        int pid;
        int tgid;
@@ -55,7 +57,9 @@ struct task_info {
        char comm[COMM_SIZE+1];
 };
 
-/* information about cpus */
+/*
+ * Information about CPUs.
+ */
 struct cpu_info {
        int id;
        int nr_running;
@@ -122,9 +126,8 @@ static inline void normalize_timespec(struct timespec *ts)
 }
 
 /*
- * forward function definitions
+ * Forward function definitions.
  */
-
 void __die(const char *fmt, ...);
 void __warn(const char *fmt, ...);
 void __info(const char *fmt, ...);
@@ -153,7 +156,7 @@ void find_sched_debug_path(void);
 int set_reservation(int period, int reservation);
 
 /*
- * shared variables
+ * Shared variables.
  */
 extern int running;
 extern const char *version;
