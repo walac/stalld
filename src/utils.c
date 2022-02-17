@@ -85,27 +85,31 @@ long get_variable_long_value(char *buffer, const char *variable)
 /*
  * SIGINT handler for main
  */
-static void inthandler (int signo, siginfo_t *info, void *extra)
+static void inthandler(int signo, siginfo_t *info, void *extra)
 {
 	log_msg("received signal %d, starting shutdown\n", signo);
 	running = 0;
 }
 
-static void set_sig_handler()
+static void set_sig_handler(void)
 {
 	struct sigaction action;
 
 	memset(&action, 0, sizeof(action));
+
 	action.sa_flags = SA_SIGINFO;
 	action.sa_sigaction = inthandler;
 	sigemptyset(&action.sa_mask);
+
 	if (sigaction(SIGINT, &action, NULL) == -1) {
 		warn("error setting SIGINT handler: %s\n",
 		      strerror(errno));
 		exit(errno);
 	}
+
 	action.sa_flags = SA_SIGINFO;
 	action.sa_sigaction = inthandler;
+
 	if (sigaction(SIGTERM, &action, NULL) == -1) {
 		warn("error setting SIGTERM handler: %s\n",
 		      strerror(errno));
@@ -124,6 +128,7 @@ int setup_signal_handling(void)
 		warn("setting up full signal set %s\n", strerror(errno));
 		return status;
 	}
+
 	status = pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 	if (status) {
 		warn("setting signal mask: %s\n", strerror(status));
@@ -136,16 +141,19 @@ int setup_signal_handling(void)
 		warn("creating empty signal set: %s\n", strerror(errno));
 		return status;
 	}
+
 	status = sigaddset(&sigset, SIGINT);
 	if (status) {
 		warn("adding SIGINT to signal set: %s\n", strerror(errno));
 		return status;
 	}
+
 	status = sigaddset(&sigset, SIGTERM);
 	if (status) {
 		warn("adding SIGTERM to signal set: %s\n", strerror(errno));
 		return status;
 	}
+
 	status = pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
 	if (status) {
 		warn("unblocking signals: %s\n", strerror(status));
@@ -205,7 +213,6 @@ void __warn(const char *fmt, ...)
 	fprintf(stderr, "\n");
 }
 
-
 /*
  * print an informational message if config_verbose is true
  */
@@ -219,8 +226,6 @@ void __info(const char *fmt, ...)
 		va_end(ap);
 	}
 }
-
-
 
 void log_msg(const char *fmt, ...)
 {
@@ -265,8 +270,8 @@ void log_msg(const char *fmt, ...)
 	 */
 	if (config_log_syslog)
 		syslog(LOG_INFO, "%s", log);
-
 }
+
 /*
  * Based on:
  * https://github.com/pasce/daemon-skeleton-linux-c
@@ -604,7 +609,6 @@ int setup_hr_tick(void)
 	return ret;
 }
 
-
 int should_monitor(int cpu)
 {
 	if (config_monitor_all_cpus)
@@ -633,6 +637,51 @@ void write_pidfile(void)
 	}
 }
 
+/*
+ * set_reservation - configure stalld to run with SCHED_DEADLINE
+ *
+ * Set stalld to run with reservation % of CPU time using SCHED_DEADLINE.
+ *
+ * If the period is < 4 s (see kernel.sched_deadline_period_max_us), stalld
+ * will have the dl_period set as period. If it is higher than 4s, the
+ * reservation will be configure as 1s period. This does not change the
+ * picture, as at the end, the task will receive the % of time, while
+ * avoiding have yet another knob to handle.
+ */
+int set_reservation(int period, int reservation)
+{
+	unsigned long dl_period, dl_runtime;
+	struct sched_attr attr;
+	int flags = 0;
+	int ret;
+
+	if (reservation == 0)
+		return 0;
+
+	if (period > 4)
+		period = 1;
+
+	dl_period = period * 1000 * 1000 * 1000;
+	dl_runtime = dl_period * reservation / 100;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.size = sizeof(attr);
+	attr.sched_policy   = SCHED_DEADLINE;
+	attr.sched_runtime  = dl_runtime;
+	attr.sched_deadline = dl_period;
+	attr.sched_period   = dl_period;
+
+	ret = sched_setattr(0, &attr, flags);
+	if (ret < 0) {
+		log_msg("failed to set -R/--reservation: %s\n", strerror(errno));
+		return ret;
+	}
+
+	log_msg("successfully set %d%% SCHED_DEADLINE reservation runtime/period = %lld/%lld\n",
+		reservation, dl_runtime, dl_period);
+	return 0;
+}
+
 static void print_usage(void)
 {
 	int i;
@@ -642,7 +691,8 @@ static void print_usage(void)
 		"  usage: stalld [-l] [-v] [-k] [-s] [-f] [-h] \\",
 		"          [-c cpu-list] \\",
 		"          [-p time in ns] [-r time in ns] \\",
-		"          [-d time in seconds] [-t time in seconds]",
+		"          [-d time in seconds] [-t time in seconds] \\",
+		"          [-R percentage ]",
 		"",
 		"       logging options:",
 		"          -l/--log_only: only log information (do not boost)",
@@ -664,6 +714,7 @@ static void print_usage(void)
 		"                               it.",
 		"	   -O/--power_mode: works as a single threaded tool. Saves CPU, but loses precision.",
 		"	   -g/--granularity: set the granularity at which stalld checks for starving threads",
+		"	   -R/--reservation: percentage of CPU time reserved to stalld using SCHED_DEADLINE.",
 		"        ignoring options:",
 		"          -i/--ignore_threads: regexes (comma-separated) of thread names that must be ignored",
 		"                               from being boosted",
@@ -679,7 +730,6 @@ static void print_usage(void)
 	for(i = 0; msg[i]; i++)
 		fprintf(stderr, "%s\n", msg[i]);
 	fprintf(stderr, "  stalld version: %s\n", version);
-
 }
 
 void usage(const char *fmt, ...)
@@ -693,7 +743,6 @@ void usage(const char *fmt, ...)
 	va_end(ap);
 
 	fprintf(stderr, "\n");
-
 
 	exit(EINVAL);
 }
@@ -846,6 +895,7 @@ int parse_args(int argc, char **argv)
 			{"version", 		no_argument,	   0, 'V'},
 			{"systemd",		no_argument,	   0, 'S'},
 			{"granularity",		required_argument, 0, 'g'},
+			{"reservation",		required_argument, 0, 'R'},
 			{"ignore_threads",      required_argument, 0, 'i'},
 			{"ignore_processes",    required_argument, 0, 'I'},
 			{0, 0, 0, 0}
@@ -854,7 +904,7 @@ int parse_args(int argc, char **argv)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "lvkfAOMhsp:r:d:t:c:FVSg:i:I:",
+		c = getopt_long(argc, argv, "lvkfAOMhsp:r:d:t:c:FVSg:i:I:R:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -975,6 +1025,11 @@ int parse_args(int argc, char **argv)
 			config_single_threaded = 0;
 			config_aggressive = 0;
 			break;
+		case 'R':
+			config_reservation = get_long_from_str(optarg);
+			if (config_reservation < 10 || config_reservation > 90)
+				usage("Reservation needs to be at least 10%% and at most 90%%");
+			break;
 		case '?':
 			usage("Invalid option");
 			break;
@@ -999,6 +1054,9 @@ int parse_args(int argc, char **argv)
 		config_single_threaded = 0;
 		config_aggressive = 0;
 	}
+
+	if (config_reservation && (config_aggressive || config_adaptive_multi_threaded))
+		usage("-R/--reservation only works in the single-threaded mode");
 
 	/*
 	 * stalld needs root permission to read kernel debug files
