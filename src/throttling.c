@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0
  *
  * Copyright (C) 2020 Red Hat Inc, Daniel Bristot de Oliveira <bristot@redhat.com>
- *
  */
 
 #define _GNU_SOURCE
@@ -63,7 +62,7 @@ int turn_off_rt_throttling(void)
 	int status;
 	int fd;
 
-	/* get the current value of the throttling runtime */
+	/* Get the current value of the throttling runtime. */
 	fd = open(RT_RUNTIME_PATH, O_RDWR);
 	if (fd < 0)
 		die("unable to open %s: %s\n", RT_RUNTIME_PATH, strerror(errno));
@@ -80,7 +79,7 @@ int turn_off_rt_throttling(void)
 		return 0;
 	}
 
-	/* turn off throttling and register an exit handler to restore it */
+	/* Turn off throttling and register an exit handler to restore it. */
 	status = lseek(fd, 0, SEEK_SET);
 	if (status < 0)
 		die("unable to seek on %s", RT_RUNTIME_PATH);
