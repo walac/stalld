@@ -1036,11 +1036,20 @@ int parse_args(int argc, char **argv)
 	}
 
 	/*
-	 * Runtime is always < 1 ms, so enable hrtick. Unless config_log_only
-	 * only is set.
+	 * Runtime is always < 1 ms, enable hrtick if we're not in logging only
+	 * mode and if we'll be using SCHED_DEADLINE.
 	 */
-	if (!config_log_only)
-		setup_hr_tick();
+	if (!config_log_only && !config_force_fifo) {
+		/*
+		 * If HRTICK can't be enabled, then we can't do a reliable
+		 * job of ensuring only runtime worth of bandwidth is allocated.
+		 * Don't allow stalld to continue in this mode.
+		 */
+		if (!setup_hr_tick()) {
+			log_msg("stalld can't enable HRTICK. stalld cannot run in this mode. Exiting..\n");
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	return(0);
 }
