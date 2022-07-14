@@ -634,8 +634,8 @@ int detect_task_format(void)
  */
 int parse_new_task_format(char *buffer, struct task_info *task_info, int nr_entries)
 {
+	char *R, *X, *start = buffer;
 	struct task_info *task;
-	char *start = buffer;
 	int tasks = 0;
 	int comm_size;
 	char *end;
@@ -651,17 +651,27 @@ int parse_new_task_format(char *buffer, struct task_info *task_info, int nr_entr
 		task = &task_info[tasks];
 
 		/*
-		 * Only care about tasks in the Runnable state Note:
-		 * the actual scheduled task will show up as
-		 * "\n>R" so we will skip it.
+		 * Runnable tasks.
 		 */
-		start = strstr(start, "\n R");
+		R = strstr(start, "\n R");
 
-		/* If no match then there are no more Runnable tasks. */
-		if (!start)
+		/*
+		 * Dying tasks.
+		 */
+		X = strstr(start, "\n X");
+
+		/*
+		 * Get the first one, the only one, or break.
+		 */
+		if (X && R) {
+			start = R < X ? R : X;
+		} else if (X || R) {
+			start = R ? R : X;
+		} else {
 			break;
+		}
 
-		/* Skip '\n R'. */
+		/* Skip '\n R' || '\n X'. */
 		start = &start[3];
 
 		/* Skip the spaces. */
