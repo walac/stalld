@@ -1142,11 +1142,11 @@ int restore_policy(int pid, struct sched_attr *attr)
  */
 void do_fifo_boost(int pid, struct sched_attr *old_attr)
 {
-	int nr_periods = config_boost_duration / config_dl_period;
+	uint64_t nr_periods = (config_boost_duration * NS_PER_SEC) / config_dl_period;
 	struct timespec remainder_ts;
 	struct timespec runtime_ts;
 	struct timespec ts;
-	int i;
+	uint64_t i;
 
 	/* Setup the runtime sleep. */
 	memset(&runtime_ts, 0, sizeof(runtime_ts));

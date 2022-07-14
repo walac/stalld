@@ -116,7 +116,8 @@ static inline int sched_getattr(pid_t pid, struct sched_attr *attr,
        return syscall (__NR_sched_getattr, pid , attr, size, flags);
 }
 
-#define NS_PER_SEC 1000000000
+#define NS_PER_SEC 1000000000uL
+
 static inline void normalize_timespec(struct timespec *ts)
 {
         while (ts->tv_nsec >= NS_PER_SEC) {
