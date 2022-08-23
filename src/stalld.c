@@ -1089,7 +1089,22 @@ int get_current_policy(int pid, struct sched_attr *attr)
 	return ret;
 }
 
-int boost_with_deadline(int pid)
+void print_boosted_info(int pid, struct cpu_info *cpu, char *type)
+{
+	char *comm;
+
+	comm = get_process_comm(pid);
+	if (comm == NULL)
+		comm = "undef";
+
+	if (cpu)
+		log_msg("boosted pid %d (%s) (cpu %d) using %s\n", pid, comm,
+			cpu->id, type);
+	else
+		log_msg("boosted pid %d (%s) using %s\n", pid, comm, type);
+}
+
+int boost_with_deadline(int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int flags = 0;
@@ -1108,11 +1123,11 @@ int boost_with_deadline(int pid)
 	    return ret;
 	}
 
-	log_msg("boosted pid %d using SCHED_DEADLINE\n", pid);
+	print_boosted_info(pid, cpu, "SCHED_DEADLINE");
 	return ret;
 }
 
-int boost_with_fifo(int pid)
+int boost_with_fifo(int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int flags = 0;
@@ -1128,7 +1143,8 @@ int boost_with_fifo(int pid)
 	    log_msg("boost_with_fifo failed to boost pid %d: %s\n", pid, strerror(errno));
 	    return ret;
 	}
-	log_msg("boosted pid %d using SCHED_FIFO\n", pid);
+
+	print_boosted_info(pid, cpu, "SCHED_FIFO");
 	return ret;
 }
 
@@ -1150,7 +1166,7 @@ int restore_policy(int pid, struct sched_attr *attr)
  * back to its old policy, then sleeping for the remainder of the period,
  * repeating until all the periods are done.
  */
-void do_fifo_boost(int pid, struct sched_attr *old_attr)
+void do_fifo_boost(int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
 {
 	uint64_t nr_periods = (config_boost_duration * NS_PER_SEC) / config_dl_period;
 	struct timespec remainder_ts;
@@ -1169,7 +1185,7 @@ void do_fifo_boost(int pid, struct sched_attr *old_attr)
 	normalize_timespec(&remainder_ts);
 
 	for (i=0; i < nr_periods; i++) {
-		boost_with_fifo(pid);
+		boost_with_fifo(pid, cpu);
 		ts = runtime_ts;
 		clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, 0);
 		restore_policy(pid, old_attr);
@@ -1178,7 +1194,7 @@ void do_fifo_boost(int pid, struct sched_attr *old_attr)
 	}
 }
 
-int boost_starving_task(int pid)
+int boost_starving_task(int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int ret;
@@ -1193,7 +1209,7 @@ int boost_starving_task(int pid)
 
 	/* Boost. */
 	if (boost_policy == SCHED_DEADLINE) {
-		ret = boost_with_deadline(pid);
+		ret = boost_with_deadline(pid, cpu);
 		if (ret < 0)
 			return ret;
 		sleep(config_boost_duration);
@@ -1201,7 +1217,7 @@ int boost_starving_task(int pid)
 		if (ret < 0)
 			return ret;
 	} else {
-		do_fifo_boost(pid, &attr);
+		do_fifo_boost(pid, &attr, cpu);
 	}
 
 	/*
@@ -1306,7 +1322,7 @@ int check_starving_tasks(struct cpu_info *cpu)
 				continue;
 			}
 
-			boost_starving_task(task->pid);
+			boost_starving_task(task->pid, cpu);
 		}
 	}
 
@@ -1529,7 +1545,7 @@ skipped:
 	}
 }
 
-int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus)
+int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus, struct cpu_info *cpus)
 {
 	struct cpu_starving_task_info *cpu;
 	struct sched_attr attr[nr_cpus];
@@ -1571,7 +1587,7 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 				continue;
 
 			/* Boost! */
-			ret = boost_with_deadline(cpu->pid);
+			ret = boost_with_deadline(cpu->pid, &cpus[i]);
 
 			/* It is ok if a task die. */
 			if (ret < 0)
@@ -1686,7 +1702,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 
 		}
 
-		boosted = boost_cpu_starving_vector(cpu_starving_vector, nr_cpus);
+		boosted = boost_cpu_starving_vector(cpu_starving_vector, nr_cpus, cpus);
 		if (!boosted)
 			goto skipped;
 
@@ -1759,10 +1775,10 @@ int check_policies(void)
 		die("unable to get scheduling policy!");
 
 	/* Try boosting to SCHED_DEADLINE. */
-	ret = boost_with_deadline(0);
+	ret = boost_with_deadline(0, NULL);
 	if (ret < 0) {
 		/* Try boosting with FIFO to see if we have permission. */
-		ret = boost_with_fifo(0);
+		ret = boost_with_fifo(0, NULL);
 		if (ret < 0) {
 			log_msg("check_policies: unable to change policy to either deadline or fifo,"
 				"defaulting to logging only\n");
