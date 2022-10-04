@@ -155,6 +155,8 @@ int turn_off_rt_throttling(void);
 void cleanup_regex();
 void find_sched_debug_path(void);
 int set_reservation(int period, int reservation);
+int get_tgid(int pid);
+void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct task_info *new_tasks, int nr_new);
 
 /*
  * Shared variables.
@@ -188,6 +190,8 @@ extern regex_t *compiled_regex_thread;
 extern regex_t *compiled_regex_process;
 extern char *config_sched_debug_path;
 extern int config_reservation;
+extern size_t config_buffer_size;
+extern long page_size;
 
 #define MAX_FILE_NAME	1024
 #define MAX_PATH	4096
