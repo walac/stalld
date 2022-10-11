@@ -84,6 +84,7 @@ long config_granularity = 5;
  */
 int config_monitor_all_cpus = 1;
 char *config_monitored_cpus;
+int config_nr_cpus;
 
 /*
  * Size of pages in bytes.
@@ -1258,13 +1259,16 @@ int check_policies(void)
 int main(int argc, char **argv)
 {
 	struct cpu_info *cpus;
-	int nr_cpus;
 	int retval;
 	int i;
 
 	/* Get the system page size so we can use it when allocating buffers. */
 	if ((page_size = sysconf(_SC_PAGE_SIZE)) < 0)
 		die("Unable to get system page size: %s\n", strerror(errno));
+
+	config_nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	if (config_nr_cpus < 1)
+		die("Can not calculate number of CPUS\n");
 
 	parse_args(argc, argv);
 
@@ -1289,17 +1293,13 @@ int main(int argc, char **argv)
 	if (!config_log_only)
 		boost_policy = check_policies();
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
-	if (nr_cpus < 1)
-		die("Can not calculate number of CPUS\n");
-
-	cpus = malloc(sizeof(struct cpu_info) * nr_cpus);
+	cpus = malloc(sizeof(struct cpu_info) * config_nr_cpus);
 	if (!cpus)
 		die("Cannot allocate memory");
 
-	memset(cpus, 0, sizeof(struct cpu_info) * nr_cpus);
+	memset(cpus, 0, sizeof(struct cpu_info) * config_nr_cpus);
 
-	for (i = 0; i < nr_cpus; i++) {
+	for (i = 0; i < config_nr_cpus; i++) {
 		cpus[i].buffer = malloc(config_buffer_size);
 		if (!cpus[i].buffer)
 			die("Cannot allocate memory");
@@ -1316,7 +1316,7 @@ int main(int argc, char **argv)
 	setup_signal_handling();
 
 	if (config_idle_detection)
-		STAT_MAX_SIZE = nr_cpus * page_size;
+		STAT_MAX_SIZE = config_nr_cpus * page_size;
 
 	if (!config_foreground)
 		deamonize();
@@ -1337,11 +1337,11 @@ int main(int argc, char **argv)
 
 	/* The less likely first. */
 	if (config_aggressive)
-		aggressive_main(cpus, nr_cpus);
+		aggressive_main(cpus, config_nr_cpus);
 	else if (config_adaptive_multi_threaded)
-		conservative_main(cpus, nr_cpus);
+		conservative_main(cpus, config_nr_cpus);
 	else
-		single_threaded_main(cpus, nr_cpus);
+		single_threaded_main(cpus, config_nr_cpus);
 
 	cleanup_regex(&nr_thread_ignore, &compiled_regex_thread);
 	cleanup_regex(&nr_process_ignore, &compiled_regex_process);

@@ -825,21 +825,18 @@ static void parse_cpu_list(char *cpulist)
 {
 	const char *p;
 	int end_cpu;
-	int nr_cpus;
 	int cpu;
 	int i;
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
-
-	config_monitored_cpus = malloc(nr_cpus * sizeof(char));
+	config_monitored_cpus = malloc(config_nr_cpus * sizeof(char));
 	if (!config_monitored_cpus)
 		goto err;
 
-	memset(config_monitored_cpus, 0, (nr_cpus * sizeof(char)));
+	memset(config_monitored_cpus, 0, (config_nr_cpus * sizeof(char)));
 
 	for (p = cpulist; *p; ) {
 		cpu = atoi(p);
-		if (cpu < 0 || (!cpu && *p != '0') || cpu >= nr_cpus)
+		if (cpu < 0 || (!cpu && *p != '0') || cpu >= config_nr_cpus)
 			goto err;
 
 		while (isdigit(*p))
@@ -847,7 +844,7 @@ static void parse_cpu_list(char *cpulist)
 		if (*p == '-') {
 			p++;
 			end_cpu = atoi(p);
-			if (end_cpu < cpu || (!end_cpu && *p != '0') || end_cpu >= nr_cpus)
+			if (end_cpu < cpu || (!end_cpu && *p != '0') || end_cpu >= config_nr_cpus)
 				goto err;
 			while (isdigit(*p))
 				p++;
