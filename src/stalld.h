@@ -74,6 +74,39 @@ struct cpu_info {
        size_t buffer_size;
 };
 
+struct stalld_backend {
+	/*
+	 * Initialize the backend.
+	 */
+	int (*init)(void);
+
+	/*
+	 * Get task information about all CPUs.
+	 */
+	int (*get)(char *buffer, int size);
+
+	/*
+	 * Get task information about a single CPU.
+	 */
+	int (*get_cpu)(char *buffer, int size, int cpu);
+
+	/*
+	 * Parse the task information from buffer to the
+	 * cpu_info, about the cpu_info->id.
+	 */
+	int (*parse)(struct cpu_info *cpu_info, char *buffer, size_t buffer_size);
+
+	/*
+	 * Return true if the cpu has starving tasks.
+	 */
+	int (*has_starving_task)(struct cpu_info *cpu);
+
+	/*
+	 * destroy the backend.
+	 */
+	void (*destroy)(void);
+};
+
 #ifdef __x86_64__
 # define __NR_sched_setattr 314
 # define __NR_sched_getattr 315

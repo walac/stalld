@@ -153,6 +153,11 @@ char *config_sched_debug_path = NULL;
 int config_reservation = 0;
 
 /*
+ * Select a backend.
+ */
+struct stalld_backend *backend = &sched_debug_backend;
+
+/*
  * API to fetch process name from process group ID.
  */
 char *get_process_comm(int tgid)
@@ -775,6 +780,45 @@ int check_might_starve_tasks(struct cpu_info *cpu)
 	return starving;
 }
 
+static int get_cpu_and_parse(struct cpu_info *cpu, char *buffer, int buffer_size)
+{
+	int retval;
+
+	if (backend->get_cpu) {
+		retval = backend->get_cpu(buffer, buffer_size, cpu->id);
+		if(!retval) {
+			warn("fail reading backend");
+			warn("Dazed and confused, but trying to continue");
+			return 1;
+		}
+	}
+
+	retval = backend->parse(cpu, buffer, buffer_size);
+	if (retval) {
+		warn("error parsing CPU info");
+		warn("Dazed and confused, but trying to continue");
+		return 1;
+	}
+
+	return 0;
+}
+
+static int cpu_main_parse_starving_task(struct cpu_info *cpu)
+{
+	int retval;
+
+	if (backend->get) {
+		retval = backend->get(cpu->buffer, cpu->buffer_size);
+		if(!retval) {
+			warn("fail reading backend");
+			warn("Dazed and confused, but trying to continue");
+			return 1;
+		}
+	}
+
+	return get_cpu_and_parse(cpu, cpu->buffer, cpu->buffer_size);
+}
+
 void *cpu_main(void *data)
 {
 	struct cpu_info *cpu = data;
@@ -804,24 +848,14 @@ void *cpu_main(void *data)
 			}
 		}
 
-		retval = sched_debug_get(cpu->buffer, cpu->buffer_size);
-		if(!retval) {
-			warn("fail reading sched debug file");
-			warn("Dazed and confused, but trying to continue");
-			continue;
-		}
-
-		retval = sched_debug_parse(cpu, cpu->buffer, cpu->buffer_size);
-		if (retval) {
-			warn("error parsing CPU info");
-			warn("Dazed and confused, but trying to continue");
-			continue;
-		}
+		retval = cpu_main_parse_starving_task(cpu);
+		if (retval)
+			goto skipped;
 
 		if (config_verbose)
 			print_waiting_tasks(cpu);
 
-		if (sched_debug_has_starving_task(cpu)) {
+		if (backend->has_starving_task(cpu)) {
 			nothing_to_do = 0;
 			check_starving_tasks(cpu);
 		} else {
@@ -918,15 +952,17 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
 			if (!has_busy_cpu) {
 				if (config_verbose)
-					log_msg("all CPUs had idle time, skipping sched_debug parse\n");
+					log_msg("all CPUs had idle time, skipping parse\n");
 				goto skipped;
 			}
 		}
 
-		retval = sched_debug_get(buffer, buffer_size);
-		if (!retval) {
-			warn("Dazed and confused, but trying to continue");
-			continue;
+		if (backend->get) {
+			retval = backend->get(buffer, buffer_size);
+			if (!retval) {
+				warn("Dazed and confused, but trying to continue");
+				continue;
+			}
 		}
 
 		for (i = 0; i < nr_cpus; i++) {
@@ -941,12 +977,9 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			if (config_idle_detection && !busy_cpu_list[i])
 				continue;
 
-			retval = sched_debug_parse(cpu, buffer, buffer_size);
-			if (retval) {
-				warn("error parsing CPU info");
-				warn("Dazed and confused, but trying to continue");
+			retval = get_cpu_and_parse(cpu, buffer, buffer_size);
+			if (retval)
 				continue;
-			}
 
 			if (config_verbose)
 				printf("\tchecking cpu %d - rt: %d - starving: %d\n",
@@ -1093,10 +1126,12 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 			}
 		}
 
-		retval = sched_debug_get(buffer, buffer_size);
-		if (!retval) {
-			warn("Dazed and confused, but trying to continue");
-			continue;
+		if (backend->get) {
+			retval = backend->get(buffer, buffer_size);
+			if (!retval) {
+				warn("Dazed and confused, but trying to continue");
+				continue;
+			}
 		}
 
 		for (i = 0; i < nr_cpus; i++) {
@@ -1108,12 +1143,9 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 			if (config_idle_detection && !busy_cpu_list[i])
 				continue;
 
-			retval = sched_debug_parse(cpu, buffer, buffer_size);
-			if (retval) {
-				warn("error parsing CPU info");
-				warn("Dazed and confused, but trying to continue");
+			retval = get_cpu_and_parse(cpu, buffer, buffer_size);
+			if (retval)
 				continue;
-			}
 
 			if (config_verbose)
 				printf("\tchecking cpu %d - rt: %d - starving: %d\n",
@@ -1278,7 +1310,8 @@ int main(int argc, char **argv)
 	if (config_log_syslog)
 		openlog("stalld", 0, LOG_DAEMON);
 
-	sched_debug_init();
+	if (backend->init())
+		die("Cannot init backend");
 
 	setup_signal_handling();
 
@@ -1314,6 +1347,8 @@ int main(int argc, char **argv)
 	cleanup_regex(&nr_process_ignore, &compiled_regex_process);
 	if (config_log_syslog)
 		closelog();
+
+	backend->destroy();
 
 	exit(0);
 }

@@ -27,7 +27,7 @@ static int config_task_format;
 /*
  * Read the contents of sched_debug into the input buffer.
  */
-int sched_debug_get(char *buffer, int size)
+static int sched_debug_get(char *buffer, int size)
 {
 	int position = 0;
 	int retval;
@@ -542,7 +542,7 @@ static int fill_waiting_task(char *buffer, struct cpu_info *cpu_info)
 	return nr_waiting;
 }
 
-int sched_debug_parse(struct cpu_info *cpu_info, char *buffer, size_t buffer_size)
+static int sched_debug_parse(struct cpu_info *cpu_info, char *buffer, size_t buffer_size)
 {
 
 	struct task_info *old_tasks = cpu_info->starving;
@@ -596,7 +596,7 @@ out:
 	return retval;
 }
 
-int sched_debug_has_starving_task(struct cpu_info *cpu)
+static int sched_debug_has_starving_task(struct cpu_info *cpu)
 {
 	if (config_task_format == NEW_TASK_FORMAT)
 		return !!cpu->nr_rt_running;
@@ -604,14 +604,22 @@ int sched_debug_has_starving_task(struct cpu_info *cpu)
 		return cpu->nr_waiting_tasks;
 }
 
-int sched_debug_init(void)
+static int sched_debug_init(void)
 {
 	find_sched_debug_path();
 	config_task_format = detect_task_format();
 	return 0;
 }
 
-void sched_debug_destroy(void)
+static void sched_debug_destroy(void)
 {
 	return;
 }
+
+struct stalld_backend sched_debug_backend = {
+	.init			= sched_debug_init,
+	.get			= sched_debug_get,
+	.parse			= sched_debug_parse,
+	.has_starving_task	= sched_debug_has_starving_task,
+	.destroy		= sched_debug_destroy,
+};
