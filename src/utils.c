@@ -27,7 +27,6 @@
 #include <unistd.h>
 #include <linux/sched.h>
 #include <sys/sysinfo.h>
-#include <regex.h>
 
 #include "stalld.h"
 

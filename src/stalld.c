@@ -35,7 +35,6 @@
 #include <unistd.h>
 #include <linux/sched.h>
 #include <sys/file.h>
-#include <regex.h>
 
 #include "stalld.h"
 #include "sched_debug.h"

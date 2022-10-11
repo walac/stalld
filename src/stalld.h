@@ -9,6 +9,8 @@
 #ifndef __STALLD_H__
 #define __STALLD_H__
 
+#include <regex.h>
+
 #define BUFFER_PAGES		10
 #define MAX_WAITING_PIDS	30
 
