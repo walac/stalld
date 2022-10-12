@@ -1080,8 +1080,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
 			if (!has_busy_cpu) {
 				if (config_verbose)
-					log_msg("all CPUs had idle time, skipping sched_debug parse\n");
-
+					log_msg("all CPUs had idle time, skipping parse\n");
 				goto skipped;
 			}
 		}
