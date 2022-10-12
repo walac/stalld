@@ -229,6 +229,7 @@ extern char *config_sched_debug_path;
 extern int config_reservation;
 extern size_t config_buffer_size;
 extern long page_size;
+extern struct stalld_backend *backend;
 
 #define MAX_FILE_NAME	1024
 #define MAX_PATH	4096

@@ -38,6 +38,7 @@
 
 #include "stalld.h"
 #include "sched_debug.h"
+#include "queue_track.h"
 
 /*
  * version

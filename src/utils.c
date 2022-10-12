@@ -29,6 +29,8 @@
 #include <sys/sysinfo.h>
 
 #include "stalld.h"
+#include "sched_debug.h"
+#include "queue_track.h"
 
 /*
  * fill_process_comm - process name from task group ID.
@@ -773,6 +775,10 @@ static void print_usage(void)
 		"                               from being boosted",
 		"          -I/--ignore_processes: regexes (comma-separated) of process names that must be ignored",
 		"                               from being boosted",
+		"	backend:",
+		"	   -b/--backend: backend to be used to search for starving tasks, options are:",
+		"		sched_debug || S: for sched/debug file,",
+		"		queue_track || Q: for tracking enqueue/dequeue of tasks in the runqueues.",
 		"	misc:",
 		"          --pidfile: write daemon pid to specified file",
 		"          -S/--systemd: running as systemd service, don't fiddle with RT throttling",
@@ -949,13 +955,14 @@ int parse_args(int argc, char **argv)
 			{"reservation",		required_argument, 0, 'R'},
 			{"ignore_threads",      required_argument, 0, 'i'},
 			{"ignore_processes",    required_argument, 0, 'I'},
+			{"backend",		required_argument, 0, 'b'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "lvkfAOMhsp:r:d:t:c:FVSg:i:I:R:",
+		c = getopt_long(argc, argv, "lvkfAOMhsp:r:d:t:c:FVSg:i:I:R:b:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -1080,6 +1087,17 @@ int parse_args(int argc, char **argv)
 			config_reservation = get_long_from_str(optarg);
 			if (config_reservation < 10 || config_reservation > 90)
 				usage("Reservation needs to be at least 10%% and at most 90%%");
+			break;
+		case 'b':
+			if (!strcmp(optarg, "sched_debug") || !strcmp(optarg, "S")) {
+				backend = &sched_debug_backend;
+				log_msg("using sched_debug backend\n");
+			} else if (!strcmp(optarg, "queue_track") || !strcmp(optarg, "Q")) {
+				backend = &queue_track_backend;
+				log_msg("using queue_track backend\n");
+			} else {
+				usage("unknown backend %s\n", optarg);
+			}
 			break;
 		case '?':
 			usage("Invalid option");
