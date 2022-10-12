@@ -478,6 +478,39 @@ void find_sched_debug_path(void)
 	die("stalld could not find the sched_debug file.\n");
 }
 
+/*
+ * is_lockdown_mode - check if lockdown mode is on.
+ */
+static int is_lockdown_mode(void)
+{
+	char buff[1024];
+	int retval, fd;
+
+	fd = open("/sys/kernel/security/lockdown", O_RDONLY);
+	if (fd < 0)
+		goto out_err;
+
+	memset(buff, 0, sizeof(buff));
+
+	retval = read(fd, buff, 1023);
+	if (retval <= 0)
+		goto out_close;
+
+	/* if it is set to none, lockdown is disabled */
+	retval = !strstr(buff, "[none]");
+
+	log_msg("lockdown mode is %s\n", retval ? "on" : "off");
+
+	return retval;
+
+out_close:
+	close(fd);
+out_err:
+	/* it is probably an older kernel */
+	warn("failed to open/read lockdown file: assuming lockdown is OFF\n");
+	return 0;
+}
+
 static int fill_sched_features_path(char *path, int path_size)
 {
 	const char *debugfs;
@@ -515,6 +548,13 @@ int setup_hr_tick(void)
 		return 1;
 
 	set = 1;
+
+	ret = is_lockdown_mode();
+	if (ret) {
+		log_msg("hrtick cannot be set in lockdown mode: assuming that the user already set HRTICK_DL\n");
+		log_msg("hrtick cannot be set in lockdown mode: user workload might face high latencies\n");
+		return 1;
+	}
 
 	ret = fill_sched_features_path(path, MAX_PATH);
 	if (!ret) {
