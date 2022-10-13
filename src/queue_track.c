@@ -30,6 +30,14 @@ static volatile bool exiting = 0;
 
 struct stalld_bpf *stalld_obj;
 
+/*
+ * Older versions of BPF does not have bpf_map__set_max_entries.
+ * Use the old function.
+ */
+#ifndef bpf_map__set_max_entries
+#define bpf_map__set_max_entries bpf_map__resize
+#endif
+
 /**
  * libbpf_print_fn - libbpf print callback
  */
