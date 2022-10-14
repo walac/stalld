@@ -35,7 +35,7 @@
 /*
  * fill_process_comm - process name from task group ID.
  */
-int fill_process_comm(int tgid, char *comm, int comm_size)
+int fill_process_comm(int tgid, int pid, char *comm, int comm_size)
 {
         char path[PROC_PID_FILE_PATH_LEN];
 	int fd, retval;

@@ -417,13 +417,14 @@ void print_waiting_tasks(struct cpu_info *cpu_info)
 struct cpu_starving_task_info {
 	struct task_info task;
 	int pid;
+	int tgid;
 	time_t since;
 	int overloaded;
 };
 
 struct cpu_starving_task_info *cpu_starving_vector;
 
-void update_cpu_starving_vector(int cpu, int pid, time_t since, struct task_info *task)
+void update_cpu_starving_vector(int cpu, int tgid, int pid, time_t since, struct task_info *task)
 {
 	struct cpu_starving_task_info *cpu_info = &cpu_starving_vector[cpu];
 
@@ -441,6 +442,7 @@ void update_cpu_starving_vector(int cpu, int pid, time_t since, struct task_info
 	if ((cpu_info->since == 0) || cpu_info->since > since) {
 		memcpy(&(cpu_info->task), task, sizeof(struct task_info));
 		cpu_info->pid = pid;
+		cpu_info->tgid = tgid;
 		cpu_info->since = since;
 	}
 }
@@ -462,7 +464,7 @@ void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct ta
 				if (old_task->ctxsw == new_task->ctxsw) {
 					new_task->since = old_task->since;
 					if (config_single_threaded)
-						update_cpu_starving_vector(cpu, new_task->pid, new_task->since, new_task);
+						update_cpu_starving_vector(cpu, new_task->tgid, new_task->pid, new_task->since, new_task);
 				}
 				break;
 			}
@@ -480,11 +482,11 @@ int get_current_policy(int pid, struct sched_attr *attr)
 	return ret;
 }
 
-void print_boosted_info(int pid, struct cpu_info *cpu, char *type)
+void print_boosted_info(int tgid, int pid, struct cpu_info *cpu, char *type)
 {
 	char comm[COMM_SIZE];
 
-	fill_process_comm(pid, comm, COMM_SIZE);
+	fill_process_comm(tgid, pid, comm, COMM_SIZE);
 
 	if (cpu)
 		log_msg("boosted pid %d (%s) (cpu %d) using %s\n", pid, comm, cpu->id, type);
@@ -492,7 +494,7 @@ void print_boosted_info(int pid, struct cpu_info *cpu, char *type)
 		log_msg("boosted pid %d (%s) using %s\n", pid, comm, type);
 }
 
-int boost_with_deadline(int pid, struct cpu_info *cpu)
+int boost_with_deadline(int tgid, int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int flags = 0;
@@ -511,11 +513,11 @@ int boost_with_deadline(int pid, struct cpu_info *cpu)
 	    return ret;
 	}
 
-	print_boosted_info(pid, cpu, "SCHED_DEADLINE");
+	print_boosted_info(tgid, pid, cpu, "SCHED_DEADLINE");
 	return ret;
 }
 
-int boost_with_fifo(int pid, struct cpu_info *cpu)
+int boost_with_fifo(int tgid, int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int flags = 0;
@@ -532,7 +534,7 @@ int boost_with_fifo(int pid, struct cpu_info *cpu)
 	    return ret;
 	}
 
-	print_boosted_info(pid, cpu, "SCHED_FIFO");
+	print_boosted_info(tgid, pid, cpu, "SCHED_FIFO");
 	return ret;
 }
 
@@ -554,7 +556,7 @@ int restore_policy(int pid, struct sched_attr *attr)
  * back to its old policy, then sleeping for the remainder of the period,
  * repeating until all the periods are done.
  */
-void do_fifo_boost(int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
+void do_fifo_boost(int tgid, int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
 {
 	uint64_t nr_periods = (config_boost_duration * NS_PER_SEC) / config_dl_period;
 	struct timespec remainder_ts;
@@ -573,7 +575,7 @@ void do_fifo_boost(int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
 	normalize_timespec(&remainder_ts);
 
 	for (i=0; i < nr_periods; i++) {
-		boost_with_fifo(pid, cpu);
+		boost_with_fifo(tgid, pid, cpu);
 		ts = runtime_ts;
 		clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, 0);
 		restore_policy(pid, old_attr);
@@ -582,7 +584,7 @@ void do_fifo_boost(int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
 	}
 }
 
-int boost_starving_task(int pid, struct cpu_info *cpu)
+int boost_starving_task(int tgid, int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int ret;
@@ -597,7 +599,7 @@ int boost_starving_task(int pid, struct cpu_info *cpu)
 
 	/* Boost. */
 	if (boost_policy == SCHED_DEADLINE) {
-		ret = boost_with_deadline(pid, cpu);
+		ret = boost_with_deadline(tgid, pid, cpu);
 		if (ret < 0)
 			return ret;
 		sleep(config_boost_duration);
@@ -605,7 +607,7 @@ int boost_starving_task(int pid, struct cpu_info *cpu)
 		if (ret < 0)
 			return ret;
 	} else {
-		do_fifo_boost(pid, &attr, cpu);
+		do_fifo_boost(tgid, pid, &attr, cpu);
 	}
 
 	/*
@@ -649,7 +651,7 @@ int check_task_ignore(struct task_info *task) {
 	 * to fetch the name of the process.
 	 */
 	if (task->tgid > SWAPPER) {
-		if (fill_process_comm(task->tgid, group_comm, COMM_SIZE)) {
+		if (fill_process_comm(task->tgid, task->pid, group_comm, COMM_SIZE)) {
 			warn("Ran into a tgid without process name");
 			return ret;
 		}
@@ -707,7 +709,7 @@ int check_starving_tasks(struct cpu_info *cpu)
 				continue;
 			}
 
-			boost_starving_task(task->pid, cpu);
+			boost_starving_task(task->tgid, task->pid, cpu);
 		}
 	}
 
@@ -999,7 +1001,7 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 				continue;
 
 			/* Boost! */
-			ret = boost_with_deadline(cpu->pid, &cpus[i]);
+			ret = boost_with_deadline(cpu->tgid, cpu->pid, &cpus[i]);
 
 			/* It is ok if a task die. */
 			if (ret < 0)
@@ -1184,10 +1186,10 @@ int check_policies(void)
 		die("unable to get scheduling policy!");
 
 	/* Try boosting to SCHED_DEADLINE. */
-	ret = boost_with_deadline(0, NULL);
+	ret = boost_with_deadline(0, 0, NULL);
 	if (ret < 0) {
 		/* Try boosting with FIFO to see if we have permission. */
-		ret = boost_with_fifo(0, NULL);
+		ret = boost_with_fifo(0, 0, NULL);
 		if (ret < 0) {
 			log_msg("check_policies: unable to change policy to either deadline or fifo,"
 				"defaulting to logging only\n");

@@ -222,7 +222,7 @@ static int queue_track_parse(struct cpu_info *cpu_info, char *buffer, size_t buf
 		 * if we cannot get the process name, the process died.
 		 * RIP process, a loop of silence.
 		 */
-		retval = fill_process_comm(qtask->tgid, task->comm, COMM_SIZE);
+		retval = fill_process_comm(qtask->tgid, qtask->pid, task->comm, COMM_SIZE);
 		if (retval)
 			continue;
 
