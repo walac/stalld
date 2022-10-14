@@ -158,40 +158,6 @@ int config_reservation = 0;
 struct stalld_backend *backend = &sched_debug_backend;
 
 /*
- * API to fetch process name from process group ID.
- */
-char *get_process_comm(int tgid)
-{
-	char file_location[PROC_PID_FILE_PATH_LEN];
-	char *process_name;
-	FILE *fp;
-	int n;
-
-	process_name = calloc(COMM_SIZE + 1, sizeof(char));
-	if (process_name == NULL)
-		return NULL;
-
-	n = sprintf(file_location, "/proc/%d/comm", tgid);
-	if (n < 0)
-		goto out_error;
-
-	if ((fp = fopen(file_location, "r")) == NULL)
-		goto out_error;
-
-	if (fscanf(fp, "%s", process_name) != 1)
-		goto out_close_fd;
-
-	fclose(fp);
-	return process_name;
-
-out_close_fd:
-	fclose(fp);
-out_error:
-	free(process_name);
-	return NULL;
-}
-
-/*
  * API to fetch the process group ID for a thread/process.
  */
 int get_tgid(int pid)
@@ -515,18 +481,14 @@ int get_current_policy(int pid, struct sched_attr *attr)
 
 void print_boosted_info(int pid, struct cpu_info *cpu, char *type)
 {
-	char *comm;
+	char comm[COMM_SIZE];
 
-	comm = get_process_comm(pid);
+	fill_process_comm(pid, comm, COMM_SIZE);
 
 	if (cpu)
-		log_msg("boosted pid %d (%s) (cpu %d) using %s\n", pid, comm ? : "undef",
-			cpu->id, type);
+		log_msg("boosted pid %d (%s) (cpu %d) using %s\n", pid, comm, cpu->id, type);
 	else
-		log_msg("boosted pid %d (%s) using %s\n", pid, comm ? : "undef" , type);
-
-	if (comm)
-		free(comm);
+		log_msg("boosted pid %d (%s) using %s\n", pid, comm, type);
 }
 
 int boost_with_deadline(int pid, struct cpu_info *cpu)
@@ -662,7 +624,7 @@ int boost_starving_task(int pid, struct cpu_info *cpu)
  * group it is a part of will be checked.
  */
 int check_task_ignore(struct task_info *task) {
-	char *group_comm = NULL;
+	char group_comm[COMM_SIZE];
 	int ret = -EINVAL;
 	unsigned int i;
 
@@ -686,8 +648,7 @@ int check_task_ignore(struct task_info *task) {
 	 * to fetch the name of the process.
 	 */
 	if (task->tgid > SWAPPER) {
-		group_comm = get_process_comm(task->tgid);
-		if (group_comm == NULL) {
+		if (fill_process_comm(task->tgid, group_comm, COMM_SIZE)) {
 			warn("Ran into a tgid without process name");
 			return ret;
 		}
@@ -700,13 +661,11 @@ int check_task_ignore(struct task_info *task) {
 					REGEXEC_NO_MATCHPTR, REGEXEC_NO_FLAGS);
 			if (!ret) {
 				log_msg("Ignoring the thread %s (spawned by %s) from consideration for boosting\n", task->comm, group_comm);
-				goto free_mem;
+				goto out;
 			}
 		}
 	}
-free_mem:
-	if (group_comm != NULL)
-		free(group_comm);
+out:
 	return ret;
 }
 

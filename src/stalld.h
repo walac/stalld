@@ -22,7 +22,7 @@
  * This change is also taken into consideration by procps-ng
  * Commit - 2cfdbbe897f0d4e41460c7c2b92acfc5804652c8
  */
-#define COMM_SIZE		63
+#define COMM_SIZE		(63 + 1)
 
 /* Macros related to the denylisting feature. */
 #define SWAPPER 0
@@ -56,7 +56,7 @@ struct task_info {
        int prio;
        int ctxsw;
        time_t since;
-       char comm[COMM_SIZE+1];
+       char comm[COMM_SIZE];
 };
 
 /*
@@ -177,6 +177,7 @@ void log_msg(const char *fmt, ...);
 long get_long_from_str(char *start);
 long get_long_after_colon(char *start);
 long get_variable_long_value(char *buffer, const char *variable);
+int fill_process_comm(int tgid, char *comm, int comm_size);
 
 int setup_signal_handling(void);
 void deamonize(void);

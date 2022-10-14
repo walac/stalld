@@ -30,6 +30,53 @@
 
 #include "stalld.h"
 
+/*
+ * fill_process_comm - process name from task group ID.
+ */
+int fill_process_comm(int tgid, char *comm, int comm_size)
+{
+        char path[PROC_PID_FILE_PATH_LEN];
+	int fd, retval;
+
+	if (tgid == 0) {
+		/*
+		 * 0 is stalld itself for sched_setattr.
+		 */
+		snprintf(comm, comm_size, "stalld");
+		return 0;
+	}
+
+	retval = snprintf(path, PROC_PID_FILE_PATH_LEN, "/proc/%d/comm", tgid);
+	if (retval < 0)
+		goto out_error;
+
+	fd = open(path, O_RDWR);
+	if (fd < 0) {
+		log_msg("failed to open comm file at %s\n", path);
+		goto out_error;
+	}
+
+	memset(comm, 0, comm_size);
+
+	retval = read(fd, comm, comm_size - 1); /* last is \0 */
+	if (retval < 0) {
+		log_msg("failed to read comm file at %s\n", path);
+		snprintf(comm, comm_size - 1, "undef");
+		goto out_close_fd;
+	}
+
+	/* Remove \n */
+	comm[strcspn(comm, "\n")] = 0;
+
+	close(fd);
+	return 0;
+
+out_close_fd:
+	close(fd);
+out_error:
+	return 1;
+}
+
 long get_long_from_str(char *start)
 {
 	long value;

@@ -275,9 +275,9 @@ static int parse_new_task_format(char *buffer, struct task_info *task_info, int 
 
 		comm_size = end - start;
 
-		if (comm_size > COMM_SIZE) {
+		if (comm_size >= COMM_SIZE) {
 			warn("comm_size is too large: %d\n", comm_size);
-			comm_size = COMM_SIZE;
+			comm_size = COMM_SIZE - 1;
 		}
 
 		strncpy(task->comm, start, comm_size);
@@ -423,7 +423,7 @@ static int parse_old_task_format(char *buffer, struct task_info *task_info, int 
 	int pid, ctxsw, prio, comm_size;
 	char *start, *end, *buffer_end;
 	struct task_info *task;
-	char comm[COMM_SIZE+1];
+	char comm[COMM_SIZE];
 	int waiting_tasks = 0;
 
 	start = buffer;
@@ -452,9 +452,9 @@ static int parse_old_task_format(char *buffer, struct task_info *task_info, int 
 		start = skipspaces(start);
 		end = skipchars(start);
 		comm_size = end - start;
-		if (comm_size > COMM_SIZE) {
+		if (comm_size >= COMM_SIZE) {
 			warn("comm_size is too large: %d\n", comm_size);
-			comm_size = COMM_SIZE;
+			comm_size = COMM_SIZE - 1;
 		}
 		strncpy(comm, start, comm_size);
 		comm[comm_size] = 0;
