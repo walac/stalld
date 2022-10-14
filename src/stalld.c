@@ -1094,14 +1094,15 @@ void print_boosted_info(int pid, struct cpu_info *cpu, char *type)
 	char *comm;
 
 	comm = get_process_comm(pid);
-	if (comm == NULL)
-		comm = "undef";
 
 	if (cpu)
-		log_msg("boosted pid %d (%s) (cpu %d) using %s\n", pid, comm,
+		log_msg("boosted pid %d (%s) (cpu %d) using %s\n", pid, comm ? : "undef",
 			cpu->id, type);
 	else
-		log_msg("boosted pid %d (%s) using %s\n", pid, comm, type);
+		log_msg("boosted pid %d (%s) using %s\n", pid, comm ? : "undef" , type);
+
+	if (comm)
+		free(comm);
 }
 
 int boost_with_deadline(int pid, struct cpu_info *cpu)
