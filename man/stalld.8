@@ -106,6 +106,15 @@ being boosted
 regexes (comma-separated) of process names that must be ignored from
 being boosted
 .TP
+.B \-b|\-\-backend
+selects the backend to search for starving tasks, options are:
+
+.B sched_debug || S:
+for sched/debug file (default option).
+
+.B queue_track || Q:
+for tracking enqueue/dequeue of tasks in the runqueues.
+.TP
 .B \-h|\-\-help
 print options
 .SH FILES

@@ -35,9 +35,10 @@
 #include <unistd.h>
 #include <linux/sched.h>
 #include <sys/file.h>
-#include <regex.h>
 
 #include "stalld.h"
+#include "sched_debug.h"
+#include "queue_track.h"
 
 /*
  * version
@@ -83,6 +84,12 @@ long config_granularity = 5;
  */
 int config_monitor_all_cpus = 1;
 char *config_monitored_cpus;
+int config_nr_cpus;
+
+/*
+ * Size of pages in bytes.
+ */
+long page_size;
 
 /*
  * This will get set when we finish reading first time
@@ -90,11 +97,6 @@ char *config_monitored_cpus;
  * system gets loaded
  */
 size_t config_buffer_size;
-
-/*
- * Auto-detected task format from sched_debug.
- */
-int config_task_format;
 
 /*
  * Boolean for if running under systemd.
@@ -110,11 +112,6 @@ int boost_policy;
  * Variable to indicate if stalld is running or shutting down.
  */
 int running = 1;
-
-/*
- * Size of pages in bytes.
- */
-long page_size;
 
 /*
  * Config single threaded: uses less CPU, but has a lower precision.
@@ -157,38 +154,9 @@ char *config_sched_debug_path = NULL;
 int config_reservation = 0;
 
 /*
- * API to fetch process name from process group ID.
+ * Select a backend.
  */
-char *get_process_comm(int tgid)
-{
-	char file_location[PROC_PID_FILE_PATH_LEN];
-	char *process_name;
-	FILE *fp;
-	int n;
-
-	process_name = calloc(COMM_SIZE + 1, sizeof(char));
-	if (process_name == NULL)
-		return NULL;
-
-	n = sprintf(file_location, "/proc/%d/comm", tgid);
-	if (n < 0)
-		goto out_error;
-
-	if ((fp = fopen(file_location, "r")) == NULL)
-		goto out_error;
-
-	if (fscanf(fp, "%s", process_name) != 1)
-		goto out_close_fd;
-
-	fclose(fp);
-	return process_name;
-
-out_close_fd:
-	fclose(fp);
-out_error:
-	free(process_name);
-	return NULL;
-}
+struct stalld_backend *backend = &sched_debug_backend;
 
 /*
  * API to fetch the process group ID for a thread/process.
@@ -426,529 +394,6 @@ int get_cpu_busy_list(struct cpu_info *cpus, int nr_cpus, char *busy_cpu_list)
 	return busy_count;
 }
 
-/*
- * Read the contents of sched_debug into the input buffer.
- */
-int read_sched_debug(char *buffer, int size)
-{
-	int position = 0;
-	int retval;
-	int fd;
-
-	fd = open(config_sched_debug_path, O_RDONLY);
-
-	if (fd < 0)
-		goto out_error;
-
-	do {
-		retval = read(fd, &buffer[position], size - position);
-		if (retval < 0)
-			goto out_close_fd;
-
-		position += retval;
-
-	} while (retval > 0 && position < size);
-
-	buffer[position-1] = '\0';
-
-	if (position + 100 > config_buffer_size) {
-		config_buffer_size = config_buffer_size * 2;
-		log_msg("sched_debug is getting larger, increasing the buffer to %zu\n", config_buffer_size);
-	}
-
-	close(fd);
-
-	return position;
-
-out_close_fd:
-	close(fd);
-
-out_error:
-	return 0;
-}
-
-/*
- * Find the start of a CPU information block in the input buffer.
- */
-char *get_cpu_info_start(char *buffer, int cpu)
-{
-	/* 'cpu#9999,\0' */
-	char cpu_header[10];
-
-	sprintf(cpu_header, "cpu#%d,", cpu);
-
-	return strstr(buffer, cpu_header);
-}
-
-char *get_next_cpu_info_start(char *start)
-{
-	const char *next_cpu = "cpu#";
-
-	/* Skip the current CPU definition. */
-	start += 10;
-
-	return strstr(start, next_cpu);
-}
-
-char *alloc_and_fill_cpu_buffer(int cpu, char *sched_dbg, int sched_dbg_size)
-{
-	char *next_cpu_start;
-	char *cpu_buffer;
-	char *cpu_start;
-	int size = 0;
-
-	cpu_start = get_cpu_info_start(sched_dbg, cpu);
-
-	/* The CPU might be offline. */
-	if (!cpu_start)
-		return NULL;
-
-	next_cpu_start = get_next_cpu_info_start(cpu_start);
-
-	/*
-	 * If it did not find the next CPU, it should be the end of the file.
-	 */
-	if (!next_cpu_start)
-		next_cpu_start = sched_dbg + sched_dbg_size;
-
-	size = next_cpu_start - cpu_start;
-
-	if (size <= 0)
-		return NULL;
-
-	cpu_buffer = malloc(size);
-
-	if (!cpu_buffer)
-		return NULL;
-
-	strncpy(cpu_buffer, cpu_start, size);
-
-	cpu_buffer[size-1] = '\0';
-
-	return cpu_buffer;
-}
-
-/*
- * Parsing helpers for skipping white space and chars and detecting
- * next line.
- */
-static inline char *skipchars(char *str)
-{
-	while (*str && !isspace(*str))
-		str++;
-	return str;
-}
-
-static inline char *skipspaces(char *str)
-{
-	while (*str && isspace(*str))
-		str++;
-	return str;
-}
-
-static inline char *nextline(char *str)
-{
-	char *ptr = strchr(str, '\n');
-	return ptr ? ptr+1 : NULL;
-}
-
-#define OLD_TASK_FORMAT  1
-#define NEW_TASK_FORMAT  2
-#define TASK_MARKER	"runnable tasks:"
-
-/*
- * Read sched_debug and figure out if it's old or new format
- * done once so if we fail just exit the program.
- *
- * NOTE: A side effect of this call is to set the initial value for
- * config_buffer_size used when reading sched_debug for parsing.
- */
-int detect_task_format(void)
-{
-	int bufincrement;
-	int retval = -1;
-	size_t bufsiz;
-	char *buffer;
-	int size = 0;
-	char *ptr;
-	int status;
-	int fd;
-
-	bufsiz = bufincrement = BUFFER_PAGES * page_size;
-
-	buffer = malloc(bufsiz);
-
-	if (buffer == NULL)
-		die("unable to allocate %d bytes to read sched_debug");
-
-	if ((fd = open(config_sched_debug_path, O_RDONLY)) < 0)
-		die("error opening sched_debug for reading: %s\n", strerror(errno));
-
-	ptr = buffer;
-	while ((status = read(fd, ptr, bufincrement))) {
-		if (status < 0)
-			die ("error reading sched_debug: %s\n", strerror(errno));
-
-		size += status;
-		bufsiz += bufincrement;
-		if ((buffer = realloc(buffer, bufsiz)) == NULL)
-			die("realloc failed for %zu size: %s\n", bufsiz, strerror(errno));
-		ptr = buffer + size;
-	}
-
-	close(fd);
-
-	buffer[size] = '\0';
-	config_buffer_size = bufsiz;
-	log_msg("initial config_buffer_size set to %zu\n", config_buffer_size);
-
-	ptr = strstr(buffer, TASK_MARKER);
-	if (ptr == NULL) {
-		fprintf(stderr, "unable to find 'runnable tasks' in buffer, invalid input\n");
-		exit(-1);
-	}
-
-	ptr += strlen(TASK_MARKER) + 1;
-	ptr = skipspaces(ptr);
-
-	if (strncmp(ptr, "task", 4) == 0) {
-		retval = OLD_TASK_FORMAT;
-		log_msg("detected old task format\n");
-	} else if (strncmp(ptr, "S", 1) == 0) {
-		retval = NEW_TASK_FORMAT;
-		log_msg("detected new task format\n");
-	}
-
-	free(buffer);
-	return retval;
-}
-
-
-/*
- * Parse the new sched_debug format.
- *
- * Example:
- * ' S           task   PID         tree-key  switches  prio     wait-time             sum-exec        sum-sleep'
- * '-----------------------------------------------------------------------------------------------------------'
- * ' I         rcu_gp     3        13.973264         2   100         0.000000         0.004469         0.000000 0 0 /
- */
-int parse_new_task_format(char *buffer, struct task_info *task_info, int nr_entries)
-{
-	char *R, *X, *start = buffer;
-	struct task_info *task;
-	int tasks = 0;
-	int comm_size;
-	char *end;
-
-	/*
-	 * If we have less than two tasks on the CPU there is no
-	 * possibility of a stall.
-	 */
-	if (nr_entries < 2)
-		return 0;
-
-	while (tasks < nr_entries) {
-		task = &task_info[tasks];
-
-		/*
-		 * Runnable tasks.
-		 */
-		R = strstr(start, "\n R");
-
-		/*
-		 * Dying tasks.
-		 */
-		X = strstr(start, "\n X");
-
-		/*
-		 * Get the first one, the only one, or break.
-		 */
-		if (X && R) {
-			start = R < X ? R : X;
-		} else if (X || R) {
-			start = R ? R : X;
-		} else {
-			break;
-		}
-
-		/* Skip '\n R' || '\n X'. */
-		start = &start[3];
-
-		/* Skip the spaces. */
-		start = skipspaces(start);
-
-		/* Find the end of the string. */
-		end = skipchars(start);
-
-		comm_size = end - start;
-
-		if (comm_size > COMM_SIZE) {
-			warn("comm_size is too large: %d\n", comm_size);
-			comm_size = COMM_SIZE;
-		}
-
-		strncpy(task->comm, start, comm_size);
-
-		task->comm[comm_size] = '\0';
-
-		/* Go to the end of the task comm. */
-		start=end;
-
-		task->pid = strtol(start, &end, 10);
-
-		/* Get the id of the thread group leader. */
-		task->tgid = get_tgid(task->pid);
-
-		/* Go to the end of the pid. */
-		start=end;
-
-		/* Skip the tree-key. */
-		start = skipspaces(start);
-		start = skipchars(start);
-
-		task->ctxsw = strtol(start, &end, 10);
-
-		start = end;
-
-		task->prio = strtol(start, &end, 10);
-
-		task->since = time(NULL);
-
-		/* Go to the end and try to find the next occurrence. */
-		start = end;
-
-		tasks++;
-	}
-
-	return tasks;
-}
-
-/*
- * The old format of sched_debug doesn't contain state information so we have
- * to pick up the pid and then open /proc/<pid>/stat to get the process state.
- */
-static int is_runnable(int pid)
-{
-	char stat_path[128], stat[512];
-	int fd, retval, runnable = 0;
-	char *ptr;
-
-	if (pid == 0)
-		return 0;
-	retval = snprintf(stat_path, sizeof(stat_path), "/proc/%d/stat", pid);
-	if (retval < 0 || retval > sizeof(stat_path)) {
-		warn("stat path for task %d too long\n", pid);
-		goto out_error;
-	}
-	fd = open(stat_path, O_RDONLY);
-	if (fd < 0) {
-		warn("error opening stat path for task %d\n", pid);
-		goto out_error;
-	}
-	flock(fd, LOCK_SH);
-	retval = read(fd, &stat, sizeof(stat));
-	if (retval < 0) {
-		warn("error reading stat for task %d\n", pid);
-		goto out_close_fd;
-	}
-	if (retval < sizeof(stat))
-		stat[retval] = '\0';
-
-	/*
-	 * The process state is the third white-space delimited field
-	 * in /proc/PID/stat. Skip to there and check what the value is.
-	 */
-
-	/* Skip first word. */
-	ptr = skipchars(stat);
-	/* Skip spaces. */
-	ptr = skipspaces(ptr);
-	/* Skip second word. */
-	ptr = skipchars(ptr);
-	/* Skip spaces. */
-	ptr = skipspaces(ptr);
-
-	switch(*ptr) {
-	case 'R':
-		runnable = 1;
-		break;
-	case 'S':
-	case 'D':
-	case 'Z':
- 	case 'T':
-		break;
-	default:
-		warn("invalid state(%c) in %s\n", *ptr, stat_path);
-	}
-
-out_close_fd:
-	flock(fd, LOCK_UN);
-	close(fd);
-out_error:
-	return runnable;
-}
-
-static int count_task_lines(char *buffer)
-{
-	int lines = 0;
-	char *ptr;
-	int len;
-
-	len = strlen(buffer);
-
-	/* Find the runnable tasks: header. */
-	ptr = strstr(buffer, TASK_MARKER);
-	if (ptr == NULL)
-		return 0;
-
-	/* Skip to the end of the dashed line separator. */
-	ptr = strstr(ptr, "-\n");
-	if (ptr == NULL)
-		return 0;
-
-	ptr += 2;
-	while(*ptr && ptr < (buffer+len)) {
-		lines++;
-		ptr = strchr(ptr, '\n');
-		if (ptr == NULL)
-			break;
-		ptr++;
-	}
-	return lines;
-}
-
-/*
- * Parse the old sched debug format:
- *
- * Example:
- * '            task   PID         tree-key  switches  prio     wait-time             sum-exec        sum-sleep
- * ' ----------------------------------------------------------------------------------------------------------
- * '     watchdog/35   296       -11.731402      4081     0         0.000000        44.052473         0.000000 /
- */
-int parse_old_task_format(char *buffer, struct task_info *task_info, int nr_entries)
-{
-	int pid, ctxsw, prio, comm_size;
-	char *start, *end, *buffer_end;
-	struct task_info *task;
-	char comm[COMM_SIZE+1];
-	int waiting_tasks = 0;
-
-	start = buffer;
-	start = strstr(start, TASK_MARKER);
-	start = strstr(start, "-\n");
-	start++;
-
-	buffer_end = buffer + strlen(buffer);
-
-	/*
-	 * We can't short-circuit using nr_entries, we have to scan the
-	 * entire list of processes that is on this CPU.
-	 */
-	while (*start && start < buffer_end) {
-		task = &task_info[waiting_tasks];
-
-		/* Only care about tasks that are not R (running on a CPU). */
-		if (start[0] == 'R') {
-			/* Go to the end of the line and ignore this task. */
-			start = strchr(start, '\n');
-			start++;
-			continue;
-		}
-
-		/* Pick up the comm field. */
-		start = skipspaces(start);
-		end = skipchars(start);
-		comm_size = end - start;
-		if (comm_size > COMM_SIZE) {
-			warn("comm_size is too large: %d\n", comm_size);
-			comm_size = COMM_SIZE;
-		}
-		strncpy(comm, start, comm_size);
-		comm[comm_size] = 0;
-
-		/* Go to the end of the task comm. */
-		start=end;
-
-		/* Now pick up the pid. */
-		pid = strtol(start, &end, 10);
-
-		/* Go to the end of the pid. */
-		start=end;
-
-		/* Skip the tree-key. */
-		start = skipspaces(start);
-		start = skipchars(start);
-
-		/* Pick up the context switch count. */
-		ctxsw = strtol(start, &end, 10);
-		start = end;
-
-		/* Get the priority. */
-		prio = strtol(start, &end, 10);
-		if (is_runnable(pid)) {
-			strncpy(task->comm, comm, comm_size);
-			task->comm[comm_size] = 0;
-			task->pid = pid;
-			task->tgid = get_tgid(task->pid);
-			task->ctxsw = ctxsw;
-			task->prio = prio;
-			task->since = time(NULL);
-			waiting_tasks++;
-		}
-
-		if ((start = nextline(start)) == NULL)
-			break;
-
-		if (waiting_tasks >= nr_entries) {
-			break;
-		}
-	}
-
-	return waiting_tasks;
-}
-
-int fill_waiting_task(char *buffer, struct cpu_info *cpu_info)
-{
-	int nr_waiting = -1;
-	int nr_entries;
-
-	if (cpu_info == NULL) {
-		warn("NULL cpu_info pointer!\n");
-		return 0;
-	}
-	nr_entries = cpu_info->nr_running;
-
-	switch (config_task_format) {
-	case NEW_TASK_FORMAT:
-		cpu_info->starving = malloc(sizeof(struct task_info) * nr_entries);
-		if (cpu_info->starving == NULL) {
-			warn("failed to malloc %d task_info structs", nr_entries);
-			return 0;
-		}
-		nr_waiting = parse_new_task_format(buffer, cpu_info->starving, nr_entries);
-		break;
-	case OLD_TASK_FORMAT:
-		/*
-		 * The old task format does not output a correct value for
-		 * nr_running (the initializer for nr_entries) so count the
-		 * task lines for this CPU data and use that instead.
-		 */
-		nr_entries = count_task_lines(buffer);
-		if (nr_entries <= 0)
-			return 0;
-		cpu_info->starving = malloc(sizeof(struct task_info) * nr_entries);
-		if (cpu_info->starving == NULL) {
-			warn("failed to malloc %d task_info structs", nr_entries);
-			return 0;
-		}
-		nr_waiting = parse_old_task_format(buffer, cpu_info->starving, nr_entries);
-		break;
-	default:
-		die("invalid value for config_task_format: %d\n", config_task_format);
-	}
-	return nr_waiting;
-}
-
 void print_waiting_tasks(struct cpu_info *cpu_info)
 {
 	time_t now = time(NULL);
@@ -972,13 +417,14 @@ void print_waiting_tasks(struct cpu_info *cpu_info)
 struct cpu_starving_task_info {
 	struct task_info task;
 	int pid;
+	int tgid;
 	time_t since;
 	int overloaded;
 };
 
 struct cpu_starving_task_info *cpu_starving_vector;
 
-void update_cpu_starving_vector(int cpu, int pid, time_t since, struct task_info *task)
+void update_cpu_starving_vector(int cpu, int tgid, int pid, time_t since, struct task_info *task)
 {
 	struct cpu_starving_task_info *cpu_info = &cpu_starving_vector[cpu];
 
@@ -996,6 +442,7 @@ void update_cpu_starving_vector(int cpu, int pid, time_t since, struct task_info
 	if ((cpu_info->since == 0) || cpu_info->since > since) {
 		memcpy(&(cpu_info->task), task, sizeof(struct task_info));
 		cpu_info->pid = pid;
+		cpu_info->tgid = tgid;
 		cpu_info->since = since;
 	}
 }
@@ -1017,66 +464,12 @@ void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct ta
 				if (old_task->ctxsw == new_task->ctxsw) {
 					new_task->since = old_task->since;
 					if (config_single_threaded)
-						update_cpu_starving_vector(cpu, new_task->pid, new_task->since, new_task);
+						update_cpu_starving_vector(cpu, new_task->tgid, new_task->pid, new_task->since, new_task);
 				}
 				break;
 			}
 		}
 	}
-}
-
-int parse_cpu_info(struct cpu_info *cpu_info, char *buffer, size_t buffer_size)
-{
-
-	struct task_info *old_tasks = cpu_info->starving;
-	int nr_old_tasks = cpu_info->nr_waiting_tasks;
-	long nr_running = 0, nr_rt_running = 0;
-	int cpu = cpu_info->id;
-	char *cpu_buffer;
-	int retval = 0;
-
-	cpu_buffer = alloc_and_fill_cpu_buffer(cpu, buffer, buffer_size);
-	/*
-	 * It is not necessarily a problem, the CPU might be offline. Cleanup
-	 * and leave.
-	 */
-	if (!cpu_buffer) {
-		if (old_tasks)
-			free(old_tasks);
-		cpu_info->nr_waiting_tasks = 0;
-		cpu_info->nr_running = 0;
-		cpu_info->nr_rt_running = 0;
-		cpu_info->starving = 0;
-		goto out;
-	}
-
-	/*
-	 * The NEW_TASK_FORMAT produces useful output values for nr_running and
-	 * rt_nr_running, so in this case use them. For the old format just leave
-	 * them initialized to zero.
-	 */
-	if (config_task_format == NEW_TASK_FORMAT) {
-		nr_running = get_variable_long_value(cpu_buffer, ".nr_running");
-		nr_rt_running = get_variable_long_value(cpu_buffer, ".rt_nr_running");
-		if ((nr_running == -1) || (nr_rt_running == -1)) {
-			retval = -EINVAL;
-			goto out_free;
-		}
-	}
-
-	cpu_info->nr_running = nr_running;
-	cpu_info->nr_rt_running = nr_rt_running;
-
-	cpu_info->nr_waiting_tasks = fill_waiting_task(cpu_buffer, cpu_info);
-	if (old_tasks) {
-		merge_taks_info(cpu_info->id, old_tasks, nr_old_tasks, cpu_info->starving, cpu_info->nr_waiting_tasks);
-		free(old_tasks);
-	}
-
-out_free:
-	free(cpu_buffer);
-out:
-	return retval;
 }
 
 int get_current_policy(int pid, struct sched_attr *attr)
@@ -1089,23 +482,19 @@ int get_current_policy(int pid, struct sched_attr *attr)
 	return ret;
 }
 
-void print_boosted_info(int pid, struct cpu_info *cpu, char *type)
+void print_boosted_info(int tgid, int pid, struct cpu_info *cpu, char *type)
 {
-	char *comm;
+	char comm[COMM_SIZE];
 
-	comm = get_process_comm(pid);
+	fill_process_comm(tgid, pid, comm, COMM_SIZE);
 
 	if (cpu)
-		log_msg("boosted pid %d (%s) (cpu %d) using %s\n", pid, comm ? : "undef",
-			cpu->id, type);
+		log_msg("boosted pid %d (%s) (cpu %d) using %s\n", pid, comm, cpu->id, type);
 	else
-		log_msg("boosted pid %d (%s) using %s\n", pid, comm ? : "undef" , type);
-
-	if (comm)
-		free(comm);
+		log_msg("boosted pid %d (%s) using %s\n", pid, comm, type);
 }
 
-int boost_with_deadline(int pid, struct cpu_info *cpu)
+int boost_with_deadline(int tgid, int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int flags = 0;
@@ -1124,11 +513,11 @@ int boost_with_deadline(int pid, struct cpu_info *cpu)
 	    return ret;
 	}
 
-	print_boosted_info(pid, cpu, "SCHED_DEADLINE");
+	print_boosted_info(tgid, pid, cpu, "SCHED_DEADLINE");
 	return ret;
 }
 
-int boost_with_fifo(int pid, struct cpu_info *cpu)
+int boost_with_fifo(int tgid, int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int flags = 0;
@@ -1145,7 +534,7 @@ int boost_with_fifo(int pid, struct cpu_info *cpu)
 	    return ret;
 	}
 
-	print_boosted_info(pid, cpu, "SCHED_FIFO");
+	print_boosted_info(tgid, pid, cpu, "SCHED_FIFO");
 	return ret;
 }
 
@@ -1167,7 +556,7 @@ int restore_policy(int pid, struct sched_attr *attr)
  * back to its old policy, then sleeping for the remainder of the period,
  * repeating until all the periods are done.
  */
-void do_fifo_boost(int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
+void do_fifo_boost(int tgid, int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
 {
 	uint64_t nr_periods = (config_boost_duration * NS_PER_SEC) / config_dl_period;
 	struct timespec remainder_ts;
@@ -1186,7 +575,7 @@ void do_fifo_boost(int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
 	normalize_timespec(&remainder_ts);
 
 	for (i=0; i < nr_periods; i++) {
-		boost_with_fifo(pid, cpu);
+		boost_with_fifo(tgid, pid, cpu);
 		ts = runtime_ts;
 		clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, 0);
 		restore_policy(pid, old_attr);
@@ -1195,7 +584,7 @@ void do_fifo_boost(int pid, struct sched_attr *old_attr, struct cpu_info *cpu)
 	}
 }
 
-int boost_starving_task(int pid, struct cpu_info *cpu)
+int boost_starving_task(int tgid, int pid, struct cpu_info *cpu)
 {
 	struct sched_attr attr;
 	int ret;
@@ -1210,7 +599,7 @@ int boost_starving_task(int pid, struct cpu_info *cpu)
 
 	/* Boost. */
 	if (boost_policy == SCHED_DEADLINE) {
-		ret = boost_with_deadline(pid, cpu);
+		ret = boost_with_deadline(tgid, pid, cpu);
 		if (ret < 0)
 			return ret;
 		sleep(config_boost_duration);
@@ -1218,7 +607,7 @@ int boost_starving_task(int pid, struct cpu_info *cpu)
 		if (ret < 0)
 			return ret;
 	} else {
-		do_fifo_boost(pid, &attr, cpu);
+		do_fifo_boost(tgid, pid, &attr, cpu);
 	}
 
 	/*
@@ -1238,7 +627,7 @@ int boost_starving_task(int pid, struct cpu_info *cpu)
  * group it is a part of will be checked.
  */
 int check_task_ignore(struct task_info *task) {
-	char *group_comm = NULL;
+	char group_comm[COMM_SIZE];
 	int ret = -EINVAL;
 	unsigned int i;
 
@@ -1262,8 +651,7 @@ int check_task_ignore(struct task_info *task) {
 	 * to fetch the name of the process.
 	 */
 	if (task->tgid > SWAPPER) {
-		group_comm = get_process_comm(task->tgid);
-		if (group_comm == NULL) {
+		if (fill_process_comm(task->tgid, task->pid, group_comm, COMM_SIZE)) {
 			warn("Ran into a tgid without process name");
 			return ret;
 		}
@@ -1276,13 +664,11 @@ int check_task_ignore(struct task_info *task) {
 					REGEXEC_NO_MATCHPTR, REGEXEC_NO_FLAGS);
 			if (!ret) {
 				log_msg("Ignoring the thread %s (spawned by %s) from consideration for boosting\n", task->comm, group_comm);
-				goto free_mem;
+				goto out;
 			}
 		}
 	}
-free_mem:
-	if (group_comm != NULL)
-		free(group_comm);
+out:
 	return ret;
 }
 
@@ -1323,7 +709,7 @@ int check_starving_tasks(struct cpu_info *cpu)
 				continue;
 			}
 
-			boost_starving_task(task->pid, cpu);
+			boost_starving_task(task->tgid, task->pid, cpu);
 		}
 	}
 
@@ -1356,6 +742,45 @@ int check_might_starve_tasks(struct cpu_info *cpu)
 	return starving;
 }
 
+static int get_cpu_and_parse(struct cpu_info *cpu, char *buffer, int buffer_size)
+{
+	int retval;
+
+	if (backend->get_cpu) {
+		retval = backend->get_cpu(buffer, buffer_size, cpu->id);
+		if(!retval) {
+			warn("fail reading backend");
+			warn("Dazed and confused, but trying to continue");
+			return 1;
+		}
+	}
+
+	retval = backend->parse(cpu, buffer, buffer_size);
+	if (retval) {
+		warn("error parsing CPU info");
+		warn("Dazed and confused, but trying to continue");
+		return 1;
+	}
+
+	return 0;
+}
+
+static int cpu_main_parse_starving_task(struct cpu_info *cpu)
+{
+	int retval;
+
+	if (backend->get) {
+		retval = backend->get(cpu->buffer, cpu->buffer_size);
+		if(!retval) {
+			warn("fail reading backend");
+			warn("Dazed and confused, but trying to continue");
+			return 1;
+		}
+	}
+
+	return get_cpu_and_parse(cpu, cpu->buffer, cpu->buffer_size);
+}
+
 void *cpu_main(void *data)
 {
 	struct cpu_info *cpu = data;
@@ -1364,7 +789,7 @@ void *cpu_main(void *data)
 
 	while (cpu->thread_running && running) {
 
-		/* Buffer size should increase. See read_sched_debug(). */
+		/* Buffer size should increase. See sched_debug_get(). */
 		if (config_buffer_size != cpu->buffer_size) {
 			char *old_buffer = cpu->buffer;
 			cpu->buffer = realloc(cpu->buffer, config_buffer_size);
@@ -1385,25 +810,14 @@ void *cpu_main(void *data)
 			}
 		}
 
-		retval = read_sched_debug(cpu->buffer, cpu->buffer_size);
-		if(!retval) {
-			warn("fail reading sched debug file");
-			warn("Dazed and confused, but trying to continue");
-			continue;
-		}
-
-		retval = parse_cpu_info(cpu, cpu->buffer, cpu->buffer_size);
-		if (retval) {
-			warn("error parsing CPU info");
-			warn("Dazed and confused, but trying to continue");
-			continue;
-		}
+		retval = cpu_main_parse_starving_task(cpu);
+		if (retval)
+			goto skipped;
 
 		if (config_verbose)
 			print_waiting_tasks(cpu);
 
-		if ((config_task_format == NEW_TASK_FORMAT && cpu->nr_rt_running) ||
-		    cpu->nr_waiting_tasks) {
+		if (backend->has_starving_task(cpu)) {
 			nothing_to_do = 0;
 			check_starving_tasks(cpu);
 		} else {
@@ -1483,7 +897,7 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 
 	while (running) {
 
-		/* Buffer size should increase. See read_sched_debug(). */
+		/* Buffer size should increase. See sched_debug_get(). */
 		if (config_buffer_size != buffer_size) {
 			char *old_buffer = buffer;
 			buffer = realloc(buffer, config_buffer_size);
@@ -1500,15 +914,17 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
 			if (!has_busy_cpu) {
 				if (config_verbose)
-					log_msg("all CPUs had idle time, skipping sched_debug parse\n");
+					log_msg("all CPUs had idle time, skipping parse\n");
 				goto skipped;
 			}
 		}
 
-		retval = read_sched_debug(buffer, buffer_size);
-		if (!retval) {
-			warn("Dazed and confused, but trying to continue");
-			continue;
+		if (backend->get) {
+			retval = backend->get(buffer, buffer_size);
+			if (!retval) {
+				warn("Dazed and confused, but trying to continue");
+				continue;
+			}
 		}
 
 		for (i = 0; i < nr_cpus; i++) {
@@ -1523,12 +939,9 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 			if (config_idle_detection && !busy_cpu_list[i])
 				continue;
 
-			retval = parse_cpu_info(cpu, buffer, buffer_size);
-			if (retval) {
-				warn("error parsing CPU info");
-				warn("Dazed and confused, but trying to continue");
+			retval = get_cpu_and_parse(cpu, buffer, buffer_size);
+			if (retval)
 				continue;
-			}
 
 			if (config_verbose)
 				printf("\tchecking cpu %d - rt: %d - starving: %d\n",
@@ -1588,7 +1001,7 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 				continue;
 
 			/* Boost! */
-			ret = boost_with_deadline(cpu->pid, &cpus[i]);
+			ret = boost_with_deadline(cpu->tgid, cpu->pid, &cpus[i]);
 
 			/* It is ok if a task die. */
 			if (ret < 0)
@@ -1652,7 +1065,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 
 	while (running) {
 
-		/* Buffer size should increase. See read_sched_debug(). */
+		/* Buffer size should increase. See sched_debug_get(). */
 		if (config_buffer_size != buffer_size) {
 			char *old_buffer = buffer;
 			buffer = realloc(buffer, config_buffer_size);
@@ -1669,16 +1082,17 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
 			if (!has_busy_cpu) {
 				if (config_verbose)
-					log_msg("all CPUs had idle time, skipping sched_debug parse\n");
-
+					log_msg("all CPUs had idle time, skipping parse\n");
 				goto skipped;
 			}
 		}
 
-		retval = read_sched_debug(buffer, buffer_size);
-		if (!retval) {
-			warn("Dazed and confused, but trying to continue");
-			continue;
+		if (backend->get) {
+			retval = backend->get(buffer, buffer_size);
+			if (!retval) {
+				warn("Dazed and confused, but trying to continue");
+				continue;
+			}
 		}
 
 		for (i = 0; i < nr_cpus; i++) {
@@ -1690,12 +1104,9 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 			if (config_idle_detection && !busy_cpu_list[i])
 				continue;
 
-			retval = parse_cpu_info(cpu, buffer, buffer_size);
-			if (retval) {
-				warn("error parsing CPU info");
-				warn("Dazed and confused, but trying to continue");
+			retval = get_cpu_and_parse(cpu, buffer, buffer_size);
+			if (retval)
 				continue;
-			}
 
 			if (config_verbose)
 				printf("\tchecking cpu %d - rt: %d - starving: %d\n",
@@ -1754,7 +1165,6 @@ skipped:
 		free(buffer);
 }
 
-
 int check_policies(void)
 {
 	int saved_runtime = config_dl_runtime;
@@ -1776,10 +1186,10 @@ int check_policies(void)
 		die("unable to get scheduling policy!");
 
 	/* Try boosting to SCHED_DEADLINE. */
-	ret = boost_with_deadline(0, NULL);
+	ret = boost_with_deadline(0, 0, NULL);
 	if (ret < 0) {
 		/* Try boosting with FIFO to see if we have permission. */
-		ret = boost_with_fifo(0, NULL);
+		ret = boost_with_fifo(0, 0, NULL);
 		if (ret < 0) {
 			log_msg("check_policies: unable to change policy to either deadline or fifo,"
 				"defaulting to logging only\n");
@@ -1809,7 +1219,6 @@ int check_policies(void)
 int main(int argc, char **argv)
 {
 	struct cpu_info *cpus;
-	int nr_cpus;
 	int retval;
 	int i;
 
@@ -1817,9 +1226,11 @@ int main(int argc, char **argv)
 	if ((page_size = sysconf(_SC_PAGE_SIZE)) < 0)
 		die("Unable to get system page size: %s\n", strerror(errno));
 
-	parse_args(argc, argv);
+	config_nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	if (config_nr_cpus < 1)
+		die("Can not calculate number of CPUS\n");
 
-	find_sched_debug_path();
+	parse_args(argc, argv);
 
 	/*
 	 * Check RT throttling:
@@ -1842,17 +1253,13 @@ int main(int argc, char **argv)
 	if (!config_log_only)
 		boost_policy = check_policies();
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
-	if (nr_cpus < 1)
-		die("Can not calculate number of CPUS\n");
-
-	cpus = malloc(sizeof(struct cpu_info) * nr_cpus);
+	cpus = malloc(sizeof(struct cpu_info) * config_nr_cpus);
 	if (!cpus)
 		die("Cannot allocate memory");
 
-	memset(cpus, 0, sizeof(struct cpu_info) * nr_cpus);
+	memset(cpus, 0, sizeof(struct cpu_info) * config_nr_cpus);
 
-	for (i = 0; i < nr_cpus; i++) {
+	for (i = 0; i < config_nr_cpus; i++) {
 		cpus[i].buffer = malloc(config_buffer_size);
 		if (!cpus[i].buffer)
 			die("Cannot allocate memory");
@@ -1863,12 +1270,13 @@ int main(int argc, char **argv)
 	if (config_log_syslog)
 		openlog("stalld", 0, LOG_DAEMON);
 
-	config_task_format = detect_task_format();
+	if (backend->init())
+		die("Cannot init backend");
 
 	setup_signal_handling();
 
 	if (config_idle_detection)
-		STAT_MAX_SIZE = nr_cpus * page_size;
+		STAT_MAX_SIZE = config_nr_cpus * page_size;
 
 	if (!config_foreground)
 		deamonize();
@@ -1889,16 +1297,18 @@ int main(int argc, char **argv)
 
 	/* The less likely first. */
 	if (config_aggressive)
-		aggressive_main(cpus, nr_cpus);
+		aggressive_main(cpus, config_nr_cpus);
 	else if (config_adaptive_multi_threaded)
-		conservative_main(cpus, nr_cpus);
+		conservative_main(cpus, config_nr_cpus);
 	else
-		single_threaded_main(cpus, nr_cpus);
+		single_threaded_main(cpus, config_nr_cpus);
 
 	cleanup_regex(&nr_thread_ignore, &compiled_regex_thread);
 	cleanup_regex(&nr_process_ignore, &compiled_regex_process);
 	if (config_log_syslog)
 		closelog();
+
+	backend->destroy();
 
 	exit(0);
 }

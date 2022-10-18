@@ -9,6 +9,8 @@
 #ifndef __STALLD_H__
 #define __STALLD_H__
 
+#include <regex.h>
+
 #define BUFFER_PAGES		10
 #define MAX_WAITING_PIDS	30
 
@@ -20,7 +22,7 @@
  * This change is also taken into consideration by procps-ng
  * Commit - 2cfdbbe897f0d4e41460c7c2b92acfc5804652c8
  */
-#define COMM_SIZE		63
+#define COMM_SIZE		(63 + 1)
 
 /* Macros related to the denylisting feature. */
 #define SWAPPER 0
@@ -54,7 +56,7 @@ struct task_info {
        int prio;
        int ctxsw;
        time_t since;
-       char comm[COMM_SIZE+1];
+       char comm[COMM_SIZE];
 };
 
 /*
@@ -72,6 +74,39 @@ struct cpu_info {
        pthread_t thread;
        char *buffer;
        size_t buffer_size;
+};
+
+struct stalld_backend {
+	/*
+	 * Initialize the backend.
+	 */
+	int (*init)(void);
+
+	/*
+	 * Get task information about all CPUs.
+	 */
+	int (*get)(char *buffer, int size);
+
+	/*
+	 * Get task information about a single CPU.
+	 */
+	int (*get_cpu)(char *buffer, int size, int cpu);
+
+	/*
+	 * Parse the task information from buffer to the
+	 * cpu_info, about the cpu_info->id.
+	 */
+	int (*parse)(struct cpu_info *cpu_info, char *buffer, size_t buffer_size);
+
+	/*
+	 * Return true if the cpu has starving tasks.
+	 */
+	int (*has_starving_task)(struct cpu_info *cpu);
+
+	/*
+	 * destroy the backend.
+	 */
+	void (*destroy)(void);
 };
 
 #ifdef __x86_64__
@@ -142,6 +177,7 @@ void log_msg(const char *fmt, ...);
 long get_long_from_str(char *start);
 long get_long_after_colon(char *start);
 long get_variable_long_value(char *buffer, const char *variable);
+int fill_process_comm(int tgid, int pid, char *comm, int comm_size);
 
 int setup_signal_handling(void);
 void deamonize(void);
@@ -155,6 +191,8 @@ int turn_off_rt_throttling(void);
 void cleanup_regex();
 void find_sched_debug_path(void);
 int set_reservation(int period, int reservation);
+int get_tgid(int pid);
+void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct task_info *new_tasks, int nr_new);
 
 /*
  * Shared variables.
@@ -176,6 +214,7 @@ extern long config_boost_duration;
 extern long config_aggressive;
 extern int config_monitor_all_cpus;
 extern char *config_monitored_cpus;
+extern int config_nr_cpus;
 extern int config_systemd;
 extern long config_granularity;
 extern int config_idle_detection;
@@ -188,6 +227,9 @@ extern regex_t *compiled_regex_thread;
 extern regex_t *compiled_regex_process;
 extern char *config_sched_debug_path;
 extern int config_reservation;
+extern size_t config_buffer_size;
+extern long page_size;
+extern struct stalld_backend *backend;
 
 #define MAX_FILE_NAME	1024
 #define MAX_PATH	4096

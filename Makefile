@@ -11,12 +11,12 @@ SOPTS	:= 	-specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -specs=/usr/lib/rpm/red
 
 CFLAGS	:=	-O2 -g -DVERSION=\"$(VERSION)\" $(FOPTS) $(MOPTS) $(WOPTS) $(SOPTS)
 LDFLAGS	:=	-ggdb
-LIBS	:=	 -lpthread
+LIBS	:=	 -lpthread -lbpf
 
 SRC	:=	$(wildcard src/*.c)
 HDR	:=	$(wildcard src/*.h)
 OBJ	:=	$(SRC:.c=.o)
-DIRS	:=	src redhat man tests scripts
+DIRS	:=	src redhat man tests scripts bpf
 FILES	:=	Makefile README.md gpl-2.0.txt scripts/throttlectl.sh
 CEXT	:=	bz2
 TARBALL	:=	$(NAME)-$(VERSION).tar.$(CEXT)
@@ -27,9 +27,49 @@ DOCDIR	:=	$(DATADIR)/doc
 MANDIR	:=	$(DATADIR)/man
 LICDIR	:=	$(DATADIR)/licenses
 
+DEFAULT_BPFTOOL		?= bpftool
+BPFTOOL			?= $(DEFAULT_BPFTOOL)
+
+CLANG			?= clang
+LLVM_STRIP		?= llvm-strip
+
+
+KERNEL_REL		:= $(shell uname -r)
+VMLINUX_BTF_PATHS	:= /sys/kernel/btf/vmlinux /boot/vmlinux-$(KERNEL_REL)
+VMLINUX_BTF_PATH	:= $(or $(VMLINUX_BTF),$(firstword                            \
+                                          $(wildcard $(VMLINUX_BTF_PATHS))))
+
 .PHONY:	all tests
 
 all:	stalld tests
+
+# This is a dependency for eBPF, it collects kernel code information into
+# a .h file.
+bpf/vmlinux.h:
+	@if [ ! -e "$(VMLINUX_BTF_PATH)" ] ; then				\
+		echo "Couldn't find kernel BTF; set VMLINUX_BTF to"		\
+			"specify its location." >&2;				\
+		exit 1;								\
+	fi
+	$(BPFTOOL) btf dump file $(VMLINUX_BTF_PATH) format c > $@
+
+# This is the first step into compiling eBPF code.
+# The .bpf.c needs to be transformed into the .bpf.o.
+# The .bpf.o is then required to build the .skel.h.
+bpf/stalld.bpf.o: bpf/vmlinux.h bpf/stalld.bpf.c
+	$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
+	$(LLVM_STRIP) -g $@ # strip useless DWARF info
+
+
+# This is the second step: The .bpf.o object is translated into
+# a bytecode that is embedded into the .skel.h header.
+#
+# This header can then be used by the regular application to
+# load the BPF program into the kernel and to access it.
+src/stalld.skel.h: bpf/stalld.bpf.o
+	$(BPFTOOL) gen skeleton $< > $@
+
+$(OBJ): src/stalld.skel.h
 
 stalld: $(OBJ)
 	$(CC) -o stalld	 $(LDFLAGS) $(OBJ) $(LIBS)
@@ -59,6 +99,9 @@ clean:
 	@test ! -f $(TARBALL) || rm -f $(TARBALL)
 	@make -C redhat VERSION=$(VERSION) clean
 	@make -C tests clean
+	@test ! -f bpf/vmlinux.h || rm bpf/vmlinux.h
+	@test ! -f bpf/stalld.bpf.o || rm bpf/stalld.bpf.o
+	@test ! -f src/stalld.skel.h || rm src/stalld.skel.h
 	@rm -rf *~ $(OBJ) *.tar.$(CEXT)
 
 tarball:  clean
