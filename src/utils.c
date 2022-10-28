@@ -308,7 +308,7 @@ void log_msg(const char *fmt, ...)
  * Based on:
  * https://github.com/pasce/daemon-skeleton-linux-c
  */
-void deamonize(void)
+void daemonize(void)
 {
 	pid_t pid;
 
