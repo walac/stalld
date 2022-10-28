@@ -144,7 +144,7 @@ long get_long_after_colon(char *start);
 long get_variable_long_value(char *buffer, const char *variable);
 
 int setup_signal_handling(void);
-void deamonize(void);
+void daemonize(void);
 int setup_hr_tick(void);
 int should_monitor(int cpu);
 void usage(const char *fmt, ...);

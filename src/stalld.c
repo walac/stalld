@@ -1871,7 +1871,7 @@ int main(int argc, char **argv)
 		STAT_MAX_SIZE = nr_cpus * page_size;
 
 	if (!config_foreground)
-		deamonize();
+		daemonize();
 
 	/*
 	 * Set stalld as SCHED_DEADLINE using config_reservation %
