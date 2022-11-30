@@ -501,6 +501,7 @@ static int is_lockdown_mode(void)
 
 	log_msg("lockdown mode is %s\n", retval ? "on" : "off");
 
+	close(fd);
 	return retval;
 
 out_close:
