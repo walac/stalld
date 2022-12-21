@@ -34,7 +34,7 @@ struct stalld_bpf *stalld_obj;
  * Older versions of BPF does not have bpf_map__set_max_entries.
  * Use the old function.
  */
-#ifndef bpf_map__set_max_entries
+#if (LIBBPF_MAJOR_VERSION == 0 && LIBBPF_MINOR_VERSION < 8)
 #define bpf_map__set_max_entries bpf_map__resize
 #endif
 
