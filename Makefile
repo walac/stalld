@@ -29,6 +29,7 @@ DATADIR	:=	/usr/share
 DOCDIR	:=	$(DATADIR)/doc
 MANDIR	:=	$(DATADIR)/man
 LICDIR	:=	$(DATADIR)/licenses
+INSPATH :=	$(realpath $(DESTDIR))
 
 DEFAULT_BPFTOOL		?= bpftool
 BPFTOOL			?= $(DEFAULT_BPFTOOL)
@@ -92,7 +93,8 @@ install:
 	$(INSTALL) man/stalld.8 -m 644 $(DESTDIR)$(MANDIR)/man8
 	$(INSTALL) -m 755 -d $(DESTDIR)$(LICDIR)/$(NAME)
 	$(INSTALL) gpl-2.0.txt -m 644 $(DESTDIR)$(LICDIR)/$(NAME)
-
+	$(INSTALL) scripts/throttlectl.sh $(DESTDIR)$(BINDIR)
+	make -C systemd DESTDIR=$(INSPATH) install
 
 .PHONY: clean tarball systemd push
 clean:
