@@ -67,6 +67,7 @@ int turn_off_rt_throttling(void)
 	if (fd < 0)
 		die("unable to open %s: %s\n", RT_RUNTIME_PATH, strerror(errno));
 
+	memset(buffer, 0, sizeof(buffer));
 	status = read(fd, buffer, sizeof(buffer));
 	if (status < 0)
 		die("failed to read %s\n", RT_RUNTIME_PATH);
