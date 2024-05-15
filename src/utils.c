@@ -467,16 +467,18 @@ static int find_debugfs_sched_debug(void)
 	const char *debugfs;
 	char *path;
 	int found;
+	size_t size;
 
 	debugfs = find_debugfs();
 	if (!debugfs)
 		return 0;
 
-	path = malloc(strlen(debugfs) + strlen("sched/debug") + 1);
+	size = strlen(debugfs) + strlen("sched/debug") + 2;
+	path = malloc(size);
 	if (!path)
 		return 0;
 
-	sprintf(path, "%s/%s", debugfs, "sched/debug");
+	snprintf(path, size, "%s/%s", debugfs, "sched/debug");
 
 	found = check_file_exists(path);
 	if (found)
