@@ -7,6 +7,7 @@ Type=simple
 # Type=forking
 EnvironmentFile=/etc/sysconfig/stalld
 ExecStartPre=/usr/bin/throttlectl off
+ExecStartPre=/usr/bin/mkdir -p /run/stalld
 
 # In case the regex passed to IT or IP includes C escape sequences,
 # use ${IT} or ${IP} instead of $IT or $IP
