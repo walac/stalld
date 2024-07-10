@@ -10,46 +10,54 @@ endif
 $(info ARCH=$(ARCH))
 
 USE_BPF := 1
-CF_PROTECTION_OPTS := -fcf-protection=none -D_FORTIFY_SOURCE=2 -pie -fPIE
 FCF_PROTECTION := -fcf-protection
-TMOPTS := -mtune=generic
+MTUNE	:= -mtune=generic
+M64	:= -m64
+
+ifeq ($(ARCH),aarch64)
+FCF_PROTECTION := "-fcf-protection=none"
+M64	:=
+endif
 ifeq ($(ARCH),i686)
 USE_BPF := 0
 FCF_PROTECTION := "-fcf-protection=branch"
 endif
 ifeq ($(ARCH),s390x)
-FCF_PROTECTION := $(CF_PROTECTION_OPTS)
-TMOPTS := -mtune=z13
-endif
-ifeq ($(ARCH),aarch64)
-FCF_PROTECTION := $(CF_PROTECTION_OPTS)
+MTUNE := -mtune=z13
 endif
 ifeq ($(ARCH),ppc64le)
 USE_BPF := 0
-FCF_PROTECTION := $(CF_PROTECTION_OPTS)
-TMOPTS := -mtune=powerpc64le
+MTUNE := -mtune=powerpc64le
 endif
 ifeq ($(ARCH),powerpc)
 USE_BPF := 0
-FCF_PROTECTION := $(CF_PROTECTION_OPTS)
-TMOPTS := -mtune=powerpc
+MTUNE := -mtune=powerpc
 endif
 
 $(info USE_BPF=$(USE_BPF))
 $(info FCF_PROTECTION=$(FCF_PROTECTION))
-$(info TMOPTS=$(TMOPTS))
+$(info MTUNE=$(MTUNE))
 
 INSTALL	=	install
 CC	:=	gcc
 FOPTS	:=	-flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong \
-		-fasynchronous-unwind-tables -fstack-clash-protection $(strip $(FCF_PROTECTION)) \
-		-fno-omit-frame-pointer
-MOPTS   :=  	$(strip $(TMOPTS)) -m64 -mtune=generic -mno-omit-leaf-frame-pointer
-WOPTS	:= 	-Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=3 -Wp,-D_GLIBCXX_ASSERTIONS
+		-fasynchronous-unwind-tables -fstack-clash-protection -fno-omit-frame-pointer \
+		$(strip $(FCF_PROTECTION)) -fpie
+
+
+MOPTS   :=  	$(strip $(MTUNE)) $(strip $(M64)) -mno-omit-leaf-frame-pointer
+
+#WOPTS	:= 	-Wall -Werror=format-security -Wp,-D_GLIBCXX_ASSERTIONS
+WOPTS	:= 	-Wall -Werror=format-security
+
 SOPTS	:= 	-specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1
 
-CFLAGS	:=	-O2 -g -DVERSION=\"$(VERSION)\" $(FOPTS) $(MOPTS) $(WOPTS) $(SOPTS) -DUSE_BPF=$(USE_BPF)
-LDFLAGS	:=	-ggdb
+DEFS	:=	-DUSE_BPF=$(USE_BPF) -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS
+
+CFLAGS	:=	-O2 -g -DVERSION=\"$(VERSION)\" $(FOPTS) $(MOPTS) $(WOPTS) $(SOPTS) $(DEFS)
+
+
+LDFLAGS	:=	-ggdb -znow -pie
 
 LIBS	:=	 -lpthread
 ifeq ($(USE_BPF),1)
@@ -141,7 +149,7 @@ $(OBJ): src/stalld.skel.h
 endif
 
 stalld: $(OBJ)
-	$(CC) -o stalld	 $(LDFLAGS) $(OBJ) $(LIBS)
+	$(CC) -o stalld	$(LDFLAGS) $(OBJ) $(LIBS)
 
 static: $(OBJ)
 	$(CC) -o stalld-static $(LDFLAGS) --static $(OBJ) $(LIBS)
@@ -161,7 +169,7 @@ install:
 	$(INSTALL) scripts/throttlectl.sh $(DESTDIR)$(BINDIR)/throttlectl
 	make -C systemd DESTDIR=$(INSPATH) install
 
-.PHONY: clean tarball systemd push
+.PHONY: clean tarball systemd push annocheck
 clean:
 	@test ! -f stalld || rm stalld
 	@test ! -f stalld-static || rm stalld-static
@@ -179,3 +187,6 @@ tarball:  clean
 	cp -r $(DIRS) $(FILES) $(NAME)-$(VERSION)
 	tar $(TAROPTS) --exclude='*~' $(NAME)-$(VERSION)
 	rm -rf $(NAME)-$(VERSION)
+
+annocheck: stalld
+	annocheck --ignore-unknown --verbose --profile=el10 --debug-dir=/usr/lib/debug/ ./stalld
