@@ -28,6 +28,9 @@ minor release the Z field should be zero. Ex:
 In general we won't use the third field very much, so shorthand
 references to releases such as the tag above is version 1.2.
 
+Note: make sure that you update the VERSION variable in the Makefile
+to match the tag value *before* you create the tag :).
+
 ## Gitlab Release
 
 Once you've signed the tag with your gpg key, we can move on to the
