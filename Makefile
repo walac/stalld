@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 NAME	:=	stalld
-VERSION	:=	1.19.4
+VERSION	:=	1.19.5
 
 ifeq ($(strip $(ARCH)),)
 ARCH=$(shell uname -m)
@@ -44,20 +44,30 @@ FOPTS	:=	-flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong \
 		-fasynchronous-unwind-tables -fstack-clash-protection -fno-omit-frame-pointer \
 		$(strip $(FCF_PROTECTION)) -fpie
 
-
 MOPTS   :=  	$(strip $(MTUNE)) $(strip $(M64)) -mno-omit-leaf-frame-pointer
 
-#WOPTS	:= 	-Wall -Werror=format-security -Wp,-D_GLIBCXX_ASSERTIONS
 WOPTS	:= 	-Wall -Werror=format-security
 
 SOPTS	:= 	-specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1
 
 DEFS	:=	-DUSE_BPF=$(USE_BPF) -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS
 
+# note that RPMCFLAGS and RPMLDFLAGS are variables that come from the specfile when
+# building for Fedora/CentOS/RHEL/et al
+
+ifeq ($(RPMCFLAGS),)
 CFLAGS	:=	-O2 -g -DVERSION=\"$(VERSION)\" $(FOPTS) $(MOPTS) $(WOPTS) $(SOPTS) $(DEFS)
+else
+CFLAGS	:=	 $(RPMCFLAGS) $(DEFS)
+endif
+$(info CFLAGS=$(CFLAGS))
 
-
+ifeq ($(RPMLDFLAGS),)
 LDFLAGS	:=	-ggdb -znow -pie
+else
+LDFLAGS	:=	$(RPMLDFLAGS) -ggdb -znow -pie
+endif
+$(info LDFLAGS=$(LDFLAGS))
 
 LIBS	:=	 -lpthread
 ifeq ($(USE_BPF),1)
