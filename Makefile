@@ -91,6 +91,7 @@ TARBALL	:=	$(NAME)-$(VERSION).tar.$(CEXT)
 TAROPTS	:=	-cvjf $(TARBALL)
 BINDIR	:=	/usr/bin
 DATADIR	:=	/usr/share
+SYSCONFDIR :=	/etc
 DOCDIR	:=	$(DATADIR)/doc/stalld
 MANDIR	:=	$(DATADIR)/man
 LICDIR	:=	$(DATADIR)/licenses
@@ -168,7 +169,7 @@ tests:
 	make -C tests VERSION=$(VERSION) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 
 .PHONY: install
-install:
+install: stalld
 	$(INSTALL) -m 755 -d $(DESTDIR)$(BINDIR) $(DESTDIR)$(DOCDIR)
 	$(INSTALL) stalld -m 755 $(DESTDIR)$(BINDIR)
 	$(INSTALL) README.md -m 644 $(DESTDIR)$(DOCDIR)
@@ -178,6 +179,16 @@ install:
 	$(INSTALL) gpl-2.0.txt -m 644 $(DESTDIR)$(LICDIR)/$(NAME)
 	$(INSTALL) scripts/throttlectl.sh $(DESTDIR)$(BINDIR)/throttlectl
 	make -C systemd DESTDIR=$(INSPATH) install
+
+.PHONY: uninstall
+uninstall:
+	rm -rf $(DESTDIR)$(DOCDIR)
+	rm -f $(DESTDIR)$(BINDIR)/stalld
+	rm -f $(DESTDIR)$(DOCDIR)/README.md
+	rm -f $(DESTDIR)$(MANDIR)/man8/stalld.8*
+	rm -rf $(DESTDIR)$(LICDIR)/$(NAME)
+	rm -f $(DESTDIR)$(BINDIR)/throttlectl
+	make -C systemd DESTDIR=$(INSPATH) uninstall
 
 .PHONY: clean tarball systemd push annocheck
 clean:
