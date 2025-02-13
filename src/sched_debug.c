@@ -70,10 +70,16 @@ out_error:
  */
 static char *get_cpu_info_start(char *buffer, int cpu)
 {
-	/* 'cpu#9999,\0' */
+	/*
+	 * 'cpu#9999, %u.%03u MHz\n' CONFIG_X86
+	 * 'cpu#9999\n' other arch
+	 */
 	char cpu_header[10];
-
+#if defined(__i386__) || defined(__x86_64__)
 	sprintf(cpu_header, "cpu#%d,", cpu);
+#else
+	sprintf(cpu_header, "cpu#%d\n", cpu);
+#endif
 
 	return strstr(buffer, cpu_header);
 }
