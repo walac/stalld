@@ -9,5 +9,9 @@ install:
 	$(INSTALL) stalld.conf -m 644 $(DESTDIR)/etc/sysconfig/stalld
 	$(INSTALL) -m 755 -d $(DESTDIR)$(UNITDIR)
 	$(INSTALL) stalld.service -m 644 $(DESTDIR)$(UNITDIR)
+
+uninstall:
+	rm -f $(DESTDIR)/etc/sysconfig/stalld
+	rm -f $(DESTDIR)$(UNITDIR)/stalld.service
 clean:
 	@rm -rf *~

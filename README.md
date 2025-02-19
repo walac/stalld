@@ -54,6 +54,43 @@ option.
 ### Miscellaneous
 - -h/--help: print this menu
 
+## Do I need stalld?
+
+Probably not. Stalld was developed as a temporary solution to overcome some
+corner cases of real-time throttling on Linux.
+
+The main use-case for stalld is for the DPDK case where the user has *fully
+isolated CPU* and run a *single busy-loop RT task on the isolated CPU*.
+Many decisions on stalld were made for this particular scenario, and it
+is tested mostly for this case.
+
+The main limitation it solves is the ability to boost starving tasks for
+a limited amount of time, at a microsecond granularity, only in the
+presence of starving tasks.
+
+Once this problem is solved on kernel, stalld may become just an interface
+for that mechanism, including logging.
+
+## Is stalld recommended for safety-critical use cases?
+
+**No, stalld is absolutely not recommended for safety-critical systems,
+and no user-space tool will be.**
+
+Stalld is a user-space program that uses standard syscalls to boost
+starving tasks. Thus, stalld competes with resources with other
+processes, including those that could be starving, creating live
+lock scenarios. Running stalld with SCHED_DEADLINE priority (see -R)
+with the PREEMPT_RT kernel can partially mitigate these live locks.
+Nevertheless, because the priority/deadline inheritance does not cover
+all locking mechanisms, stalld can still suffer from unbounded priority
+inversion.
+
+These problems should not happen in the DPDK case because it is assumed that
+the system administrators did their best to isolate CPUs, and stalld will
+only be activated for inevitable per-cpu tasks, such as kworkers.
+
+**For safety-critical cases, it is safer to keep using RT throttling.**
+
 ## Repositories
 The repository at https://gitlab.com/rt-linux-tools/stalld is the main
 repository, where the development takes place.
