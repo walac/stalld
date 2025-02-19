@@ -8,6 +8,9 @@
 # The 'on' argument causes the previously saved values to be restored
 # or if those are not found the defaults are re-applied.
 
+# have this script exit immediately on error
+set -o errexit
+
 procpath=/proc/sys/kernel
 savedir=/run/stalld
 cmd=$1
