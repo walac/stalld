@@ -46,7 +46,7 @@
 /*
  * Daemon umask value.
  */
-#define DAEMON_UMASK  0x133  /* 0644 */
+#define DAEMON_UMASK  0644
 
 /*
  * Informnation about running tasks on a CPU.
