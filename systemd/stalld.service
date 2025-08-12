@@ -14,6 +14,8 @@ ExecStartPre=/usr/bin/mkdir -p /run/stalld
 ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF $IT $IP $BE
 ExecStopPost=/usr/bin/throttlectl on
 Restart=always
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=10
 
 [Install]
 WantedBy=multi-user.target
