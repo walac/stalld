@@ -12,6 +12,9 @@ ExecStartPre=/usr/bin/mkdir -p /run/stalld
 # In case the regex passed to IT or IP includes C escape sequences,
 # use ${IT} or ${IP} instead of $IT or $IP
 ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF $IT $IP $BE
+ExecStartPost=/usr/bin/chrt -f -p 10 $MAINPID
+ExecStart=/usr/bin/stalld --systemd $CLIST $AGGR $BP $BR $BD $THRESH $LOGGING $FG $PF $IT $IP
+
 ExecStopPost=/usr/bin/throttlectl on
 Restart=always
 
