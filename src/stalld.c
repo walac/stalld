@@ -619,35 +619,36 @@ int check_starving_tasks(struct cpu_info *cpu)
 	for (i = 0; i < cpu->nr_waiting_tasks; i++) {
 		task = &tasks[i];
 
-		if ((time(NULL) - task->since) >= config_starving_threshold) {
+		/* Skip tasks that haven't been starving long enough */
+		if ((time(NULL) - task->since) < config_starving_threshold)
+			continue;
 
-			log_msg("%s-%d starved on CPU %d for %d seconds\n",
-				task->comm, task->pid, cpu->id,
-				(time(NULL) - task->since));
+		log_msg("%s-%d starved on CPU %d for %d seconds\n",
+			task->comm, task->pid, cpu->id,
+			(time(NULL) - task->since));
 
-			/*
-			 * Check if this task needs to be ignored from being boosted
-			 * if yes, update the time stamp so that it doesn't keep
-			 * getting reported as being starved.
-			 */
-			if (config_ignore && !(check_task_ignore(task))) {
-				task->since = time(NULL);
-				continue;
-			}
-
-			starving+=1;
-
-			/*
-			 * It it is only logging, just reset the time counter
-			 * after logging.
-			 */
-			if (config_log_only) {
-				task->since = time(NULL);
-				continue;
-			}
-
-			boost_starving_task(task->tgid, task->pid, cpu);
+		/*
+		 * Check if this task needs to be ignored from being boosted
+		 * if yes, update the time stamp so that it doesn't keep
+		 * getting reported as being starved.
+		 */
+		if (config_ignore && !(check_task_ignore(task))) {
+			task->since = time(NULL);
+			continue;
 		}
+
+		starving++;
+
+		/*
+		 * If it is only logging, just reset the time counter
+		 * after logging.
+		 */
+		if (config_log_only) {
+			task->since = time(NULL);
+			continue;
+		}
+
+		boost_starving_task(task->tgid, task->pid, cpu);
 	}
 
 	return starving;
@@ -903,30 +904,28 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 		if (config_log_only)
 			continue;
 
-		if (cpu->pid != 0 && (now - cpu->since) > config_starving_threshold) {
-			/*
-			 * Check if this task name is part of a denylist
-			 * If yes, do not boost it.
-			 */
-			if (config_ignore && !check_task_ignore(&cpu->task))
-				continue;
+		/* Skip if no task or not starving long enough */
+		if (cpu->pid == 0 || (now - cpu->since) <= config_starving_threshold)
+			continue;
 
-			/* Save the task policy. */
-			ret = get_current_policy(cpu->pid, &attr[i]);
-			if (!ret) /* It is ok if a task die. */
-				/* Boost! */
-				ret = boost_with_deadline(cpu->tgid, cpu->pid, &cpus[i]);
+		/* Skip if task is on denylist */
+		if (config_ignore && !check_task_ignore(&cpu->task))
+			continue;
 
-			if (ret < 0) {
-				cleanup_starving_task_info(cpu);
-				continue;
-			}
+		/* Save the task policy. */
+		ret = get_current_policy(cpu->pid, &attr[i]);
+		if (!ret) /* It is ok if a task die. */
+			/* Boost! */
+			ret = boost_with_deadline(cpu->tgid, cpu->pid, &cpus[i]);
 
-			/* Save it for the deboost. */
-			deboost_vector[i] = cpu->pid;
-
-			boosted++;
+		if (ret < 0) {
+			cleanup_starving_task_info(cpu);
+			continue;
 		}
+
+		/* Save it for the deboost. */
+		deboost_vector[i] = cpu->pid;
+		boosted++;
 	}
 
 	if (!boosted)
