@@ -201,19 +201,15 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 					      struct task_struct *p)
 {
 	struct queued_task *task_entry;
-	const long pid = p->pid;
-	const long ctxswc = compute_ctxswc(p);
-
-	const long prio = p->prio;
 	const int is_rt = task_is_rt(p);
 
-	/* 1. Try to find the task first */
-	task_entry = find_queued_task(cpu_data, pid);
+	/* Try to find the task first */
+	task_entry = find_queued_task(cpu_data, p->pid);
 	if (task_entry) {
 		if (p->__state == TASK_RUNNING) {
 			/* Task found: Update its dynamic fields */
-			task_entry->ctxswc = ctxswc;
-			task_entry->prio = prio;
+			task_entry->ctxswc = compute_ctxswc(p);
+			task_entry->prio = p->prio;
 			task_entry->is_rt = is_rt;
 		} else {
 			/* Task is not running. Remove it. */
@@ -231,27 +227,10 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 		return;
 
 	/*
-	 * 2. Task not found and is running: find an empty slot to add it
+	 * Task not found and is running: find an empty slot to add it
 	 * We iterate through all slots to find the first empty one.
 	 */
-
-	const long tgid = p->tgid;
-
-	for_each_task_entry(cpu_data, task_entry)
-		if (task_entry->pid == 0) { /* Found an empty slot */
-			task_entry->ctxswc = ctxswc;
-			task_entry->prio = prio;
-			task_entry->is_rt = is_rt;
-			task_entry->tgid = tgid;
-
-			/* User reads pid to know that there is no data here.
-			 * Update it last.
-			 */
-			barrier();
-			task_entry->pid = pid;
-			log("update_or_add: added task %s(%d) to empty slot", p->comm, pid);
-			return;
-		}
+	enqueue_task(p, cpu_data, is_rt);
 }
 
 /*
