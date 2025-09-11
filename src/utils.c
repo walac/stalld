@@ -405,28 +405,6 @@ void cleanup_regex(unsigned int *nr_task, regex_t **compiled_expr)
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
-static int find_mount(const char *mount, char *debugfs)
-{
-	char type[100];
-	FILE *fp;
-
-	if ((fp = fopen("/proc/mounts","r")) == NULL)
-		return 0;
-
-	while (fscanf(fp, "%*s %"
-		      STR(MAX_PATH)
-		      "s %99s %*s %*d %*d\n",
-		      debugfs, type) == 2) {
-		if (strcmp(type, mount) == 0)
-			break;
-	}
-	fclose(fp);
-
-	if (strcmp(type, mount) != 0)
-		return 0;
-	return 1;
-}
-
 /*
  * Return true if the file at *path exists.
  */
