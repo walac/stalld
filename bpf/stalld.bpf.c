@@ -244,8 +244,21 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 	enqueue_task(p, cpu_data, is_rt);
 }
 
-SEC("tp_btf/sched_wakeup")
-int handle__sched_wakeup(u64 *ctx)
+/**
+ * __sched_wakeup - Common handler for task wakeup tracepoints.
+ * @ctx: A pointer to the tracepoint context.
+ *
+ * This function serves as the common implementation for handling both
+ * `sched_wakeup` and `sched_wakeup_new` tracepoints. It extracts the
+ * task_struct from the context, determines its target CPU, and if that
+ * CPU is being monitored, enqueues the task for tracking.
+ *
+ * This centralized approach avoids code duplication and provides a
+ * single point of logic for task wakeup events.
+ *
+ * Return: Always returns 0.
+ */
+static int __sched_wakeup(u64 *ctx)
 {
 	struct task_struct *p = (void *) ctx[0];
 	struct stalld_cpu_data *cpu_data = get_cpu_data(task_cpu(p));
@@ -254,6 +267,18 @@ int handle__sched_wakeup(u64 *ctx)
 		update_or_add_task(cpu_data, p);
 
 	return 0;
+}
+
+SEC("tp_btf/sched_wakeup")
+int handle__sched_wakeup(u64 *ctx)
+{
+	return __sched_wakeup(ctx);
+}
+
+SEC("tp_btf/sched_wakeup_new")
+int handle__sched_wakeup_new(u64 *ctx)
+{
+	return __sched_wakeup(ctx);
 }
 
 SEC("tp_btf/sched_process_exit")
