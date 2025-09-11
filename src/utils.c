@@ -1274,8 +1274,8 @@ static int find_debugfs_mount_point(char *mount_path_buf, size_t buf_size) {
  * Returns -1 if debugfs is not mounted, or other system error occurs.
  */
 int check_dl_server_dir_exists(void) {
-	char debugfs_mount_path[256];
-	char full_target_path[512];
+	char debugfs_mount_path[MAX_DIR_PATH];
+	char full_target_path[MAX_PATH];
 	struct stat st;
 	const char *dl_server_subdir = "/sched/fair_server";
 
