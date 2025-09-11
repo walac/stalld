@@ -828,10 +828,7 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 	int retval;
 	int i;
 
-	buffer = malloc(config_buffer_size);
-	if (!buffer)
-		die("cannot allocate buffer");
-
+	buffer = allocate_memory(config_buffer_size, sizeof *buffer);
 	buffer_size = config_buffer_size;
 
 	pthread_attr_init(&dettached);
@@ -971,13 +968,8 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 	if (!config_log_only && boost_policy != SCHED_DEADLINE)
 		die("Single threaded mode only works with SCHED_DEADLINE");
 
-	cpu_starving_vector = malloc(sizeof(struct cpu_starving_task_info) * nr_cpus);
-	if (!cpu_starving_vector)
-		die("cannot allocate cpu starving vector");
-
-	buffer = malloc(config_buffer_size);
-	if (!buffer)
-		die("cannot allocate buffer");
+	cpu_starving_vector = allocate_memory(nr_cpus, sizeof(struct cpu_starving_task_info));
+	buffer = allocate_memory(config_buffer_size, sizeof *buffer);
 
 	buffer_size = config_buffer_size;
 
@@ -1170,17 +1162,10 @@ int main(int argc, char **argv)
 	if (!config_log_only)
 		boost_policy = check_policies();
 
-	cpus = malloc(sizeof(struct cpu_info) * config_nr_cpus);
-	if (!cpus)
-		die("Cannot allocate memory");
-
-	memset(cpus, 0, sizeof(struct cpu_info) * config_nr_cpus);
+	cpus = allocate_memory(config_nr_cpus, sizeof(struct cpu_info));
 
 	for (i = 0; i < config_nr_cpus; i++) {
-		cpus[i].buffer = malloc(config_buffer_size);
-		if (!cpus[i].buffer)
-			die("Cannot allocate memory");
-
+		cpus[i].buffer = allocate_memory(1, config_buffer_size);
 		cpus[i].buffer_size = config_buffer_size;
 	}
 

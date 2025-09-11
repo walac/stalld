@@ -60,6 +60,18 @@ int resize_buffer_if_needed(char **buffer, size_t *current_size)
 }
 
 /*
+ * Helper function for memory allocation with error checking.
+ * Dies with an error message if allocation fails.
+ */
+void *allocate_memory(size_t count, size_t size)
+{
+	void *ptr = calloc(count, size);
+	if (!ptr)
+		die("Cannot allocate memory");
+	return ptr;
+}
+
+/*
  * fill_process_comm - process name from task group ID.
  */
 int fill_process_comm(int tgid, int pid, char *comm, int comm_size)

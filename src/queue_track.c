@@ -147,11 +147,7 @@ static int queue_track_parse(struct cpu_info *cpu_info, char *buffer, size_t buf
 	struct queued_task *qtask;
 	int retval = 0;
 
-	tasks = calloc(MAX_QUEUE_TASK, sizeof(struct task_info));
-	if (tasks == NULL) {
-		warn("failed to malloc %d task_info structs", MAX_QUEUE_TASK);
-		goto error;
-	}
+	tasks = allocate_memory(MAX_QUEUE_TASK, sizeof(struct task_info));
 
 	for_each_queued_task(cpu_data, qtask) {
 		if (qtask->is_rt)
@@ -199,9 +195,6 @@ static int queue_track_parse(struct cpu_info *cpu_info, char *buffer, size_t buf
         }
 
 	return 0;
-
-error:
-	return 1;
 }
 
 static int queue_track_has_starving_task(struct cpu_info *cpu)
