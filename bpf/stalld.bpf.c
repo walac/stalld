@@ -39,6 +39,27 @@ struct {
 #endif
 
 /**
+ * task_is_rt - Check if a task is a real-time task.
+ * @p: A pointer to the kernel's `task_struct` for the task.
+ *
+ * This function determines if a task belongs to a real-time (RT) scheduling
+ * class based on its priority. In the Linux kernel, static priorities from
+ * 0 to 99 are reserved for RT tasks (SCHED_FIFO and SCHED_RR), while
+ * priorities from 100 to 139 are used for normal tasks (SCHED_NORMAL,
+ * SCHED_BATCH, etc.).
+ *
+ * This check is essential for `stalld` to distinguish between high-priority
+ * RT tasks that have strict scheduling deadlines and normal tasks.
+ *
+ * Return: `true` if the task has a real-time priority (0-99),
+ *         `false` otherwise.
+ */
+static inline bool task_is_rt(const struct task_struct *p)
+{
+	return p->prio >= 0 && p->prio <= 99;
+}
+
+/**
  * compute_ctxswc - Compute the total context switch count for a task.
  * @p: A pointer to the `task_struct` (process descriptor) of the task.
  *
@@ -101,7 +122,7 @@ static struct queued_task *update_or_add_task(struct stalld_cpu_data *cpu_data,
 	const long ctxswc = compute_ctxswc(p);
 
 	const long prio = p->prio;
-	const int is_rt = (p->prio <= 99 && p->prio >= 0);
+	const int is_rt = task_is_rt(p);
 
 	/* 1. Try to find the task first */
 	task_entry = find_queued_task(cpu_data, pid);
@@ -292,7 +313,6 @@ int handle__sched_switch(u64 *ctx)
 	struct queued_task *task;
 	struct task_struct *prev = (void *) ctx[1];
 	struct task_struct *next = (void *) ctx[2];
-	long pid = next->pid;
 
 	if (!cpu_data)
 		return 0;
@@ -300,9 +320,9 @@ int handle__sched_switch(u64 *ctx)
 	if (!cpu_data->monitoring)
 		return 0;
 
-	cpu_data->current = pid;
+	cpu_data->current = next->pid;
 
-	if (next->prio <= 99 && next->prio >= 0)
+	if (task_is_rt(next))
 		cpu_data->nr_rt_running = 1;
 
 	// update the context switch count of the tasks
