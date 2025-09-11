@@ -66,6 +66,7 @@ struct {
  */
 struct task_struct___legacy {
 	int cpu;
+	unsigned int state;
 };
 
 /**
@@ -104,7 +105,7 @@ static inline bool task_is_rt(const struct task_struct *p)
  */
 static inline int task_cpu(const struct task_struct *p)
 {
-	const struct task_struct___legacy *lp = (const struct task_struct___legacy *) p;
+	const struct task_struct___legacy *lp = (const void *) p;
 
 	return bpf_core_field_exists(lp->cpu)
 		? BPF_CORE_READ(lp, cpu)
@@ -137,6 +138,16 @@ static inline int task_cpu(const struct task_struct *p)
 static inline long compute_ctxswc(const struct task_struct *p)
 {
 	return p->nvcsw + p->nivcsw;
+}
+
+static inline unsigned int task_running(const struct task_struct *p)
+{
+	const struct task_struct___legacy *lp;
+	const unsigned int state = bpf_core_field_exists(p->__state)
+					? BPF_CORE_READ(p, __state)
+					: BPF_CORE_READ(lp, state);
+
+	return state == TASK_RUNNING;
 }
 
 /**
@@ -242,7 +253,7 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 	/* Try to find the task first */
 	task_entry = find_queued_task(cpu_data, p->pid);
 	if (task_entry) {
-		if (p->__state == TASK_RUNNING) {
+		if (task_running(p)) {
 			/* Task found: Update its dynamic fields */
 			task_entry->ctxswc = compute_ctxswc(p);
 			task_entry->prio = p->prio;
@@ -260,7 +271,7 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 	 * If we reach here, the task was NOT found, so it's new.
 	 * Check if the new task is in the `TASK_RUNNING` state before adding to queue.
 	 */
-	if (p->__state != TASK_RUNNING)
+	if (!task_running(p))
 		return;
 
 	/*
@@ -393,7 +404,7 @@ int iter_task(struct bpf_iter__task *ctx)
 
 	log_task(p);
 
-	if (p->__state == TASK_RUNNING)
+	if (task_running(p))
 		enqueue_task(p, cpu_data);
 
 	return 0;
