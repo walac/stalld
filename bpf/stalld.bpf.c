@@ -102,9 +102,8 @@ static struct stalld_cpu_data *get_cpu_data(int cpu)
 	return stalld_data;
 }
 
-static int enqueue_task(struct task_struct *p, struct rq *rq, int rt)
+static int enqueue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
 {
-	struct stalld_cpu_data *cpu_data = get_cpu_data(rq->cpu);
 	struct queued_task *task;
 	long ctxswc = compute_ctxswc(p);
 	long tgid = p->tgid;
@@ -145,9 +144,8 @@ static int enqueue_task(struct task_struct *p, struct rq *rq, int rt)
 	return 0;
 }
 
-static int dequeue_task(struct task_struct *p, struct rq *rq, int rt)
+static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
 {
-	struct stalld_cpu_data *cpu_data = get_cpu_data(rq->cpu);
 	struct queued_task *task;
 	long pid = p->pid;
 
@@ -276,7 +274,7 @@ int handle__enqueue_task_fair(u64 *ctx)
 	struct task_struct *p = (void *) ctx[1];
 	struct rq *rq = (void *) ctx[0];
 
-	return enqueue_task(p, rq, 0);
+	return enqueue_task(p, get_cpu_data(rq->cpu), 0);
 }
 
 SEC("fentry/dequeue_task_fair")
@@ -285,7 +283,7 @@ int handle__dequeue_task_fair(u64 *ctx)
 	struct task_struct *p = (void *) ctx[1];
 	struct rq *rq = (void *) ctx[0];
 
-	return dequeue_task(p, rq, 0);
+	return dequeue_task(p, get_cpu_data(rq->cpu), 0);
 }
 
 SEC("fentry/enqueue_task_rt")
@@ -294,7 +292,7 @@ int handle__enqueue_task_rt(u64 *ctx)
 	struct task_struct *p = (void *) ctx[1];
 	struct rq *rq = (void *) ctx[0];
 
-	return enqueue_task(p, rq, 1);
+	return enqueue_task(p, get_cpu_data(rq->cpu), 1);
 }
 
 SEC("fentry/dequeue_task_rt")
@@ -303,7 +301,7 @@ int handle__dequeue_task_rt(u64 *ctx)
 	struct task_struct *p = (void *) ctx[1];
 	struct rq *rq = (void *) ctx[0];
 
-	return dequeue_task(p, rq, 1);
+	return dequeue_task(p, get_cpu_data(rq->cpu), 1);
 }
 
 SEC("tp_btf/sched_switch")
