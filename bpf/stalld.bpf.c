@@ -33,10 +33,18 @@ struct {
 } stalld_per_cpu_data SEC(".maps");
 
 #if DEBUG_STALLD
-#define log(msg, ...) bpf_printk(msg, ##__VA_ARGS__)
+#define log(msg, ...) bpf_printk("%s: " msg, __func__, ##__VA_ARGS__)
 #else
 #define log(msg, ...) do {} while(0)
 #endif
+
+#define log_task_prefix(prefix, p)		\
+	log(prefix "%s(%d) pid=%d class=%s",	\
+	    p->comm, p->tgid, p->pid,		\
+	    task_is_rt(p) ? "rt" : "fair")
+
+#define log_task(p) log_task_prefix("", p)
+#define log_task_error(p) log_task_prefix("error: ", p)
 
 /**
  * task_is_rt - Check if a task is a real-time task.
@@ -132,12 +140,8 @@ static int enqueue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
 	long tgid = p->tgid;
 	long prio = p->prio;
 	long pid = p->pid;
-	int slot = 0;
 
 	for_each_task_entry(cpu_data, task) {
-		log("slot %d: %d %d", slot, task->pid, task->ctxswc);
-		++slot;
-
 		if (task->pid == 0 || task->pid == pid) {
 			task->ctxswc = ctxswc;
 			task->prio = prio;
@@ -150,13 +154,12 @@ static int enqueue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
 			 */
 			barrier();
 			task->pid = pid;
-			log("queue %s %d %d", rt ? "rt" : "fair", pid, ctxswc);
+			log_task(p);
 			return 0;
 		}
 	}
 
-	log("error: queue %s %d %d", rt ? "rt" : "fair", pid, ctxswc);
-
+	log_task_error(p);
 
 	return 0;
 }
@@ -180,11 +183,11 @@ static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
 	task = find_queued_task(cpu_data, pid);
 	if (task) {
 		task->pid = 0;
-		log("dequeue %s %d", rt ? "rt" : "fair", pid);
+		log_task(p);
 		return 1;
 	}
 
-	log("error: dequeue %s %d", rt ? "rt" : "fair", pid);
+	log_task_error(p);
 	return 0;
 }
 
@@ -227,6 +230,7 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 			task_entry->is_rt = is_rt;
 		} else {
 			/* Task is not running. Remove it. */
+			log_task_prefix("dequeue ", p);
 			task_entry->pid = 0;
 		}
 
