@@ -15,13 +15,11 @@
  */
 
 #define _GNU_SOURCE
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <sched.h>
-#include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -38,9 +36,6 @@
 
 #include "stalld.h"
 #include "sched_debug.h"
-#if USE_BPF
-#include "queue_track.h"
-#endif
 
 /*
  * version
