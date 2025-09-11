@@ -216,14 +216,10 @@ int setup_signal_handling(void)
  */
 void __die(const char *fmt, ...)
 {
-	volatile int zero = 0;
-	int ret = errno;
 	va_list ap;
 
 	if (errno)
 		perror("stalld");
-	else
-		ret = -1;
 
 	va_start(ap, fmt);
 	fprintf(stderr, "  ");
@@ -232,11 +228,11 @@ void __die(const char *fmt, ...)
 
 	fprintf(stderr, "\n");
 
-	/* Die with a division by zero to keep the stack on GDB. */
+	/* in verbose mode, abort() to generate a crash dump */
 	if (config_verbose)
-		zero = 10 / zero;
+		abort();
 
-	exit(ret);
+	exit(EXIT_FAILURE);
 }
 
 /*
