@@ -322,8 +322,7 @@ int handle__sched_switch(u64 *ctx)
 
 	cpu_data->current = next->pid;
 
-	if (task_is_rt(next))
-		cpu_data->nr_rt_running = 1;
+	cpu_data->nr_rt_running = task_is_rt(next);
 
 	// update the context switch count of the tasks
 	update_or_add_task(cpu_data, next);
