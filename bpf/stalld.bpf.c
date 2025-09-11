@@ -254,7 +254,6 @@ SEC("tp_btf/sched_switch")
 int handle__sched_switch(u64 *ctx)
 {
 	struct stalld_cpu_data *cpu_data = get_cpu_data(bpf_get_smp_processor_id());
-	struct queued_task *task;
 	struct task_struct *prev = (void *) ctx[1];
 	struct task_struct *next = (void *) ctx[2];
 
