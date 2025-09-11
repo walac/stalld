@@ -510,6 +510,23 @@ void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct ta
 	}
 }
 
+/**
+ * cleanup_starving_task_info - Reset a CPU's starving task info structure
+ * @info: Pointer to the cpu_starving_task_info structure to clean up
+ *
+ * Clears all fields in the starving task info structure, effectively removing
+ * any tracked starving task for this CPU. This function preserves the overloaded
+ * flag value before clearing the structure and returns it to the caller.
+ *
+ * Return: The previous value of the overloaded flag before cleanup
+ */
+static int cleanup_starving_task_info(struct cpu_starving_task_info *info)
+{
+	const int overloaded = info->overloaded;
+	bzero(info, sizeof *info);
+	return overloaded;
+}
+
 int get_current_policy(int pid, struct sched_attr *attr)
 {
 	int ret;
@@ -1155,12 +1172,8 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 
 		/* Cleanup the CPU starving vector. */
 		for (i = 0; i < nr_cpus; i++) {
-			memset(&(cpu_starving_vector[i].task), 0, sizeof(struct task_info));
-			cpu_starving_vector[i].pid = 0;
-			cpu_starving_vector[i].since = 0;
-			if (cpu_starving_vector[i].overloaded)
+			if (cleanup_starving_task_info(cpu_starving_vector+i))
 				overloaded = 1;
-			cpu_starving_vector[i].overloaded = 0;
 		}
 
 		/*
