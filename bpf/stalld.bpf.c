@@ -8,6 +8,7 @@
 #include <string.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 #include "../src/queue_track.h"
 
 #ifndef TASK_RUNNING
@@ -46,6 +47,24 @@ struct {
 #define log_task(p) log_task_prefix("", p)
 #define log_task_error(p) log_task_prefix("error: ", p)
 
+/*
+ * BPF CO-RE "weak" or "candidate" definition.
+ *
+ * This struct provides a definition for fields that may not exist in the
+ * kernel headers used at compile time (e.g., the 'cpu' field was removed
+ * from task_struct in modern kernels).
+ *
+ * Its sole purpose is to satisfy the compiler, allowing the BPF program to
+ * build successfully. At runtime, the BPF loader uses the target kernel's BTF
+ * (BPF Type Format) to perform a CO-RE (Compile Once - Run Everywhere)
+ * relocation. The bpf_core_field_exists() check will correctly determine if
+ * the field is actually present on the target system, making the program
+ * portable across different kernel versions.
+ */
+struct task_struct___legacy {
+	int cpu;
+};
+
 /**
  * task_is_rt - Check if a task is a real-time task.
  * @p: A pointer to the kernel's `task_struct` for the task.
@@ -72,9 +91,7 @@ static inline bool task_is_rt(const struct task_struct *p)
  * @p: A pointer to the kernel's `task_struct` for the task.
  *
  * This function retrieves the CPU identifier where the task is currently
- * scheduled. It accesses this information from the task's `thread_info`
- * struct, which is a low-level, architecture-specific structure
- * containing essential thread data.
+ * scheduled.
  *
  * The CPU number is crucial for `stalld` to associate a task with the
  * correct per-CPU data map, ensuring that task tracking and starvation
@@ -84,7 +101,11 @@ static inline bool task_is_rt(const struct task_struct *p)
  */
 static inline int task_cpu(const struct task_struct *p)
 {
-	return p->thread_info.cpu;
+	const struct task_struct___legacy *lp = (const struct task_struct___legacy *) p;
+
+	return bpf_core_field_exists(lp->cpu)
+		? BPF_CORE_READ(lp, cpu)
+		: BPF_CORE_READ(p, thread_info.cpu);
 }
 
 /**
