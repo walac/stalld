@@ -776,6 +776,27 @@ static const char *join_thread(pthread_t *thread)
 	return result;
 }
 
+/*
+ * Check if idle detection should skip parsing.
+ * Returns 1 if parsing should be skipped, 0 otherwise.
+ */
+static int should_skip_idle_cpus(struct cpu_info *cpus, int nr_cpus, char *busy_cpu_list)
+{
+	int has_busy_cpu;
+
+	if (!config_idle_detection)
+		return 0;
+
+	memset(busy_cpu_list, 0, nr_cpus);
+	has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
+	if (!has_busy_cpu) {
+		log_verbose("all CPUs had idle time, skipping parse\n");
+		return 1;
+	}
+
+	return 0;
+}
+
 void aggressive_main(struct cpu_info *cpus, int nr_cpus)
 {
 	int i;
@@ -804,7 +825,6 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 	size_t buffer_size = 0;
 	struct cpu_info *cpu;
 	char *buffer = NULL;
-	int has_busy_cpu;
 	int retval;
 	int i;
 
@@ -827,14 +847,8 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 		/* Buffer size should increase. See sched_debug_get(). */
 		resize_buffer_if_needed(&buffer, &buffer_size);
 
-		if (config_idle_detection) {
-			memset(&busy_cpu_list, 0, nr_cpus);
-			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
-			if (!has_busy_cpu) {
-				log_verbose("all CPUs had idle time, skipping parse\n");
-				goto skipped;
-			}
-		}
+		if (should_skip_idle_cpus(cpus, nr_cpus, busy_cpu_list))
+			goto skipped;
 
 		if (backend->get) {
 			retval = backend->get(buffer, buffer_size);
@@ -948,7 +962,6 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 	struct cpu_info *cpu;
 	char *buffer = NULL;
 	int overloaded = 0;
-	int has_busy_cpu;
 	int boosted = 0;
 	int retval;
 	int i;
@@ -982,14 +995,8 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 		/* Buffer size should increase. See sched_debug_get(). */
 		resize_buffer_if_needed(&buffer, &buffer_size);
 
-		if (config_idle_detection) {
-			memset(&busy_cpu_list, 0, nr_cpus);
-			has_busy_cpu = get_cpu_busy_list(cpus, nr_cpus, busy_cpu_list);
-			if (!has_busy_cpu) {
-				log_verbose("all CPUs had idle time, skipping parse\n");
-				goto skipped;
-			}
-		}
+		if (should_skip_idle_cpus(cpus, nr_cpus, busy_cpu_list))
+			goto skipped;
 
 		if (backend->get) {
 			retval = backend->get(buffer, buffer_size);
