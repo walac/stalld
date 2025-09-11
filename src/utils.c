@@ -39,6 +39,27 @@
 static int find_debugfs_mount_point(char *mount_path_buf, size_t buf_size);
 
 /*
+ * Helper function to resize buffer when needed.
+ * Returns 0 on success, -1 on failure.
+ */
+int resize_buffer_if_needed(char **buffer, size_t *current_size)
+{
+	if (config_buffer_size == *current_size)
+		return 0;
+
+	char *old_buffer = *buffer;
+	*buffer = realloc(*buffer, config_buffer_size);
+	if (!*buffer) {
+		warn("fail to increase the buffer... continue");
+		*buffer = old_buffer;
+		return -1;
+	}
+
+	*current_size = config_buffer_size;
+	return 0;
+}
+
+/*
  * fill_process_comm - process name from task group ID.
  */
 int fill_process_comm(int tgid, int pid, char *comm, int comm_size)

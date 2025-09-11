@@ -189,6 +189,7 @@ long get_long_from_str(char *start);
 long get_long_after_colon(char *start);
 long get_variable_long_value(char *buffer, const char *variable);
 int fill_process_comm(int tgid, int pid, char *comm, int comm_size);
+int resize_buffer_if_needed(char **buffer, size_t *current_size);
 
 int setup_signal_handling(void);
 void daemonize(void);

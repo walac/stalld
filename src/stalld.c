@@ -727,16 +727,7 @@ void *cpu_main(void *data)
 	while (cpu->thread_running && running) {
 
 		/* Buffer size should increase. See sched_debug_get(). */
-		if (config_buffer_size != cpu->buffer_size) {
-			char *old_buffer = cpu->buffer;
-			cpu->buffer = realloc(cpu->buffer, config_buffer_size);
-			if (!cpu->buffer) {
-				warn("fail to increase the buffer... continue");
-				cpu->buffer = old_buffer;
-			} else {
-				cpu->buffer_size = config_buffer_size;
-			}
-		}
+		resize_buffer_if_needed(&cpu->buffer, &cpu->buffer_size);
 
 		if (config_idle_detection) {
 			if (cpu_had_idle_time(cpu)) {
@@ -833,16 +824,7 @@ void conservative_main(struct cpu_info *cpus, int nr_cpus)
 	while (running) {
 
 		/* Buffer size should increase. See sched_debug_get(). */
-		if (config_buffer_size != buffer_size) {
-			char *old_buffer = buffer;
-			buffer = realloc(buffer, config_buffer_size);
-			if (!buffer) {
-				warn("fail to increase the buffer... continue");
-				buffer = old_buffer;
-			} else {
-				buffer_size = config_buffer_size;
-			}
-		}
+		resize_buffer_if_needed(&buffer, &buffer_size);
 
 		if (config_idle_detection) {
 			memset(&busy_cpu_list, 0, nr_cpus);
@@ -999,16 +981,7 @@ void single_threaded_main(struct cpu_info *cpus, int nr_cpus)
 	while (running) {
 
 		/* Buffer size should increase. See sched_debug_get(). */
-		if (config_buffer_size != buffer_size) {
-			char *old_buffer = buffer;
-			buffer = realloc(buffer, config_buffer_size);
-			if (!buffer) {
-				warn("fail to increase the buffer... continue");
-				buffer = old_buffer;
-			} else {
-				buffer_size = config_buffer_size;
-			}
-		}
+		resize_buffer_if_needed(&buffer, &buffer_size);
 
 		if (config_idle_detection) {
 			memset(&busy_cpu_list, 0, nr_cpus);
