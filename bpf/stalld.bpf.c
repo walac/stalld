@@ -233,43 +233,36 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 	enqueue_task(p, cpu_data, is_rt);
 }
 
-/*
- * Sched deadline is fair by desing.
- */
-SEC("fentry/enqueue_task_fair")
-int handle__enqueue_task_fair(u64 *ctx)
+SEC("tp_btf/sched_wakeup")
+int handle__sched_wakeup(u64 *ctx)
 {
-	struct task_struct *p = (void *) ctx[1];
-	struct rq *rq = (void *) ctx[0];
+	struct task_struct *p = (void *) ctx[0];
+	struct stalld_cpu_data *cpu_data = get_cpu_data(bpf_get_smp_processor_id());
 
-	return enqueue_task(p, get_cpu_data(rq->cpu), 0);
+	if (!cpu_data)
+		return 0;
+
+	if (!cpu_data->monitoring)
+		return 0;
+
+	update_or_add_task(cpu_data, p);
+	return 0;
 }
 
-SEC("fentry/dequeue_task_fair")
-int handle__dequeue_task_fair(u64 *ctx)
+SEC("tp_btf/sched_process_exit")
+int handle__sched_process_exit(u64 *ctx)
 {
-	struct task_struct *p = (void *) ctx[1];
-	struct rq *rq = (void *) ctx[0];
+	struct task_struct *p = (void *) ctx[0];
+	struct stalld_cpu_data *cpu_data = get_cpu_data(bpf_get_smp_processor_id());
 
-	return dequeue_task(p, get_cpu_data(rq->cpu), 0);
-}
+	if (!cpu_data)
+		return 0;
 
-SEC("fentry/enqueue_task_rt")
-int handle__enqueue_task_rt(u64 *ctx)
-{
-	struct task_struct *p = (void *) ctx[1];
-	struct rq *rq = (void *) ctx[0];
+	if (!cpu_data->monitoring)
+		return 0;
 
-	return enqueue_task(p, get_cpu_data(rq->cpu), 1);
-}
-
-SEC("fentry/dequeue_task_rt")
-int handle__dequeue_task_rt(u64 *ctx)
-{
-	struct task_struct *p = (void *) ctx[1];
-	struct rq *rq = (void *) ctx[0];
-
-	return dequeue_task(p, get_cpu_data(rq->cpu), 1);
+	dequeue_task(p, cpu_data, task_is_rt(p));
+	return 0;
 }
 
 SEC("tp_btf/sched_switch")
