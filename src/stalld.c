@@ -202,57 +202,22 @@ static int calc_stat_max(int pgsize)
  */
 static long get_cpu_idle_time(char *buffer, size_t buffer_size, int cpu)
 {
-	char cpuid[10]; /* cpuXXXXX\n */
-	char *idle_start;
-	char *end;
-	long val;
+	char cpuid[10];
+	char *line;
+	long user, nice, system, idle;
+	int ret;
 
 	sprintf(cpuid, "cpu%d ", cpu);
 
-	/* CPU */
-	idle_start = strstr(buffer, cpuid);
-	if (!idle_start)
+	line = strstr(buffer, cpuid);
+	if (!line)
 		return -ENODEV; /* CPU might be offline. */
 
-	/* Find and skip space before user. */
-	idle_start = strstr(idle_start, " ");
-	if (!idle_start)
+	ret = sscanf(line, "cpu%d %ld %ld %ld %ld", &cpu, &user, &nice, &system, &idle);
+	if (ret != 5)
 		return -EINVAL;
 
-	idle_start+=1;
-
-	/* Find and skip space before nice. */
-	idle_start = strstr(idle_start, " ");
-	if (!idle_start)
-		return -EINVAL;
-
-	idle_start+=1;
-
-	/* Find and skip space before system. */
-	idle_start = strstr(idle_start, " ");
-	if (!idle_start)
-		return -EINVAL;
-
-	idle_start+=1;
-
-	/* Here is the idle! */
-	idle_start = strstr(idle_start, " ");
-	if (!idle_start)
-		return -EINVAL;
-
-	idle_start += 1;
-
-	/* End. */
-	end = strstr(idle_start, " ");
-	if (!end)
-		return -EINVAL;
-
-	errno = 0;
-	val = strtol(idle_start, &end, 10);
-	if (errno != 0)
-		return -EINVAL;
-
-	return val;
+	return idle;
 }
 
 int cpu_had_idle_time(struct cpu_info *cpu_info)
