@@ -131,7 +131,7 @@ static inline int task_cpu(const struct task_struct *p)
  *
  * Return: The total context switch count (nvcsw + nivcsw) for the given task.
  */
-static inline long compute_ctxswc(struct task_struct *p)
+static inline long compute_ctxswc(const struct task_struct *p)
 {
 	return p->nvcsw + p->nivcsw;
 }
@@ -154,7 +154,7 @@ static struct stalld_cpu_data *get_cpu_data(int cpu)
 	return NULL;
 }
 
-static int enqueue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
+static int enqueue_task(const struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
 {
 	struct queued_task *task;
 	long ctxswc = compute_ctxswc(p);
@@ -196,7 +196,7 @@ static int enqueue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
  *
  * Return: 1 if the task was found and removed, 0 otherwise.
  */
-static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
+static int dequeue_task(const struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
 {
 	struct queued_task *task;
 	long pid = p->pid;
@@ -236,7 +236,7 @@ static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
  * p:        A pointer to the kernel's `task_struct` for the task to be processed.
  */
 static void update_or_add_task(struct stalld_cpu_data *cpu_data,
-					      struct task_struct *p)
+			       const struct task_struct *p)
 {
 	struct queued_task *task_entry;
 	const int is_rt = task_is_rt(p);
@@ -288,7 +288,7 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
  */
 static int __sched_wakeup(u64 *ctx)
 {
-	struct task_struct *p = (void *) ctx[0];
+	const struct task_struct *p = (void *) ctx[0];
 	struct stalld_cpu_data *cpu_data = get_cpu_data(task_cpu(p));
 
 	if (cpu_data)
@@ -312,7 +312,7 @@ int handle__sched_wakeup_new(u64 *ctx)
 SEC("tp_btf/sched_process_exit")
 int handle__sched_process_exit(u64 *ctx)
 {
-	struct task_struct *p = (void *) ctx[0];
+	const struct task_struct *p = (void *) ctx[0];
 	struct stalld_cpu_data *cpu_data = get_cpu_data(task_cpu(p));
 
 	if (cpu_data)
@@ -325,8 +325,8 @@ SEC("tp_btf/sched_switch")
 int handle__sched_switch(u64 *ctx)
 {
 	struct stalld_cpu_data *cpu_data = get_cpu_data(bpf_get_smp_processor_id());
-	struct task_struct *prev = (void *) ctx[1];
-	struct task_struct *next = (void *) ctx[2];
+	const struct task_struct *prev = (void *) ctx[1];
+	const struct task_struct *next = (void *) ctx[2];
 
 	if (!cpu_data)
 		return 0;
@@ -344,7 +344,7 @@ int handle__sched_switch(u64 *ctx)
 SEC("tp_btf/sched_migrate_task")
 int handle__sched_migrate_task(u64 *ctx)
 {
-	struct task_struct *p = (void *) ctx[0];
+	const struct task_struct *p = (void *) ctx[0];
 	const int dest_cpu = ctx[1];
 	const int orig_cpu = task_cpu(p);
 	struct stalld_cpu_data *cpu_data;
