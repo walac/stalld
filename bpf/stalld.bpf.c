@@ -196,12 +196,8 @@ static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
  * Parameters:
  * cpu_data: A pointer to the `stalld_cpu_data` structure for the target CPU.
  * p:        A pointer to the kernel's `task_struct` for the task to be processed.
- *
- * Returns:
- * A pointer to the `queued_task` entry if the task was successfully added or
- * updated. Returns NULL in all other cases (removed, not added, or queue full).
  */
-static struct queued_task *update_or_add_task(struct stalld_cpu_data *cpu_data,
+static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 					      struct task_struct *p)
 {
 	struct queued_task *task_entry;
@@ -219,12 +215,12 @@ static struct queued_task *update_or_add_task(struct stalld_cpu_data *cpu_data,
 			task_entry->ctxswc = ctxswc;
 			task_entry->prio = prio;
 			task_entry->is_rt = is_rt;
-			return task_entry;
+		} else {
+			/* Task is not running. Remove it. */
+			task_entry->pid = 0;
 		}
 
-		/* Task is not running. Remove it. */
-		task_entry->pid = 0;
-		return NULL;
+		return;
 	}
 
 	/*
@@ -232,7 +228,7 @@ static struct queued_task *update_or_add_task(struct stalld_cpu_data *cpu_data,
 	 * Check if the new task is in the `TASK_RUNNING` state before adding to queue.
 	 */
 	if (p->__state != TASK_RUNNING)
-		return NULL; /* Not an error, just don't add non-running tasks */
+		return;
 
 	/*
 	 * 2. Task not found and is running: find an empty slot to add it
@@ -254,15 +250,8 @@ static struct queued_task *update_or_add_task(struct stalld_cpu_data *cpu_data,
 			barrier();
 			task_entry->pid = pid;
 			log("update_or_add: added task %s(%d) to empty slot", p->comm, pid);
-			return task_entry;
+			return;
 		}
-	/*
-	 * If this point is reached, the queue is full and no empty slot was found.
-	 * The log() is commented out because the generated code was
-	 * too complex for the BPF verifier.
-	 */
-	//log("update_or_add: error: queue full, cannot add pid %d", pid);
-	return NULL;
 }
 
 /*
