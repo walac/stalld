@@ -180,14 +180,6 @@ static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
 	task = find_queued_task(cpu_data, pid);
 	if (task) {
 		task->pid = 0;
-		/*
-		 * User reads pid to know that there is no data here.
-		 * Update it first.
-		 */
-		barrier();
-
-		task->prio = 0;
-		task->ctxswc = 0;
 		log("dequeue %s %d", rt ? "rt" : "fair", pid);
 		return 1;
 	}
