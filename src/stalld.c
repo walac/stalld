@@ -170,7 +170,7 @@ char *config_affinity_cpus;
  */
 int get_tgid(int pid)
 {
-	const char tgid_field[TGID_FIELD] = "Tgid:";
+	const char tgid_field[] = "Tgid:";
 	char file_location[PROC_PID_FILE_PATH_LEN];
 	char *status = NULL;
 	int tgid, n;
@@ -192,7 +192,7 @@ int get_tgid(int pid)
 	while (1) {
 		if (fgets(status, TMP_BUFFER_SIZE, fp) == NULL)
 			goto out_close_fd;
-		if (!(strncmp(status, tgid_field, (TGID_FIELD - 1))))
+		if (!(strncmp(status, tgid_field, sizeof(tgid_field) - 1)))
 			break;
 		/*
 		 * Zero out the buffer just in case
