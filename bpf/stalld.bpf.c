@@ -87,6 +87,95 @@ static inline long compute_ctxswc(struct task_struct *p)
 	return p->nvcsw + p->nivcsw;
 }
 
+/**
+ * Each CPU has its own set of statistics stored on a per-cpu
+ * array, this function returns the variable of the current
+ * CPU.
+ */
+static struct stalld_cpu_data *get_cpu_data(int cpu)
+{
+	struct stalld_cpu_data *stalld_data;
+	u32 key = cpu;
+
+	stalld_data = bpf_map_lookup_elem(&stalld_per_cpu_data, &key);
+
+	return stalld_data;
+}
+
+static int enqueue_task(struct task_struct *p, struct rq *rq, int rt)
+{
+	struct stalld_cpu_data *cpu_data = get_cpu_data(rq->cpu);
+	struct queued_task *task;
+	long ctxswc = compute_ctxswc(p);
+	long tgid = p->tgid;
+	long prio = p->prio;
+	long pid = p->pid;
+	int slot = 0;
+
+	if (!cpu_data)
+		return 0;
+
+	if (!cpu_data->monitoring)
+		return 0;
+
+	for_each_task_entry(cpu_data, task) {
+		log("slot %d: %d %d", slot, task->pid, task->ctxswc);
+		++slot;
+
+		if (task->pid == 0 || task->pid == pid) {
+			task->ctxswc = ctxswc;
+			task->prio = prio;
+			task->is_rt = rt;
+			task->tgid = tgid;
+
+			/*
+			 * User reads pid to know that there is no data here.
+			 * Update it last.
+			 */
+			barrier();
+			task->pid = pid;
+			log("queue %s %d %d", rt ? "rt" : "fair", pid, ctxswc);
+			return 0;
+		}
+	}
+
+	log("error: queue %s %d %d", rt ? "rt" : "fair", pid, ctxswc);
+
+
+	return 0;
+}
+
+static int dequeue_task(struct task_struct *p, struct rq *rq, int rt)
+{
+	struct stalld_cpu_data *cpu_data = get_cpu_data(rq->cpu);
+	struct queued_task *task;
+	long pid = p->pid;
+
+	if (!cpu_data)
+		return 0;
+
+	if (!cpu_data->monitoring)
+		return 0;
+
+	task = find_queued_task(cpu_data, pid);
+	if (task) {
+		task->pid = 0;
+		/*
+		 * User reads pid to know that there is no data here.
+		 * Update it first.
+		 */
+		barrier();
+
+		task->prio = 0;
+		task->ctxswc = 0;
+		log("dequeue %s %d", rt ? "rt" : "fair", pid);
+		return 0;
+	}
+
+	log("error: dequeue %s %d", rt ? "rt" : "fair", pid);
+	return 0;
+}
+
 /*
  * update_or_add_task - Manages a task's lifecycle within a per-CPU tracking queue.
  *
@@ -176,95 +265,6 @@ static struct queued_task *update_or_add_task(struct stalld_cpu_data *cpu_data,
 	 */
 	//log("update_or_add: error: queue full, cannot add pid %d", pid);
 	return NULL;
-}
-
-/**
- * Each CPU has its own set of statistics stored on a per-cpu
- * array, this function returns the variable of the current
- * CPU.
- */
-static struct stalld_cpu_data *get_cpu_data(int cpu)
-{
-	struct stalld_cpu_data *stalld_data;
-	u32 key = cpu;
-
-	stalld_data = bpf_map_lookup_elem(&stalld_per_cpu_data, &key);
-
-	return stalld_data;
-}
-
-static int enqueue_task(struct task_struct *p, struct rq *rq, int rt)
-{
-	struct stalld_cpu_data *cpu_data = get_cpu_data(rq->cpu);
-	struct queued_task *task;
-	long ctxswc = compute_ctxswc(p);
-	long tgid = p->tgid;
-	long prio = p->prio;
-	long pid = p->pid;
-	int slot = 0;
-
-	if (!cpu_data)
-		return 0;
-
-	if (!cpu_data->monitoring)
-		return 0;
-
-	for_each_task_entry(cpu_data, task) {
-		log("slot %d: %d %d", slot, task->pid, task->ctxswc);
-		++slot;
-
-		if (task->pid == 0 || task->pid == pid) {
-			task->ctxswc = ctxswc;
-			task->prio = prio;
-			task->is_rt = rt;
-			task->tgid = tgid;
-
-			/*
-			 * User reads pid to know that there is no data here.
-			 * Update it last.
-			 */
-			barrier();
-			task->pid = pid;
-			log("queue %s %d %d", rt ? "rt" : "fair", pid, ctxswc);
-			return 0;
-		}
-	}
-
-	log("error: queue %s %d %d", rt ? "rt" : "fair", pid, ctxswc);
-
-
-	return 0;
-}
-
-static int dequeue_task(struct task_struct *p, struct rq *rq, int rt)
-{
-	struct stalld_cpu_data *cpu_data = get_cpu_data(rq->cpu);
-	struct queued_task *task;
-	long pid = p->pid;
-
-	if (!cpu_data)
-		return 0;
-
-	if (!cpu_data->monitoring)
-		return 0;
-
-	task = find_queued_task(cpu_data, pid);
-	if (task) {
-		task->pid = 0;
-		/*
-		 * User reads pid to know that there is no data here.
-		 * Update it first.
-		 */
-		barrier();
-
-		task->prio = 0;
-		task->ctxswc = 0;
-		log("dequeue %s %d", rt ? "rt" : "fair", pid);
-		return 0;
-	}
-
-	log("error: dequeue %s %d", rt ? "rt" : "fair", pid);
-	return 0;
 }
 
 /*
