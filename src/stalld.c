@@ -1049,17 +1049,14 @@ int boost_cpu_starving_vector(struct cpu_starving_task_info *vector, int nr_cpus
 
 			/* Save the task policy. */
 			ret = get_current_policy(cpu->pid, &attr[i]);
+			if (!ret) /* It is ok if a task die. */
+				/* Boost! */
+				ret = boost_with_deadline(cpu->tgid, cpu->pid, &cpus[i]);
 
-			/* It is ok if a task die. */
-			if (ret < 0)
+			if (ret < 0) {
+				cleanup_starving_task_info(cpu);
 				continue;
-
-			/* Boost! */
-			ret = boost_with_deadline(cpu->tgid, cpu->pid, &cpus[i]);
-
-			/* It is ok if a task die. */
-			if (ret < 0)
-				continue;
+			}
 
 			/* Save it for the deboost. */
 			deboost_vector[i] = cpu->pid;
