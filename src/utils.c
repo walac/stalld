@@ -36,6 +36,8 @@
 #include "queue_track.h"
 #endif
 
+static int find_debugfs_mount_point(char *mount_path_buf, size_t buf_size);
+
 /*
  * fill_process_comm - process name from task group ID.
  */
@@ -425,22 +427,6 @@ static int find_mount(const char *mount, char *debugfs)
 	return 1;
 }
 
-static const char *find_debugfs(void)
-{
-	static char debugfs[MAX_DIR_PATH];
-	static int debugfs_found;
-
-	if (debugfs_found)
-		return debugfs;
-
-	if (!find_mount("debugfs", debugfs))
-		return "";
-
-	debugfs_found = 1;
-
-	return debugfs;
-}
-
 /*
  * Return true if the file at *path exists.
  */
@@ -461,13 +447,12 @@ static int check_file_exists(char *path)
  */
 static int find_debugfs_sched_debug(void)
 {
-	const char *debugfs;
+	char debugfs[MAX_DIR_PATH];
 	char *path;
 	int found;
 	size_t size;
 
-	debugfs = find_debugfs();
-	if (!debugfs)
+	if(find_debugfs_mount_point(debugfs, sizeof(debugfs)))
 		return 0;
 
 	size = strlen(debugfs) + strlen("sched/debug") + 2;
@@ -565,11 +550,10 @@ out_err:
 
 static int fill_sched_features_path(char *path, int path_size)
 {
-	const char *debugfs;
+	char debugfs[MAX_DIR_PATH];
 	int retval;
 
-	debugfs = find_debugfs();
-	if (strlen(debugfs) == 0)
+	if (find_debugfs_mount_point(debugfs, sizeof(debugfs)))
 		return 0;
 
 	snprintf(path, path_size, "%s/sched/features", debugfs);
