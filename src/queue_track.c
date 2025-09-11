@@ -27,8 +27,6 @@
 
 #include <pthread.h>
 
-static volatile bool exiting = 0;
-
 struct stalld_bpf *stalld_obj;
 
 /*
