@@ -244,6 +244,7 @@ extern size_t config_buffer_size;
 extern long page_size;
 extern struct stalld_backend *backend;
 extern char *config_affinity_cpus;
+extern int read_proc_stat(char *buffer, int size);
 
 #define MAX_FILE_NAME	1024
 #define MAX_PATH	4096
