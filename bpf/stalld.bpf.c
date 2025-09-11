@@ -372,4 +372,34 @@ int handle__sched_migrate_task(u64 *ctx)
 	return 0;
 }
 
+/**
+ * iter_task - BPF iterator program for task enumeration
+ * @ctx: Iterator context containing the current task
+ *
+ * This BPF iterator program walks through all tasks in the system and
+ * provides visibility into their scheduling state. It's useful for getting
+ * a system-wide snapshot of task states, complementing the event-driven
+ * tracepoint programs that track dynamic task state changes.
+ */
+SEC("iter/task")
+int iter_task(struct bpf_iter__task *ctx)
+{
+	const struct task_struct *p = ctx->task;
+	struct stalld_cpu_data *cpu_data;
+
+	if (!p)
+		return 0;
+
+	cpu_data = get_cpu_data(task_cpu(p));
+	if (!cpu_data)
+		return 0;
+
+	log_task(p);
+
+	if (p->__state == TASK_RUNNING)
+		enqueue_task(p, cpu_data, task_is_rt(p));
+
+	return 0;
+}
+
 char LICENSE[] SEC("license") = "GPL";
