@@ -154,20 +154,17 @@ static struct stalld_cpu_data *get_cpu_data(int cpu)
 	return NULL;
 }
 
-static int enqueue_task(const struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
+static int enqueue_task(const struct task_struct *p, struct stalld_cpu_data *cpu_data)
 {
 	struct queued_task *task;
-	long ctxswc = compute_ctxswc(p);
-	long tgid = p->tgid;
-	long prio = p->prio;
-	long pid = p->pid;
+	const long pid = p->pid;
 
 	for_each_task_entry(cpu_data, task) {
 		if (task->pid == 0 || task->pid == pid) {
-			task->ctxswc = ctxswc;
-			task->prio = prio;
-			task->is_rt = rt;
-			task->tgid = tgid;
+			task->ctxswc = compute_ctxswc(p);
+			task->prio = p->prio;
+			task->is_rt = task_is_rt(p);
+			task->tgid = p->tgid;
 
 			/*
 			 * User reads pid to know that there is no data here.
@@ -189,14 +186,13 @@ static int enqueue_task(const struct task_struct *p, struct stalld_cpu_data *cpu
  * dequeue_task - Removes a task from a CPU's queue.
  * @p:        Pointer to the task_struct of the task to remove.
  * @cpu_data: Pointer to the per-CPU data structure.
- * @rt:       Non-zero if the task is a real-time task.
  *
  * This function finds and removes a task from the specified CPU's run queue.
  * It updates the appropriate counter (RT or non-RT) for the queued tasks.
  *
  * Return: 1 if the task was found and removed, 0 otherwise.
  */
-static int dequeue_task(const struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
+static int dequeue_task(const struct task_struct *p, struct stalld_cpu_data *cpu_data)
 {
 	struct queued_task *task;
 	long pid = p->pid;
@@ -239,7 +235,6 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 			       const struct task_struct *p)
 {
 	struct queued_task *task_entry;
-	const int is_rt = task_is_rt(p);
 
 	/* Try to find the task first */
 	task_entry = find_queued_task(cpu_data, p->pid);
@@ -248,7 +243,7 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 			/* Task found: Update its dynamic fields */
 			task_entry->ctxswc = compute_ctxswc(p);
 			task_entry->prio = p->prio;
-			task_entry->is_rt = is_rt;
+			task_entry->is_rt = task_is_rt(p);
 		} else {
 			/* Task is not running. Remove it. */
 			log_task_prefix("dequeue ", p);
@@ -269,7 +264,7 @@ static void update_or_add_task(struct stalld_cpu_data *cpu_data,
 	 * Task not found and is running: find an empty slot to add it
 	 * We iterate through all slots to find the first empty one.
 	 */
-	enqueue_task(p, cpu_data, is_rt);
+	enqueue_task(p, cpu_data);
 }
 
 /**
@@ -316,7 +311,7 @@ int handle__sched_process_exit(u64 *ctx)
 	struct stalld_cpu_data *cpu_data = get_cpu_data(task_cpu(p));
 
 	if (cpu_data)
-		dequeue_task(p, cpu_data, task_is_rt(p));
+		dequeue_task(p, cpu_data);
 
 	return 0;
 }
@@ -348,7 +343,6 @@ int handle__sched_migrate_task(u64 *ctx)
 	const int dest_cpu = ctx[1];
 	const int orig_cpu = task_cpu(p);
 	struct stalld_cpu_data *cpu_data;
-	const int is_rt = task_is_rt(p);
 
 	cpu_data = get_cpu_data(orig_cpu);
 
@@ -362,10 +356,10 @@ int handle__sched_migrate_task(u64 *ctx)
 	if (cpu_data) {
 		log("task=%s(%ld) orig=%d dest=%d",
 		    p->comm, p->tgid, orig_cpu, dest_cpu);
-		if (dequeue_task(p, cpu_data, is_rt)) {
+		if (dequeue_task(p, cpu_data)) {
 			cpu_data = get_cpu_data(dest_cpu);
 			if (cpu_data)
-				enqueue_task(p, cpu_data, is_rt);
+				enqueue_task(p, cpu_data);
 		}
 	}
 
@@ -397,7 +391,7 @@ int iter_task(struct bpf_iter__task *ctx)
 	log_task(p);
 
 	if (p->__state == TASK_RUNNING)
-		enqueue_task(p, cpu_data, task_is_rt(p));
+		enqueue_task(p, cpu_data);
 
 	return 0;
 }
