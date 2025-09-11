@@ -324,4 +324,35 @@ int handle__sched_switch(u64 *ctx)
 	return 0;
 }
 
+SEC("tp_btf/sched_migrate_task")
+int handle__sched_migrate_task(u64 *ctx)
+{
+	struct task_struct *p = (void *) ctx[0];
+	const int dest_cpu = ctx[1];
+	const int orig_cpu = task_cpu(p);
+	struct stalld_cpu_data *cpu_data;
+	const int is_rt = task_is_rt(p);
+
+	cpu_data = get_cpu_data(orig_cpu);
+
+	/*
+	 * Dequeue the task from its original CPU and re-enqueue it on the
+	 * destination CPU. This ensures its run queue state is tracked
+	 * correctly across migrations. If the task was not found on the
+	 * original CPU, there is no need to enqueue it on the new one, as
+	 * it was not being monitored.
+	 */
+	if (cpu_data) {
+		log("task=%s(%ld) orig=%d dest=%d",
+		    p->comm, p->tgid, orig_cpu, dest_cpu);
+		if (dequeue_task(p, cpu_data, is_rt)) {
+			cpu_data = get_cpu_data(dest_cpu);
+			if (cpu_data)
+				enqueue_task(p, cpu_data, is_rt);
+		}
+	}
+
+	return 0;
+}
+
 char LICENSE[] SEC("license") = "GPL";

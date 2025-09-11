@@ -462,7 +462,7 @@ struct cpu_starving_task_info {
 
 struct cpu_starving_task_info *cpu_starving_vector;
 
-void update_cpu_starving_vector(int cpu, int tgid, int pid, time_t since, struct task_info *task)
+void update_cpu_starving_vector(int cpu, int tgid, int pid, time_t since, const struct task_info *task)
 {
 	struct cpu_starving_task_info *cpu_info = &cpu_starving_vector[cpu];
 
@@ -475,9 +475,12 @@ void update_cpu_starving_vector(int cpu, int tgid, int pid, time_t since, struct
 
 	/*
 	 * If there is no thread in the vector, or if the in the
-	 * vector has an earlier since (time stamp), update it.
+	 * vector has an earlier since (timestamp), update it.
+	 * Also, check if the PIDs match if detect task migration.
 	 */
-	if ((cpu_info->since == 0) || cpu_info->since > since) {
+	if (cpu_info->since == 0
+	    || cpu_info->since > since
+	    || cpu_info->pid != task->pid) {
 		memcpy(&(cpu_info->task), task, sizeof(struct task_info));
 		cpu_info->pid = pid;
 		cpu_info->tgid = tgid;
@@ -487,10 +490,18 @@ void update_cpu_starving_vector(int cpu, int tgid, int pid, time_t since, struct
 
 void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct task_info *new_tasks, int nr_new)
 {
+	static const struct task_info notask = {};
+
 	struct task_info *old_task;
 	struct task_info *new_task;
 	int i;
 	int j;
+
+	if (nr_new == 0) {
+		/* no starving tasks, reset the starving vector */
+		update_cpu_starving_vector(cpu, 0, 0, 0, &notask);
+		return;
+	}
 
 	for (i = 0; i < nr_old; i++) {
 		old_task = &old_tasks[i];
