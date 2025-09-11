@@ -60,6 +60,26 @@ static inline bool task_is_rt(const struct task_struct *p)
 }
 
 /**
+ * task_cpu - Get the CPU number that a task is currently running on.
+ * @p: A pointer to the kernel's `task_struct` for the task.
+ *
+ * This function retrieves the CPU identifier where the task is currently
+ * scheduled. It accesses this information from the task's `thread_info`
+ * struct, which is a low-level, architecture-specific structure
+ * containing essential thread data.
+ *
+ * The CPU number is crucial for `stalld` to associate a task with the
+ * correct per-CPU data map, ensuring that task tracking and starvation
+ * analysis are performed in the right context.
+ *
+ * Return: The integer ID of the CPU the task is running on.
+ */
+static inline int task_cpu(const struct task_struct *p)
+{
+	return p->thread_info.cpu;
+}
+
+/**
  * compute_ctxswc - Compute the total context switch count for a task.
  * @p: A pointer to the `task_struct` (process descriptor) of the task.
  *
@@ -228,12 +248,11 @@ SEC("tp_btf/sched_wakeup")
 int handle__sched_wakeup(u64 *ctx)
 {
 	struct task_struct *p = (void *) ctx[0];
-	struct stalld_cpu_data *cpu_data = get_cpu_data(bpf_get_smp_processor_id());
+	struct stalld_cpu_data *cpu_data = get_cpu_data(task_cpu(p));
 
-	if (!cpu_data)
-		return 0;
+	if (cpu_data)
+		update_or_add_task(cpu_data, p);
 
-	update_or_add_task(cpu_data, p);
 	return 0;
 }
 
@@ -241,12 +260,11 @@ SEC("tp_btf/sched_process_exit")
 int handle__sched_process_exit(u64 *ctx)
 {
 	struct task_struct *p = (void *) ctx[0];
-	struct stalld_cpu_data *cpu_data = get_cpu_data(bpf_get_smp_processor_id());
+	struct stalld_cpu_data *cpu_data = get_cpu_data(task_cpu(p));
 
-	if (!cpu_data)
-		return 0;
+	if (cpu_data)
+		dequeue_task(p, cpu_data, task_is_rt(p));
 
-	dequeue_task(p, cpu_data, task_is_rt(p));
 	return 0;
 }
 
