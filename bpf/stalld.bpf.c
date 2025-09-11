@@ -161,6 +161,17 @@ static int enqueue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
 	return 0;
 }
 
+/**
+ * dequeue_task - Removes a task from a CPU's queue.
+ * @p:        Pointer to the task_struct of the task to remove.
+ * @cpu_data: Pointer to the per-CPU data structure.
+ * @rt:       Non-zero if the task is a real-time task.
+ *
+ * This function finds and removes a task from the specified CPU's run queue.
+ * It updates the appropriate counter (RT or non-RT) for the queued tasks.
+ *
+ * Return: 1 if the task was found and removed, 0 otherwise.
+ */
 static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
 {
 	struct queued_task *task;
@@ -178,7 +189,7 @@ static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
 		task->prio = 0;
 		task->ctxswc = 0;
 		log("dequeue %s %d", rt ? "rt" : "fair", pid);
-		return 0;
+		return 1;
 	}
 
 	log("error: dequeue %s %d", rt ? "rt" : "fair", pid);
