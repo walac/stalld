@@ -338,7 +338,7 @@ struct cpu_starving_task_info {
 
 struct cpu_starving_task_info *cpu_starving_vector;
 
-void update_cpu_starving_vector(int cpu, int tgid, int pid, time_t since, const struct task_info *task)
+void update_cpu_starving_vector(int cpu, const struct task_info *task)
 {
 	struct cpu_starving_task_info *cpu_info = &cpu_starving_vector[cpu];
 
@@ -355,12 +355,12 @@ void update_cpu_starving_vector(int cpu, int tgid, int pid, time_t since, const 
 	 * Also, check if the PIDs match if detect task migration.
 	 */
 	if (cpu_info->since == 0
-	    || cpu_info->since > since
+	    || cpu_info->since > task->since
 	    || cpu_info->pid != task->pid) {
 		memcpy(&(cpu_info->task), task, sizeof(struct task_info));
-		cpu_info->pid = pid;
-		cpu_info->tgid = tgid;
-		cpu_info->since = since;
+		cpu_info->pid = task->pid;
+		cpu_info->tgid = task->tgid;
+		cpu_info->since = task->since;
 	}
 }
 
@@ -375,7 +375,7 @@ void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct ta
 
 	if (nr_new == 0) {
 		/* no starving tasks, reset the starving vector */
-		update_cpu_starving_vector(cpu, 0, 0, 0, &notask);
+		update_cpu_starving_vector(cpu, &notask);
 		return;
 	}
 
@@ -389,7 +389,7 @@ void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct ta
 				if (old_task->ctxsw == new_task->ctxsw) {
 					new_task->since = old_task->since;
 					if (config_single_threaded)
-						update_cpu_starving_vector(cpu, new_task->tgid, new_task->pid, new_task->since, new_task);
+						update_cpu_starving_vector(cpu, new_task);
 				}
 				break;
 			}
