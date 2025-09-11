@@ -99,7 +99,10 @@ static struct stalld_cpu_data *get_cpu_data(int cpu)
 
 	stalld_data = bpf_map_lookup_elem(&stalld_per_cpu_data, &key);
 
-	return stalld_data;
+	if (stalld_data && stalld_data->monitoring)
+		return stalld_data;
+
+	return NULL;
 }
 
 static int enqueue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data, int rt)
@@ -110,12 +113,6 @@ static int enqueue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
 	long prio = p->prio;
 	long pid = p->pid;
 	int slot = 0;
-
-	if (!cpu_data)
-		return 0;
-
-	if (!cpu_data->monitoring)
-		return 0;
 
 	for_each_task_entry(cpu_data, task) {
 		log("slot %d: %d %d", slot, task->pid, task->ctxswc);
@@ -148,12 +145,6 @@ static int dequeue_task(struct task_struct *p, struct stalld_cpu_data *cpu_data,
 {
 	struct queued_task *task;
 	long pid = p->pid;
-
-	if (!cpu_data)
-		return 0;
-
-	if (!cpu_data->monitoring)
-		return 0;
 
 	task = find_queued_task(cpu_data, pid);
 	if (task) {
@@ -242,9 +233,6 @@ int handle__sched_wakeup(u64 *ctx)
 	if (!cpu_data)
 		return 0;
 
-	if (!cpu_data->monitoring)
-		return 0;
-
 	update_or_add_task(cpu_data, p);
 	return 0;
 }
@@ -256,9 +244,6 @@ int handle__sched_process_exit(u64 *ctx)
 	struct stalld_cpu_data *cpu_data = get_cpu_data(bpf_get_smp_processor_id());
 
 	if (!cpu_data)
-		return 0;
-
-	if (!cpu_data->monitoring)
 		return 0;
 
 	dequeue_task(p, cpu_data, task_is_rt(p));
@@ -275,10 +260,6 @@ int handle__sched_switch(u64 *ctx)
 
 	if (!cpu_data)
 		return 0;
-
-	if (!cpu_data->monitoring)
-		return 0;
-
 	cpu_data->current = next->pid;
 
 	cpu_data->nr_rt_running = task_is_rt(next);
