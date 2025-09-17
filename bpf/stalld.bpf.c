@@ -39,13 +39,12 @@ struct {
 #define log(msg, ...) do {} while(0)
 #endif
 
-#define log_task_prefix(prefix, p)			\
-	log(prefix "%s(%d) pid=%d cpu=%d class=%s",	\
-	    p->comm,					\
-	    p->tgid,					\
-	    p->pid,					\
-	    task_cpu(p),				\
-	    task_is_rt(p) ? "rt" : "fair")
+#define log_task_prefix(prefix, p)		\
+	log(prefix "%s(%d) pid=%d cpu=%d",	\
+	    p->comm,				\
+	    p->tgid,				\
+	    p->pid,				\
+	    task_cpu(p))			\
 
 #define log_task(p) log_task_prefix("", p)
 #define log_task_error(p) log_task_prefix("error: ", p)
