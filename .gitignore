@@ -11,3 +11,6 @@ GRTAGS
 GTAGS
 compile_commands.json
 .cache
+.cursor
+node_modules/
+patches/
