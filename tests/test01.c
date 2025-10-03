@@ -48,6 +48,9 @@ static unsigned int blocked = 1;
 static pthread_barrier_t blocker_barrier;
 static pthread_barrier_t blockee_barrier;
 
+/* cleanup flag */
+static int barriers_initialized = 0;
+
 /* thread routines */
 static void *blockee(void *arg);
 static void *blocker(void *arg);
@@ -57,6 +60,7 @@ static void process_command_line(int argc, char **argv);
 static int allow_signal(int signum);
 static void inthandler(int signo, siginfo_t *info, void *extra);
 static void set_sig_handler();
+static void cleanup(void);
 
 /* thread ids */
 static pthread_t blocker_tid;
@@ -78,12 +82,15 @@ static void debug(const char *fmt, ...)
 static void error(const char *fmt, ...)
 {
 	va_list ap;
+	int saved_errno = errno;
 
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
-	if (errno)
-		fputs(strerror(errno), stderr);
+	if (saved_errno) {
+		fprintf(stderr, ": %s", strerror(saved_errno));
+	}
+	fprintf(stderr, "\n");
 }
 
 static int isonline(int cpu)
@@ -92,7 +99,7 @@ static int isonline(int cpu)
 	FILE *fp;
 	int online;
 
-	sprintf(buffer, "/sys/devices/system/cpu/cpu%d/online", cpu);
+	snprintf(buffer, sizeof(buffer), "/sys/devices/system/cpu/cpu%d/online", cpu);
 	if (access(buffer, F_OK) == -1)
 		return 1;
 
@@ -180,10 +187,10 @@ static int setup_blocker(void)
 {
 	int status = setup_thread(&blocker_tid, testcpu, SCHED_FIFO, blockerprio, blocker);
 	if (status) {
-		error("failed to setup blocker thread\n");
+		error("failed to setup blocker thread");
 		exit(status);
 	}
-	//debug("blocker thread id: %ld\n", blocker_tid);
+	debug("blocker thread id: %ld\n", blocker_tid);
 	return status;
 }
 
@@ -191,10 +198,10 @@ static int setup_blockee(void)
 {
 	int status = setup_thread(&blockee_tid, testcpu, SCHED_OTHER, 0, blockee);
 	if (status) {
-		error("failed to create blockee thread\n");
+		error("failed to create blockee thread");
 		exit(status);
 	}
-	//debug("blockee thread id: %ld\n", blockee_tid);
+	debug("blockee thread id: %ld\n", blockee_tid);
 	return status;
 }
 
@@ -250,7 +257,7 @@ static void *blockee(void *arg)
 {
 	int ret;
 
-	//debug("blockee: running\n");
+	debug("blockee: running\n");
 	ret = pthread_barrier_wait(&blockee_barrier);
 
 	if (ret != PTHREAD_BARRIER_SERIAL_THREAD && ret != 0) {
@@ -295,28 +302,42 @@ static void check_throttling(void)
 	int fd;
 	int ret;
 	char buffer[80];
-
+	int saved_errno;
 
 	fd = open(RUNTIME, O_RDONLY);
 	if (fd < 0) {
-		error("unable to open %s\n", RUNTIME);
-		exit(errno);
+		saved_errno = errno;
+		error("unable to open %s", RUNTIME);
+		exit(saved_errno);
 	}
 
 	memset(buffer, 0, sizeof(buffer));
 	ret = read(fd, buffer, sizeof(buffer));
 	if (ret < 0) {
-		error("error reading from %s\n", RUNTIME);
-		exit(errno);
+		saved_errno = errno;
+		close(fd);
+		error("error reading from %s", RUNTIME);
+		exit(saved_errno);
 	}
 	close(fd);
 	if (strncmp(buffer, "-1", 2) != 0) {
-		errno=0;
-		error("RT Throttling not disabled, test will not work!\n");
-		exit(-1);
+		errno = 0;
+		error("RT Throttling not disabled, test will not work!");
+		exit(1);
 	}
 }
 
+/*
+ * Cleanup function to destroy barriers and release resources
+ */
+static void cleanup(void)
+{
+	if (barriers_initialized) {
+		pthread_barrier_destroy(&blocker_barrier);
+		pthread_barrier_destroy(&blockee_barrier);
+		barriers_initialized = 0;
+	}
+}
 
 int main (int argc, char **argv)
 {
@@ -334,6 +355,11 @@ int main (int argc, char **argv)
 	allow_signal(SIGINT);
 	set_sig_handler();
 
+	/* register cleanup function */
+	if (atexit(cleanup) != 0) {
+		error("failed to register cleanup function");
+		exit(1);
+	}
 
 	/* set up our barriers */
 	status = pthread_barrier_init(&blocker_barrier, NULL, 2);
@@ -346,6 +372,7 @@ int main (int argc, char **argv)
 		error("pthread_barrier_init");
 		exit(errno);
 	}
+	barriers_initialized = 1;
 
 	/* if one wasn't specified, pick a core on which to test */
 	if (testcpu == -1)
@@ -354,16 +381,16 @@ int main (int argc, char **argv)
 	debug("main:  testcpu: %d\n", testcpu);
 
 	if (setup_blocker() != 0) {
-		error("setting up blocker failed\n");
+		error("setting up blocker failed");
 		exit(errno);
 	}
-	//debug("main: blocker thread started (tid: %ld)\n", blocker_tid);
+	debug("main: blocker thread started (tid: %ld)\n", blocker_tid);
 
 	if (setup_blockee() != 0) {
-		error("setting up blockee failed\n");
+		error("setting up blockee failed");
 		exit(errno);
 	}
-	//debug("main: blockee thread started (tid: %ld)\n", blockee_tid);
+	debug("main: blockee thread started (tid: %ld)\n", blockee_tid);
 
 	/*
 	 * ensure that main doesn't run on the test cpu

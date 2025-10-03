@@ -1,4 +1,6 @@
 tests/test01
+tests/helpers/starvation_gen
+tests/results/
 *.tar.xz
 *.tar.bz2
 *~

@@ -29,7 +29,21 @@ stalld/
 │   └── *.h           # Headers (stalld.h, sched_debug.h, queue_track.h)
 ├── bpf/              # eBPF code
 │   └── stalld.bpf.c  # BPF tracepoint programs for task tracking
-├── tests/            # Test suite (test01 - starvation test)
+├── tests/            # Comprehensive test suite
+│   ├── run_tests.sh              # Main test runner (auto-discovery, color output)
+│   ├── test01.c                  # Original starvation test (fixed)
+│   ├── helpers/
+│   │   ├── test_helpers.sh       # Helper library (20+ functions)
+│   │   └── starvation_gen.c      # Configurable starvation generator
+│   ├── functional/               # Functional tests (shell scripts)
+│   │   ├── test_foreground.sh
+│   │   ├── test_log_only.sh
+│   │   └── test_logging_destinations.sh
+│   ├── unit/                     # Unit tests (C programs)
+│   ├── integration/              # Integration tests (shell scripts)
+│   ├── fixtures/                 # Test data and configurations
+│   ├── results/                  # Test output logs (gitignored)
+│   └── README.md                 # Test documentation
 ├── systemd/          # systemd integration (service file, config)
 ├── man/              # Man page (stalld.8)
 ├── scripts/          # Helper scripts (throttlectl.sh)
@@ -176,10 +190,85 @@ make annocheck        # Run security analysis on stalld executable
 
 ## Testing
 
+### Automated Test Suite
+
+The `tests/` directory contains a comprehensive test suite with automated test runner, helper library, and multiple test categories.
+
 ```bash
-make tests            # Build test suite
-./tests/test01        # Run starvation test
+# Run all tests
+make test
+cd tests && ./run_tests.sh
+
+# Run specific test categories
+make test-unit           # Unit tests only
+make test-functional     # Functional tests only
+make test-integration    # Integration tests only
+
+# Run individual tests
+cd tests && ./run_tests.sh --functional-only
+cd tests && functional/test_foreground.sh
 ```
+
+**Test Infrastructure:**
+- **run_tests.sh** (328 lines): Main test orchestrator with auto-discovery, color-coded output, statistics
+- **helpers/test_helpers.sh** (331 lines): Reusable helper library with 20+ functions for assertions, stalld management, system checks
+- **helpers/starvation_gen.c** (267 lines): Configurable starvation generator for controlled testing
+- **Test organization**: `unit/`, `functional/`, `integration/`, `fixtures/`, `results/`
+
+**Current Test Coverage:**
+
+✅ **Phase 1 Complete** (Foundation):
+- `test01.c` - Fixed original starvation test (7 critical fixes: error handling, buffer safety, memory cleanup)
+- `test_foreground.sh` - Tests `-f` flag prevents daemonization
+- `test_log_only.sh` - Tests `-l` flag logs but doesn't boost
+- `test_logging_destinations.sh` - Tests `-v`, `-k`, `-s` logging options
+
+🔄 **Phase 2 Planned** (Command-Line Options):
+- Monitoring options: `-c` (CPU selection), `-t` (starvation threshold)
+- Boosting options: `-p` (period), `-r` (runtime), `-d` (duration), `-F` (force FIFO)
+- Daemon options: `-P` (pidfile), `-a` (affinity)
+
+🔄 **Phase 3 Planned** (Core Logic):
+- Starvation detection verification
+- SCHED_DEADLINE boosting verification
+- SCHED_FIFO boosting verification
+- Task merging logic
+- Idle detection
+
+🔄 **Phase 4 Planned** (Advanced):
+- Threading modes (adaptive vs aggressive)
+- Filtering (`-i`, `-I` options)
+- Backend comparison (eBPF vs procfs)
+- Integration and stress tests
+
+**Test Requirements:**
+- Root privileges for most tests
+- RT throttling disabled: `echo -1 > /proc/sys/kernel/sched_rt_runtime_us`
+- stalld built: `make` in project root
+
+**Helper Functions Available:**
+```bash
+# Assertions
+assert_equals expected actual "message"
+assert_contains haystack needle "message"
+assert_file_exists "/path/to/file"
+assert_process_running $PID
+
+# stalld Management
+start_stalld [args...]      # Start stalld, track PID
+stop_stalld                 # Stop stalld gracefully
+
+# System Helpers
+require_root                # Skip test if not root
+check_rt_throttling         # Check RT throttling status
+pick_test_cpu               # Pick CPU for testing
+wait_for_log_message "pattern" timeout
+
+# Starvation Generator
+../helpers/starvation_gen -c CPU -p priority -n num_threads -d duration -v
+```
+
+See `tests/README.md` for complete test documentation, writing tests, and troubleshooting.
 
 ### Manual Testing Workflow
 
