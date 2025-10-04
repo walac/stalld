@@ -8,7 +8,7 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 **Languages**: Shell, Python, and C
 
-**Status**: Phase 1 Complete (Foundation) ✅
+**Status**: Phase 2 Complete (Command-Line Options) ✅
 
 ---
 
@@ -73,70 +73,75 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ---
 
-## 🔄 Phase 2: Command-Line Options Testing (PENDING)
+## ✅ Phase 2: Command-Line Options Testing (COMPLETE)
 
 **Goal**: Test all stalld command-line options for correctness
 
-### Phase 2.1: Monitoring Option Tests
-- [ ] `test_cpu_selection.sh` - Test `-c/--cpu <list>` option
+### Phase 2.1: Monitoring Option Tests ✅
+- [x] `test_cpu_selection.sh` - Test `-c/--cpu <list>` option
   - Test single CPU monitoring
   - Test CPU list (e.g., "0,2,4")
   - Test CPU range (e.g., "0-3")
   - Test combined format (e.g., "0,2-4,6")
   - Verify stalld only monitors specified CPUs
   - Test invalid CPU numbers (error handling)
-- [ ] `test_starvation_threshold.sh` - Test `-t/--starving_threshold <sec>` option
+- [x] `test_starvation_threshold.sh` - Test `-t/--starving_threshold <sec>` option
   - Test custom threshold (e.g., 5s, 10s, 30s)
   - Verify stalld detects starvation after threshold
   - Verify stalld doesn't detect before threshold
   - Test with starvation_gen creating controlled starvation
   - Test invalid threshold values (0, negative, non-numeric)
 
-**Estimated Time**: 2-3 days
-
-### Phase 2.2: Boosting Option Tests
-- [ ] `test_boost_period.sh` - Test `-p/--boost_period <ns>` option
+### Phase 2.2: Boosting Option Tests ✅
+- [x] `test_boost_period.sh` - Test `-p/--boost_period <ns>` option
   - Test custom period values (default: 1,000,000,000 ns = 1s)
   - Test very short period (100ms)
   - Test very long period (10s)
   - Verify SCHED_DEADLINE uses correct period
   - Test invalid values (0, negative)
-- [ ] `test_boost_runtime.sh` - Test `-r/--boost_runtime <ns>` option
+- [x] `test_boost_runtime.sh` - Test `-r/--boost_runtime <ns>` option
   - Test custom runtime values (default: 20,000 ns = 20μs)
   - Test runtime < period (valid)
   - Test runtime > period (should error)
   - Test invalid values
-- [ ] `test_boost_duration.sh` - Test `-d/--boost_duration <sec>` option
+- [x] `test_boost_duration.sh` - Test `-d/--boost_duration <sec>` option
   - Test custom durations (default: 3s)
   - Test short duration (1s)
   - Test long duration (10s)
   - Verify task is boosted for correct duration
   - Verify policy restored after duration
-- [ ] `test_force_fifo.sh` - Test `-F/--force_fifo` option
+- [x] `test_force_fifo.sh` - Test `-F/--force_fifo` option
   - Verify SCHED_FIFO used instead of SCHED_DEADLINE
   - Test FIFO priority setting
   - Compare behavior with DEADLINE boosting
-  - Note: Single-threaded mode requires DEADLINE (dies with FIFO)
+  - Test single-threaded mode with FIFO (should fail)
+  - Test FIFO emulation behavior
 
-**Estimated Time**: 3-4 days
-
-### Phase 2.3: Daemon Option Tests
-- [ ] `test_pidfile.sh` - Test `-P/--pidfile <path>` option
+### Phase 2.3: Daemon Option Tests ✅
+- [x] `test_pidfile.sh` - Test `-P/--pidfile <path>` option
   - Verify PID file created at specified path
   - Verify PID file contains correct PID
   - Verify PID file removed on clean shutdown
   - Test custom pidfile locations
   - Test invalid paths (permission denied, etc.)
-- [ ] `test_affinity.sh` - Test `-a/--affinity <cpu-list>` option
+- [x] `test_affinity.sh` - Test `-a/--affinity <cpu-list>` option
   - Verify stalld process runs on specified CPUs
   - Test single CPU affinity
   - Test multi-CPU affinity
   - Verify using /proc/$PID/stat or taskset
   - Test invalid CPU specifications
 
-**Estimated Time**: 2 days
+**Files Created**:
+- `functional/test_cpu_selection.sh` (146 lines, 6 test cases)
+- `functional/test_starvation_threshold.sh` (177 lines, 4 test cases)
+- `functional/test_boost_period.sh` (175 lines, 6 test cases)
+- `functional/test_boost_runtime.sh` (203 lines, 7 test cases)
+- `functional/test_boost_duration.sh` (186 lines, 6 test cases)
+- `functional/test_force_fifo.sh` (244 lines, 6 test cases)
+- `functional/test_pidfile.sh` (198 lines, 7 test cases)
+- `functional/test_affinity.sh` (214 lines, 8 test cases)
 
-**Phase 2 Total Estimated Time**: 1-2 weeks
+**Test Results**: All 8 Phase 2 tests passing (11/11 functional tests total)
 
 ---
 
@@ -329,26 +334,36 @@ This document tracks the comprehensive test suite implementation for stalld.
 | Phase | Status | Estimated Time | Description |
 |-------|--------|----------------|-------------|
 | Phase 1 | ✅ Complete | - | Foundation: Infrastructure and basic tests |
-| Phase 2 | 🔄 Pending | 1-2 weeks | Command-line options testing |
+| Phase 2 | ✅ Complete | - | Command-line options testing |
 | Phase 3 | 🔄 Pending | 2 weeks | Core logic testing |
 | Phase 4 | 🔄 Pending | 1.5-2 weeks | Advanced features |
 | Phase 5 | 🔄 Pending | 1-1.5 weeks | Integration and edge cases |
 | Phase 6 | 🔄 Pending | 1 week | Polish and documentation |
 
-**Total Remaining Time**: 7-9 weeks
+**Total Remaining Time**: 6-7.5 weeks
 
 ---
 
 ## Current Test Coverage
 
-### Completed Tests (4)
+### Completed Tests (12)
+**Phase 1 Tests (4):**
 1. ✅ `test01.c` - Original starvation test (fixed)
 2. ✅ `test_foreground.sh` - Foreground mode (-f)
 3. ✅ `test_log_only.sh` - Log-only mode (-l)
 4. ✅ `test_logging_destinations.sh` - Logging options (-v, -k, -s)
 
-### Planned Tests (30+)
-- 8 command-line option tests (Phase 2)
+**Phase 2 Tests (8):**
+5. ✅ `test_cpu_selection.sh` - CPU selection (-c)
+6. ✅ `test_starvation_threshold.sh` - Starvation threshold (-t)
+7. ✅ `test_boost_period.sh` - Boost period (-p)
+8. ✅ `test_boost_runtime.sh` - Boost runtime (-r)
+9. ✅ `test_boost_duration.sh` - Boost duration (-d)
+10. ✅ `test_force_fifo.sh` - Force FIFO mode (-F)
+11. ✅ `test_pidfile.sh` - PID file management (-P)
+12. ✅ `test_affinity.sh` - CPU affinity (-a)
+
+### Planned Tests (22+)
 - 9 core logic tests (Phase 3)
 - 8 advanced feature tests (Phase 4)
 - 6 integration/edge case tests (Phase 5)
@@ -415,5 +430,5 @@ When adding new tests:
 
 ---
 
-*Last Updated: 2025-10-02*
-*Status: Phase 1 Complete, Phases 2-6 Pending*
+*Last Updated: 2025-10-03*
+*Status: Phases 1-2 Complete, Phases 3-6 Pending*
