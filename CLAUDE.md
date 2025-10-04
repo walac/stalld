@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Important: Read Project Rules First
+
+**ALWAYS read `.claude/rules` at the start of every session.** This file contains critical project-specific rules including:
+- Which agents to use for specific tasks (git-scm-master, c-expert, test-specialist, plan-validator)
+- Workflow requirements and best practices
+- Project conventions and standards
+
 ## Overview
 
 `stalld` is a starvation detection and avoidance daemon for Linux
