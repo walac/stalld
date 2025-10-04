@@ -1,339 +1,331 @@
 {
-  "session_info": {
-    "date": "2025-10-02",
-    "branch": "unified-parser",
-    "working_directory": "/nas/src/RedHat/gitlab/stalld/stalld.git/tests",
-    "status": "Phase 1 Complete - Test infrastructure operational",
-    "latest_updates": [
-      "Created TODO.md with comprehensive 6-phase implementation plan",
-      "Updated CLAUDE.md with test suite documentation",
-      "Generated git commit message for Phase 1 work"
+  "snapshot_date": "2025-10-03T22:10:00Z",
+  "project": {
+    "name": "stalld",
+    "description": "Linux starvation detection and avoidance daemon",
+    "purpose": "Monitors CPU run queues for starving threads and boosts them using SCHED_DEADLINE or SCHED_FIFO",
+    "primary_use_case": "DPDK deployments with isolated CPUs running single busy-loop RT tasks",
+    "warning": "Not recommended for safety-critical systems"
+  },
+  "repository": {
+    "path": "/nas/src/RedHat/gitlab/stalld/stalld.git",
+    "current_branch": "tests",
+    "main_branch": "main",
+    "working_tree": "clean",
+    "last_commits": [
+      {
+        "hash": "063e0dc6b873",
+        "message": "docs: Add project rules and agent usage guidelines",
+        "files_changed": 2,
+        "lines_added": 49
+      },
+      {
+        "hash": "72cea6af8463",
+        "message": "tests: Add Phase 2 command-line option tests (8 new tests)",
+        "files_changed": 9,
+        "lines_added": 1733
+      },
+      {
+        "hash": "b4e7cb812403",
+        "message": "tests: Add comprehensive test suite with infrastructure and functional tests"
+      },
+      {
+        "hash": "27fa8bb9f881",
+        "message": "docs: add CLAUDE.md, .claude agents, and update .gitignore"
+      },
+      {
+        "hash": "838e700ba979",
+        "message": "add .cursor directory to .gitignore"
+      }
     ]
   },
-  "project_overview": {
-    "name": "stalld",
-    "description": "Starvation detection and avoidance daemon for Linux systems",
-    "primary_use_case": "DPDK deployments with isolated CPUs running single busy-loop RT tasks",
-    "key_mechanism": "Monitors CPU run queues, temporarily boosts starving threads using SCHED_DEADLINE or SCHED_FIFO"
-  },
-  "conversation_summary": {
-    "initial_task": "Analyze stalld codebase and create CLAUDE.md documentation",
-    "main_task": "Create comprehensive test suite for stalld daemon",
-    "task_scope": [
-      "Review existing test01.c using c-expert and code-reviewer agents",
-      "Create tests for ALL command-line options (20+ options)",
-      "Test core logic: starvation detection and boosting mechanisms",
-      "Prove correctness of detection and boosting logic",
-      "Languages limited to Shell, Python, and C"
-    ],
-    "plan_status": "11-week implementation plan approved by user"
-  },
-  "completed_work": {
-    "phase_1_1": {
-      "task": "Fix test01.c critical issues",
-      "status": "completed",
-      "changes": [
-        "Fixed error handling - save errno before function calls",
-        "Replaced sprintf with snprintf for buffer safety",
-        "Added cleanup() function with atexit() registration",
-        "Fixed pthread barrier destruction",
-        "Improved error messages with clear formatting"
-      ],
-      "file": "tests/test01.c"
-    },
-    "phase_1_2": {
-      "task": "Create test infrastructure",
-      "status": "completed",
-      "deliverables": [
-        {
-          "file": "tests/helpers/test_helpers.sh",
-          "lines": 331,
-          "description": "Comprehensive helper library with 20+ functions",
-          "key_functions": [
-            "assert_equals, assert_contains, assert_file_exists, assert_process_running",
-            "start_stalld, stop_stalld",
-            "require_root, check_rt_throttling, pick_test_cpu",
-            "wait_for_log_message",
-            "Automatic cleanup via trap"
-          ]
-        },
-        {
-          "file": "tests/helpers/starvation_gen.c",
-          "lines": 267,
-          "description": "Configurable starvation generator for testing",
-          "features": [
-            "Creates controlled CPU starvation scenarios",
-            "Configurable CPU, priority, thread count, duration",
-            "SCHED_FIFO blocker + SCHED_OTHER blockee threads",
-            "Usage: starvation_gen -c CPU -p priority -n num_threads -d duration -v"
-          ]
-        },
-        {
-          "file": "tests/run_tests.sh",
-          "lines": 328,
-          "description": "Main test orchestrator",
-          "features": [
-            "Automatic test discovery",
-            "Color-coded output (RED/GREEN/YELLOW)",
-            "Individual test logs in results/",
-            "Statistics tracking",
-            "Exit code 0=pass, 1=fail, 77=skip (autotools convention)"
-          ]
-        },
-        {
-          "file": "tests/Makefile",
-          "description": "Updated with test targets",
-          "targets": [
-            "make test - Run all tests",
-            "make test-unit - Unit tests only",
-            "make test-functional - Functional tests only",
-            "make test-integration - Integration tests only"
-          ]
-        }
-      ]
-    },
-    "phase_1_3": {
-      "task": "Create 3 basic functional tests",
-      "status": "completed",
-      "tests": [
-        {
-          "file": "tests/functional/test_foreground.sh",
-          "lines": 90,
-          "tests": "-f flag prevents daemonization",
-          "verification": "Checks parent PID to verify daemonization behavior"
-        },
-        {
-          "file": "tests/functional/test_log_only.sh",
-          "lines": 95,
-          "tests": "-l flag logs but doesn't boost",
-          "verification": "Creates starvation, verifies 'starved' in logs but not 'boosted'"
-        },
-        {
-          "file": "tests/functional/test_logging_destinations.sh",
-          "lines": 160,
-          "tests": "-v (verbose), -k (kernel log), -s (syslog) flags",
-          "verification": "Checks stdout, dmesg, syslog/journalctl for expected messages"
-        }
-      ],
-      "documentation": {
-        "file": "tests/README.md",
-        "lines": 215,
-        "sections": [
-          "Overview and quick start",
-          "Test organization",
-          "Writing tests (templates for shell and C)",
-          "Helper function reference",
-          "Troubleshooting guide",
-          "Current test coverage status"
-        ]
-      }
-    },
-    "documentation_and_planning": {
-      "task": "Create planning and documentation files",
-      "status": "completed",
+  "structure": {
+    "source_code": {
+      "directory": "src/",
       "files": [
         {
-          "file": "tests/TODO.md",
-          "description": "Comprehensive 6-phase implementation plan",
-          "content": [
-            "Phase 1 (Complete): Foundation - infrastructure, test01.c fixes, 3 basic tests",
-            "Phase 2 (Pending): Command-line options - 8 tests for monitoring, boosting, daemon options",
-            "Phase 3 (Pending): Core logic - 9 tests for detection, boosting, merging, idle",
-            "Phase 4 (Pending): Advanced - 8 tests for threading modes, filtering, backends",
-            "Phase 5 (Pending): Integration - 6 tests for lifecycle, edge cases, error handling",
-            "Phase 6 (Pending): Polish - CI/CD, documentation, validation"
-          ],
-          "estimated_time": "7-9 weeks remaining"
+          "name": "stalld.c",
+          "description": "Main daemon logic, entry point, boosting",
+          "lines": 1218,
+          "key_functions": ["main() at line 1121", "boost_with_deadline() at line 438", "check_starving_tasks() at line 616"]
         },
         {
-          "file": "CLAUDE.md",
-          "description": "Updated with test suite documentation",
-          "updates": [
-            "Added Automated Test Suite section with usage examples",
-            "Documented test infrastructure (run_tests.sh, test_helpers.sh, starvation_gen.c)",
-            "Listed current test coverage (Phase 1 complete)",
-            "Listed planned tests (Phases 2-4)",
-            "Added test requirements and helper function reference",
-            "Updated repository structure to show test organization"
-          ]
+          "name": "sched_debug.c",
+          "description": "Procfs backend for parsing /proc|sys/.../sched/debug"
         },
         {
-          "file": "context-snapshot.json",
-          "description": "Session context snapshot for future reference",
-          "location": "Moved to project root directory"
+          "name": "queue_track.c",
+          "description": "eBPF backend for BPF-based task tracking"
+        },
+        {
+          "name": "utils.c",
+          "description": "Utilities: logging, CPU parsing, argument parsing"
+        },
+        {
+          "name": "throttling.c",
+          "description": "RT throttling detection and control"
         }
+      ]
+    },
+    "ebpf": {
+      "directory": "bpf/",
+      "files": ["stalld.bpf.c - BPF tracepoint programs for task tracking"]
+    },
+    "tests": {
+      "directory": "tests/",
+      "infrastructure": [
+        "run_tests.sh - Main test runner with auto-discovery and color output",
+        "helpers/test_helpers.sh - 20+ helper functions for test writing",
+        "helpers/starvation_gen.c - Configurable starvation generator"
       ],
-      "git_commit_message_generated": true
+      "directories": ["functional/", "unit/", "integration/", "fixtures/", "results/"]
     },
-    "infrastructure_updates": {
-      "gitignore_additions": [
-        "tests/test01",
-        "tests/helpers/starvation_gen",
-        "tests/results/",
-        "node_modules/",
-        "package-lock.json",
-        "package.json",
-        "patches/"
-      ]
-    }
-  },
-  "test_results": {
-    "last_run": "Phase 1 completion verification",
-    "total_tests": 4,
-    "passed": 3,
-    "failed": 1,
-    "skipped": 0,
-    "pass_rate": "75%",
-    "notes": "test01 failure expected - requires root + RT throttling disabled"
-  },
-  "pending_tasks": {
-    "phase_2_1": {
-      "status": "pending",
-      "task": "Create monitoring option tests",
-      "tests_to_create": [
-        "test_cpu_selection.sh - Test -c/--cpu option",
-        "test_starvation_threshold.sh - Test -t/--starving_threshold option"
-      ]
-    },
-    "phase_2_2": {
-      "status": "pending",
-      "task": "Create boosting option tests",
-      "tests_to_create": [
-        "test_boost_period.sh - Test -p/--boost_period",
-        "test_boost_runtime.sh - Test -r/--boost_runtime",
-        "test_boost_duration.sh - Test -d/--boost_duration",
-        "test_force_fifo.sh - Test -F/--force_fifo"
-      ]
-    },
-    "phase_2_3": {
-      "status": "pending",
-      "task": "Create daemon option tests",
-      "tests_to_create": [
-        "test_pidfile.sh - Test -P/--pidfile",
-        "test_affinity.sh - Test -a/--affinity"
-      ]
-    },
-    "phase_3": {
-      "status": "pending",
-      "task": "Core logic tests",
-      "tests_to_create": [
-        "Starvation detection verification",
-        "SCHED_DEADLINE boosting verification",
-        "SCHED_FIFO boosting verification",
-        "Task merging logic",
-        "Idle detection"
-      ]
-    },
-    "phase_4": {
-      "status": "pending",
-      "task": "Advanced tests",
-      "tests_to_create": [
-        "Threading mode tests (adaptive vs aggressive)",
-        "Filtering tests (-i, -I options)",
-        "Backend comparison (eBPF vs procfs)",
-        "Integration tests",
-        "Stress tests"
-      ]
-    }
-  },
-  "key_technical_concepts": {
-    "sched_deadline": "Linux scheduling policy for real-time tasks with deadline guarantees",
-    "sched_fifo": "First-in-first-out real-time scheduling policy",
-    "rt_throttling": "Linux mechanism to prevent RT tasks from monopolizing CPU - must be disabled for stalld",
-    "backend_architecture": {
-      "queue_track_backend": "eBPF-based, default on x86_64/aarch64/s390x",
-      "sched_debug_backend": "Procfs-based fallback for i686, powerpc, ppc64le, legacy kernels"
-    },
-    "threading_modes": {
-      "single_threaded": "Default - one thread monitors all CPUs",
-      "adaptive": "Spawns per-CPU threads when approaching starvation threshold",
-      "aggressive": "Per-CPU threads from startup (-A flag)"
-    }
-  },
-  "critical_files": {
-    "src/stalld.c": {
-      "lines": 1218,
-      "main_entry": "line 1121",
-      "boost_logic": "boost_with_deadline() line 438, boost_with_fifo() line 500",
-      "starvation_detection": "check_starving_tasks() line 616"
-    },
-    "src/utils.c": {
-      "description": "Utilities, argument parsing, logging",
-      "key_function": "parse_args()"
-    },
-    "src/sched_debug.c": {
-      "description": "Procfs backend - parses /proc/sched_debug",
-      "kernel_formats_supported": ["3.x", "4.18+", "6.12+"]
-    },
-    "src/queue_track.c": {
-      "description": "eBPF backend - loads BPF programs via skeleton",
-      "skeleton_file": "src/stalld.skel.h"
-    },
-    "bpf/stalld.bpf.c": {
-      "description": "Kernel-side BPF programs",
-      "tracepoints": ["sched_wakeup", "sched_switch", "sched_migrate_task", "sched_process_exit"]
-    }
-  },
-  "runtime_requirements": {
-    "rt_throttling": "Must be disabled: /proc/sys/kernel/sched_rt_runtime_us == -1",
-    "default_starvation_threshold": "60 seconds",
-    "default_boost": "20μs runtime / 1s period for 3 seconds",
-    "minimum_kernel": "3.10+ (older untested)",
-    "ebpf_requirements": "Modern kernel (4.x+), x86_64/aarch64/s390x architecture"
-  },
-  "debugging_commands": {
-    "foreground_verbose": "sudo ./stalld -f -v -t 5",
-    "log_only_mode": "sudo ./stalld -l -v",
-    "check_kernel_messages": "dmesg | grep stalld",
-    "follow_systemd_logs": "journalctl -u stalld -f"
-  },
-  "git_status": {
-    "branch": "unified-parser",
-    "main_branch": "main",
-    "untracked_files": [
-      "node_modules/",
-      "package-lock.json",
-      "package.json",
-      "patches/"
-    ],
-    "recent_commits": [
-      "838e700ba979 add .cursor directory to .gitignore",
-      "69980bb7b4f1 scripts: fix run-local if bashism",
-      "65cdd7540b58 Makefile: Add support for legacy kernels",
-      "3b83507eb830 sched_debug: Unify parsing methods for task_info",
-      "db3c665f0987 Makefile: version bump to v1.23.1"
-    ]
-  },
-  "files_created_in_session": {
-    "test_infrastructure": [
-      "tests/run_tests.sh (311 lines)",
-      "tests/helpers/test_helpers.sh (355 lines)",
-      "tests/helpers/starvation_gen.c (266 lines)",
-      "tests/Makefile (modified)"
-    ],
-    "functional_tests": [
-      "tests/functional/test_foreground.sh",
-      "tests/functional/test_log_only.sh",
-      "tests/functional/test_logging_destinations.sh"
-    ],
     "documentation": [
-      "tests/README.md (214 lines)",
-      "tests/TODO.md (comprehensive 6-phase plan)",
-      "CLAUDE.md (updated with test documentation)",
-      "context-snapshot.json (this file)"
-    ],
-    "test_fixes": [
-      "tests/test01.c (7 critical fixes)"
+      "CLAUDE.md - Comprehensive development guide",
+      "README.md - Project overview",
+      "tests/README.md - Test documentation",
+      "tests/TODO.md - Test implementation plan",
+      "man/stalld.8 - Man page"
     ],
     "configuration": [
-      ".gitignore (updated)"
+      ".claude/rules - Agent usage guidelines",
+      ".claude/agents/ - Custom agents",
+      "systemd/stalld.service - systemd unit file",
+      "systemd/stalld.conf - Configuration"
     ]
   },
+  "test_suite": {
+    "total_tests": 12,
+    "total_lines": 2028,
+    "test_cases": 50,
+    "status": {
+      "passing": 11,
+      "failing": 1,
+      "skipped": 0,
+      "note": "test01.c fails without root privileges and RT throttling disabled"
+    },
+    "phases": {
+      "phase_1_foundation": {
+        "status": "complete",
+        "tests": [
+          "test01.c - Original starvation test (fixed with 7 critical bug fixes)",
+          "test_foreground.sh - Foreground mode (-f)",
+          "test_log_only.sh - Log-only mode (-l)",
+          "test_logging_destinations.sh - Logging options (-v, -k, -s)"
+        ]
+      },
+      "phase_2_command_line_options": {
+        "status": "complete",
+        "tests": [
+          {
+            "name": "test_cpu_selection.sh",
+            "option": "-c/--cpu",
+            "lines": 146,
+            "test_cases": 6,
+            "coverage": ["single CPU", "CPU lists", "ranges", "combined formats", "invalid CPUs"]
+          },
+          {
+            "name": "test_starvation_threshold.sh",
+            "option": "-t/--starving_threshold",
+            "lines": 177,
+            "test_cases": 4,
+            "coverage": ["custom thresholds", "detection timing", "invalid values"]
+          },
+          {
+            "name": "test_boost_period.sh",
+            "option": "-p/--boost_period",
+            "lines": 175,
+            "test_cases": 6,
+            "coverage": ["default/custom periods", "short/long periods", "invalid values"]
+          },
+          {
+            "name": "test_boost_runtime.sh",
+            "option": "-r/--boost_runtime",
+            "lines": 203,
+            "test_cases": 7,
+            "coverage": ["custom runtimes", "runtime vs period validation", "invalid values"]
+          },
+          {
+            "name": "test_boost_duration.sh",
+            "option": "-d/--boost_duration",
+            "lines": 186,
+            "test_cases": 6,
+            "coverage": ["short/long durations", "policy restoration verification"]
+          },
+          {
+            "name": "test_force_fifo.sh",
+            "option": "-F/--force_fifo",
+            "lines": 244,
+            "test_cases": 6,
+            "coverage": ["SCHED_FIFO vs SCHED_DEADLINE", "single-threaded incompatibility", "FIFO emulation"]
+          },
+          {
+            "name": "test_pidfile.sh",
+            "option": "-P/--pidfile",
+            "lines": 198,
+            "test_cases": 7,
+            "coverage": ["custom locations", "PID verification", "cleanup on shutdown"]
+          },
+          {
+            "name": "test_affinity.sh",
+            "option": "-a/--affinity",
+            "lines": 214,
+            "test_cases": 8,
+            "coverage": ["CPU affinity using taskset and /proc", "persistence checks"]
+          }
+        ]
+      },
+      "phase_3_core_logic": {
+        "status": "pending",
+        "estimated_time": "2 weeks",
+        "tests_planned": [
+          "test_starvation_detection.sh",
+          "test_runqueue_parsing.sh",
+          "test_deadline_boosting.sh",
+          "test_fifo_boosting.sh",
+          "test_boost_restoration.sh",
+          "test_task_merging.sh",
+          "test_idle_detection.sh"
+        ]
+      },
+      "phase_4_advanced_features": {
+        "status": "pending",
+        "estimated_time": "1.5-2 weeks",
+        "tests_planned": [
+          "test_single_threaded_mode.sh",
+          "test_adaptive_mode.sh",
+          "test_aggressive_mode.sh",
+          "test_thread_ignore.sh",
+          "test_process_ignore.sh",
+          "test_backend_comparison.sh",
+          "test_sched_debug_formats.sh"
+        ]
+      },
+      "phase_5_integration": {
+        "status": "pending",
+        "estimated_time": "1-1.5 weeks"
+      },
+      "phase_6_polish": {
+        "status": "pending",
+        "estimated_time": "1 week"
+      }
+    }
+  },
+  "project_rules": {
+    "file": ".claude/rules",
+    "mandatory_agents": {
+      "git_operations": {
+        "agent": "git-scm-master",
+        "use_for": [
+          "Creating commits",
+          "Organizing uncommitted changes",
+          "Refactoring commit history",
+          "Managing branches",
+          "Any git workflow tasks"
+        ]
+      },
+      "c_development": {
+        "agent": "c-expert",
+        "use_for": [
+          "Analyzing C code",
+          "Generating new C code",
+          "Modifying existing C code",
+          "Reviewing C code for bugs or improvements",
+          "Optimizing C code performance",
+          "Debugging C code issues"
+        ]
+      },
+      "testing": {
+        "agent": "test-specialist",
+        "use_for": [
+          "Creating new tests",
+          "Modifying existing tests",
+          "Reviewing test coverage",
+          "Implementing TDD cycles",
+          "Writing test infrastructure or helpers",
+          "Debugging test failures",
+          "Planning test strategies"
+        ],
+        "special_authority": "Has BLOCKING POWER for commits with insufficient test coverage"
+      },
+      "planning": {
+        "agent": "plan-validator",
+        "use_for": [
+          "Planning next steps in the project",
+          "Modifying the current plan (TODO.md)",
+          "Reviewing implementation strategies",
+          "Assessing project feasibility",
+          "Validating timeline estimates",
+          "Reviewing development roadmaps"
+        ]
+      }
+    }
+  },
+  "build_status": {
+    "stalld_binary": {
+      "path": "./stalld",
+      "size": "263KB",
+      "built": true
+    },
+    "test_binaries": [
+      "tests/test01 (52KB)",
+      "tests/helpers/starvation_gen"
+    ],
+    "architecture": "Linux x86_64",
+    "kernel_version": "6.15.9-201.fc42.x86_64"
+  },
+  "key_technical_details": {
+    "backends": {
+      "primary": "queue_track_backend (eBPF-based, default on x86_64/aarch64/s390x)",
+      "fallback": "sched_debug_backend (procfs-based, for i686/powerpc/legacy kernels)"
+    },
+    "scheduling_policies": {
+      "preferred": "SCHED_DEADLINE",
+      "fallback": "SCHED_FIFO",
+      "note": "Single-threaded mode only works with SCHED_DEADLINE"
+    },
+    "threading_modes": [
+      "Single-threaded (default)",
+      "Adaptive (spawns per-CPU threads when approaching threshold)",
+      "Aggressive (-A flag, per-CPU threads from startup)"
+    ],
+    "requirements": {
+      "rt_throttling": "Must be disabled (/proc/sys/kernel/sched_rt_runtime_us == -1)",
+      "permissions": "Root required for most operations",
+      "kernel": "3.10+ (older untested)"
+    }
+  },
+  "recent_work": {
+    "session_focus": "Phase 2 test implementation and project infrastructure",
+    "accomplishments": [
+      "Created 8 comprehensive command-line option tests",
+      "Added ~1,700 lines of test code",
+      "Established project rules for agent usage (.claude/rules)",
+      "Updated CLAUDE.md with rules reference",
+      "All Phase 2 tests passing (11/11 functional tests)",
+      "Created mandatory agent guidelines for git, C development, testing, and planning"
+    ],
+    "commits_created": 2,
+    "files_created": 9,
+    "test_coverage_increase": "From 4 to 12 tests (50+ test cases total)"
+  },
   "next_steps": {
-    "awaiting_user_direction": true,
-    "recommended_action": "Proceed to Phase 2.1: Create monitoring option tests",
-    "note": "Phase 1 complete - awaiting explicit user confirmation to continue",
-    "ready_to_commit": true,
-    "commit_message_generated": true
-  }
+    "immediate": "Phase 3: Core Logic Testing",
+    "priority_tests": [
+      "Starvation detection verification",
+      "SCHED_DEADLINE boosting verification",
+      "SCHED_FIFO boosting verification",
+      "Task merging logic",
+      "Idle detection"
+    ],
+    "estimated_completion": "6-7.5 weeks remaining for full test suite"
+  },
+  "important_notes": [
+    "ALWAYS read .claude/rules at session start",
+    "Use specialized agents per project rules",
+    "test-specialist has blocking power for insufficient test coverage",
+    "Phase 1 and Phase 2 complete, focus on Phase 3 next",
+    "Test suite uses helper functions from test_helpers.sh",
+    "All tests follow autotools convention: 0=pass, 1=fail, 77=skip"
+  ]
 }
