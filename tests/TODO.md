@@ -166,25 +166,27 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 **Status**: ✅ Complete
 
-### Phase 3.2: Boosting Mechanism Tests
-- [ ] `test_deadline_boosting.sh` - Verify SCHED_DEADLINE boosting
-  - Create starvation, verify boosting occurs
-  - Verify correct SCHED_DEADLINE parameters applied
-  - Verify starved task makes progress during boost
-  - Verify policy restored after boost
-  - Test multiple simultaneous boosts
-- [ ] `test_fifo_boosting.sh` - Verify SCHED_FIFO boosting
-  - Test with -F flag
-  - Verify FIFO priority setting
-  - Verify FIFO emulation (sleep runtime, restore, sleep remainder)
-  - Compare effectiveness with DEADLINE boosting
-- [ ] `test_boost_restoration.sh` - Verify policy restoration
-  - Test restoration of SCHED_OTHER
-  - Test restoration of original SCHED_FIFO (if task was RT)
-  - Test restoration of nice values
-  - Verify restoration after signal interruption
+### Phase 3.2: Boosting Mechanism Tests ✅
+- [x] `test_deadline_boosting.sh` - Verify SCHED_DEADLINE boosting (451 lines, 5 test cases)
+  - Test 1: Basic DEADLINE boost detection
+  - Test 2: DEADLINE parameters verification (custom -p/-r)
+  - Test 3: Task makes progress during boost (context switches)
+  - Test 4: Policy restoration after boost duration
+  - Test 5: Multiple simultaneous boosts
+- [x] `test_fifo_boosting.sh` - Verify SCHED_FIFO boosting (401 lines, 5 test cases)
+  - Test 1: FIFO boost with -F flag
+  - Test 2: FIFO priority verification
+  - Test 3: FIFO emulation behavior (boost/sleep/restore cycles)
+  - Test 4: FIFO vs DEADLINE effectiveness comparison
+  - Test 5: Single-threaded mode with FIFO (should fail)
+- [x] `test_boost_restoration.sh` - Verify policy restoration (445 lines, 5 test cases)
+  - Test 1: Restore SCHED_OTHER (normal tasks)
+  - Test 2: Restore original SCHED_FIFO policy and priority
+  - Test 3: Nice values preserved
+  - Test 4: Restoration timing verification
+  - Test 5: Graceful handling of task exit during boost
 
-**Estimated Time**: 4-5 days
+**Status**: ✅ Complete
 
 ### Phase 3.3: Task Merging and Idle Detection
 - [ ] `test_task_merging.sh` - Test task merging logic
@@ -348,7 +350,7 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ## Current Test Coverage
 
-### Completed Tests (14)
+### Completed Tests (17)
 **Phase 1 Tests (4):**
 1. ✅ `test01.c` - Original starvation test (fixed)
 2. ✅ `test_foreground.sh` - Foreground mode (-f)
@@ -365,12 +367,15 @@ This document tracks the comprehensive test suite implementation for stalld.
 11. ✅ `test_pidfile.sh` - PID file management (-P)
 12. ✅ `test_affinity.sh` - CPU affinity (-a)
 
-**Phase 3 Tests (2):**
+**Phase 3 Tests (5):**
 13. ✅ `test_starvation_detection.sh` - Starvation detection logic (6 test cases)
 14. ✅ `test_runqueue_parsing.sh` - Backend task parsing (5 test cases)
+15. ✅ `test_deadline_boosting.sh` - SCHED_DEADLINE boosting (5 test cases)
+16. ✅ `test_fifo_boosting.sh` - SCHED_FIFO boosting (5 test cases)
+17. ✅ `test_boost_restoration.sh` - Policy restoration (5 test cases)
 
-### Planned Tests (20+)
-- 7 core logic tests (Phase 3, 2/9 complete)
+### Planned Tests (17+)
+- 4 core logic tests (Phase 3, 5/9 complete)
 - 8 advanced feature tests (Phase 4)
 - 6 integration/edge case tests (Phase 5)
 - CI/CD and polish (Phase 6)
@@ -437,4 +442,4 @@ When adding new tests:
 ---
 
 *Last Updated: 2025-10-06*
-*Status: Phases 1-2 Complete, Phase 3.1 Complete (2/2), Phase 3.2 Pending*
+*Status: Phases 1-2 Complete, Phase 3.1-3.2 Complete (5/9), Phase 3.3 Pending*
