@@ -224,6 +224,9 @@ cleanup() {
 
 	# Remove temp files
 	rm -f /tmp/stalld_test_* 2>/dev/null
+
+	# Restore RT throttling if it was saved
+	restore_rt_throttling
 }
 
 # Trap to ensure cleanup
@@ -312,6 +315,50 @@ check_rt_throttling() {
 	return 0
 }
 
+# RT throttling state management
+SAVED_RT_RUNTIME=""
+
+# Save current RT throttling state
+save_rt_throttling() {
+	if [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
+		SAVED_RT_RUNTIME=$(cat /proc/sys/kernel/sched_rt_runtime_us)
+		echo "Saved RT throttling state: ${SAVED_RT_RUNTIME}"
+	else
+		echo -e "${YELLOW}WARNING: /proc/sys/kernel/sched_rt_runtime_us not found${NC}"
+		SAVED_RT_RUNTIME=""
+	fi
+}
+
+# Restore RT throttling state
+restore_rt_throttling() {
+	if [ -n "${SAVED_RT_RUNTIME}" ] && [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
+		echo "${SAVED_RT_RUNTIME}" > /proc/sys/kernel/sched_rt_runtime_us 2>/dev/null
+		if [ $? -eq 0 ]; then
+			echo "Restored RT throttling state: ${SAVED_RT_RUNTIME}"
+		else
+			echo -e "${YELLOW}WARNING: Failed to restore RT throttling state${NC}"
+		fi
+		SAVED_RT_RUNTIME=""
+	fi
+}
+
+# Disable RT throttling (for tests that require it)
+disable_rt_throttling() {
+	if [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
+		echo -1 > /proc/sys/kernel/sched_rt_runtime_us 2>/dev/null
+		if [ $? -eq 0 ]; then
+			echo "Disabled RT throttling"
+			return 0
+		else
+			echo -e "${RED}ERROR: Failed to disable RT throttling (need root?)${NC}"
+			return 1
+		fi
+	else
+		echo -e "${YELLOW}WARNING: /proc/sys/kernel/sched_rt_runtime_us not found${NC}"
+		return 1
+	fi
+}
+
 # Get number of CPUs
 get_num_cpus() {
 	nproc
@@ -352,4 +399,5 @@ export -f wait_for_log_message
 export -f get_thread_policy get_thread_priority
 export -f create_cpu_load
 export -f require_root check_rt_throttling
+export -f save_rt_throttling restore_rt_throttling disable_rt_throttling
 export -f get_num_cpus get_online_cpus pick_test_cpu
