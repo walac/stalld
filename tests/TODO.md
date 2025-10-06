@@ -145,7 +145,7 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ---
 
-## 🔄 Phase 3: Core Logic Testing (PENDING)
+## ✅ Phase 3: Core Logic Testing (COMPLETE)
 
 **Goal**: Verify starvation detection and boosting mechanisms work correctly
 
@@ -188,19 +188,22 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 **Status**: ✅ Complete
 
-### Phase 3.3: Task Merging and Idle Detection
-- [ ] `test_task_merging.sh` - Test task merging logic
-  - Verify starvation timestamps preserved for non-progressing tasks
-  - Verify same PID + same context switches = merged
-  - Test across multiple monitoring cycles
-- [ ] `test_idle_detection.sh` - Test idle CPU detection
-  - Verify idle CPUs skipped (if idle detection enabled)
-  - Test /proc/stat parsing
-  - Verify monitoring resumes when CPU becomes busy
+### Phase 3.3: Task Merging and Idle Detection ✅
+- [x] `test_task_merging.sh` - Test task merging logic (347 lines, 4 test cases)
+  - Test 1: Timestamp preservation across monitoring cycles
+  - Test 2: Merge condition verification (same PID + same ctxsw)
+  - Test 3: No merge when task makes progress (ctxsw changes)
+  - Test 4: Per-CPU independent task merging
+- [x] `test_idle_detection.sh` - Test idle CPU detection (274 lines, 5 test cases)
+  - Test 1: Idle CPUs skipped (no parsing overhead)
+  - Test 2: /proc/stat idle time parsing verification
+  - Test 3: Monitoring resumes when CPU becomes busy
+  - Test 4: Idle detection overhead reduction (informational)
+  - Test 5: Per-CPU independent idle detection
 
-**Estimated Time**: 2-3 days
+**Status**: ✅ Complete
 
-**Phase 3 Total Estimated Time**: 2 weeks
+**Phase 3 Status**: ✅ Complete (all 3 sub-phases done)
 
 ---
 
@@ -350,7 +353,7 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ## Current Test Coverage
 
-### Completed Tests (17)
+### Completed Tests (19)
 **Phase 1 Tests (4):**
 1. ✅ `test01.c` - Original starvation test (fixed)
 2. ✅ `test_foreground.sh` - Foreground mode (-f)
@@ -367,15 +370,17 @@ This document tracks the comprehensive test suite implementation for stalld.
 11. ✅ `test_pidfile.sh` - PID file management (-P)
 12. ✅ `test_affinity.sh` - CPU affinity (-a)
 
-**Phase 3 Tests (5):**
+**Phase 3 Tests (7):**
 13. ✅ `test_starvation_detection.sh` - Starvation detection logic (6 test cases)
 14. ✅ `test_runqueue_parsing.sh` - Backend task parsing (5 test cases)
 15. ✅ `test_deadline_boosting.sh` - SCHED_DEADLINE boosting (5 test cases)
 16. ✅ `test_fifo_boosting.sh` - SCHED_FIFO boosting (5 test cases)
 17. ✅ `test_boost_restoration.sh` - Policy restoration (5 test cases)
+18. ✅ `test_task_merging.sh` - Task merging logic (4 test cases)
+19. ✅ `test_idle_detection.sh` - Idle CPU detection (5 test cases)
 
-### Planned Tests (17+)
-- 4 core logic tests (Phase 3, 5/9 complete)
+### Planned Tests (15+)
+- Phase 3 complete (7/7 core logic tests)
 - 8 advanced feature tests (Phase 4)
 - 6 integration/edge case tests (Phase 5)
 - CI/CD and polish (Phase 6)
@@ -442,4 +447,4 @@ When adding new tests:
 ---
 
 *Last Updated: 2025-10-06*
-*Status: Phases 1-2 Complete, Phase 3.1-3.2 Complete (5/9), Phase 3.3 Pending*
+*Status: Phases 1-3 Complete, Phase 4 Pending*
