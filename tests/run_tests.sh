@@ -13,6 +13,12 @@ STALLD_BIN="${TEST_ROOT}/../stalld"
 RESULTS_DIR="${TEST_ROOT}/results"
 LOG_FILE="${RESULTS_DIR}/test_run_$(date +%Y%m%d_%H%M%S).log"
 
+# Source test helpers for RT throttling management
+source "${TEST_ROOT}/helpers/test_helpers.sh" 2>/dev/null || true
+
+# RT throttling state
+SAVED_RT_RUNTIME=""
+
 # Test categories
 declare -a UNIT_TESTS
 declare -a FUNC_TESTS
@@ -48,12 +54,59 @@ print_banner() {
 	echo -e "${BOLD}=========================================${NC}"
 }
 
+# Save and disable RT throttling
+save_and_disable_rt_throttling() {
+	if [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
+		SAVED_RT_RUNTIME=$(cat /proc/sys/kernel/sched_rt_runtime_us)
+		echo -e "${BLUE}Saving RT throttling state: ${SAVED_RT_RUNTIME}${NC}" | tee -a "${LOG_FILE}"
+
+		if [ "${SAVED_RT_RUNTIME}" != "-1" ]; then
+			echo -e "${BLUE}Disabling RT throttling for test run...${NC}" | tee -a "${LOG_FILE}"
+			echo -1 > /proc/sys/kernel/sched_rt_runtime_us 2>/dev/null
+			if [ $? -eq 0 ]; then
+				echo -e "${GREEN}RT throttling disabled${NC}" | tee -a "${LOG_FILE}"
+			else
+				echo -e "${YELLOW}WARNING: Failed to disable RT throttling${NC}" | tee -a "${LOG_FILE}"
+			fi
+		fi
+	fi
+	echo "" | tee -a "${LOG_FILE}"
+}
+
+# Restore RT throttling
+restore_rt_throttling_state() {
+	if [ -n "${SAVED_RT_RUNTIME}" ] && [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
+		echo -e "\n${BLUE}Restoring RT throttling state: ${SAVED_RT_RUNTIME}${NC}"
+		echo "${SAVED_RT_RUNTIME}" > /proc/sys/kernel/sched_rt_runtime_us 2>/dev/null
+		if [ $? -eq 0 ]; then
+			echo -e "${GREEN}RT throttling restored${NC}"
+		else
+			echo -e "${YELLOW}WARNING: Failed to restore RT throttling state${NC}"
+		fi
+	fi
+}
+
+# Cleanup function
+cleanup_runner() {
+	if [ $EUID -eq 0 ]; then
+		restore_rt_throttling_state
+	fi
+}
+
+# Set up cleanup trap
+trap cleanup_runner EXIT INT TERM
+
 # Initialize
 init_tests() {
 	mkdir -p "${RESULTS_DIR}"
 
 	print_banner | tee "${LOG_FILE}"
 	echo "" | tee -a "${LOG_FILE}"
+
+	# Save and disable RT throttling if running as root
+	if [ $EUID -eq 0 ]; then
+		save_and_disable_rt_throttling
+	fi
 
 	# Check prerequisites
 	check_prerequisites
@@ -85,15 +138,6 @@ check_prerequisites() {
 	KERNEL_VER=$(uname -r | cut -d. -f1)
 	if [ "${KERNEL_VER}" -lt 4 ]; then
 		echo -e "${YELLOW}WARNING: Kernel < 4.x, BPF tests will be skipped${NC}" | tee -a "${LOG_FILE}"
-	fi
-
-	# Check RT throttling
-	if [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
-		RT_THROTTLE=$(cat /proc/sys/kernel/sched_rt_runtime_us)
-		if [ "${RT_THROTTLE}" != "-1" ]; then
-			echo -e "${YELLOW}WARNING: RT throttling is enabled (${RT_THROTTLE}). Tests may fail.${NC}" | tee -a "${LOG_FILE}"
-			echo "To disable: echo -1 > /proc/sys/kernel/sched_rt_runtime_us" | tee -a "${LOG_FILE}"
-		fi
 	fi
 
 	echo "" | tee -a "${LOG_FILE}"
