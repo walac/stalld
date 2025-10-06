@@ -149,20 +149,22 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 **Goal**: Verify starvation detection and boosting mechanisms work correctly
 
-### Phase 3.1: Starvation Detection Tests
-- [ ] `test_starvation_detection.sh` - Verify starvation detection logic
-  - Create controlled starvation scenario
-  - Verify detection of starved tasks
-  - Test context switch count tracking
-  - Test task merging (preserves timestamps for non-progressing tasks)
-  - Verify detection across multiple CPUs
-  - Test edge case: task making minimal progress (context switches but still starved)
-- [ ] `test_runqueue_parsing.sh` - Test backend parsing
-  - Verify correct task info extraction (PID, comm, priority, switches)
-  - Test with both eBPF and procfs backends (if available)
-  - Verify handling of different kernel formats (3.x, 4.18+, 6.12+)
+### Phase 3.1: Starvation Detection Tests ✅
+- [x] `test_starvation_detection.sh` - Verify starvation detection logic (394 lines, 6 test cases)
+  - Test 1: Basic starvation detection (PID, CPU ID, duration logging)
+  - Test 2: Context switch count tracking via /proc/$PID/status
+  - Test 3: Task merging (preserves timestamps for non-progressing tasks)
+  - Test 4: Detection across multiple CPUs
+  - Test 5: No false positives (task making progress)
+  - Test 6: Edge case - task exits during monitoring
+- [x] `test_runqueue_parsing.sh` - Test backend parsing (434 lines, 5 test cases)
+  - Test 1: eBPF backend task extraction (queue_track)
+  - Test 2: sched_debug backend task extraction
+  - Test 3: Backend comparison (both detect same starvation)
+  - Test 4: Task field extraction (PID, comm, CPU, duration)
+  - Test 5: Kernel format auto-detection (OLD/NEW_TASK_FORMAT)
 
-**Estimated Time**: 3-4 days
+**Status**: ✅ Complete
 
 ### Phase 3.2: Boosting Mechanism Tests
 - [ ] `test_deadline_boosting.sh` - Verify SCHED_DEADLINE boosting
@@ -346,7 +348,7 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ## Current Test Coverage
 
-### Completed Tests (12)
+### Completed Tests (14)
 **Phase 1 Tests (4):**
 1. ✅ `test01.c` - Original starvation test (fixed)
 2. ✅ `test_foreground.sh` - Foreground mode (-f)
@@ -363,8 +365,12 @@ This document tracks the comprehensive test suite implementation for stalld.
 11. ✅ `test_pidfile.sh` - PID file management (-P)
 12. ✅ `test_affinity.sh` - CPU affinity (-a)
 
-### Planned Tests (22+)
-- 9 core logic tests (Phase 3)
+**Phase 3 Tests (2):**
+13. ✅ `test_starvation_detection.sh` - Starvation detection logic (6 test cases)
+14. ✅ `test_runqueue_parsing.sh` - Backend task parsing (5 test cases)
+
+### Planned Tests (20+)
+- 7 core logic tests (Phase 3, 2/9 complete)
 - 8 advanced feature tests (Phase 4)
 - 6 integration/edge case tests (Phase 5)
 - CI/CD and polish (Phase 6)
@@ -430,5 +436,5 @@ When adding new tests:
 
 ---
 
-*Last Updated: 2025-10-03*
-*Status: Phases 1-2 Complete, Phases 3-6 Pending*
+*Last Updated: 2025-10-06*
+*Status: Phases 1-2 Complete, Phase 3.1 Complete (2/2), Phase 3.2 Pending*
