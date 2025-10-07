@@ -203,6 +203,13 @@ stop_stalld() {
 
 # Cleanup function (call in trap)
 cleanup() {
+	local exit_code=$?
+
+	# Don't print cleanup messages if exiting normally (exit code 0)
+	if [ ${exit_code} -ne 0 ]; then
+		echo -e "${YELLOW}Cleaning up test resources...${NC}" >&2
+	fi
+
 	# Stop stalld
 	stop_stalld
 
@@ -232,8 +239,16 @@ cleanup() {
 	restore_rt_throttling
 }
 
+# Signal handler for interrupts
+handle_signal() {
+	echo ""
+	echo -e "${YELLOW}Test interrupted by signal (Ctrl-C)${NC}" >&2
+	exit 130  # Standard exit code for SIGINT
+}
+
 # Trap to ensure cleanup
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap handle_signal INT TERM
 
 # Parse stalld log for specific message
 wait_for_log_message() {
@@ -503,6 +518,92 @@ pick_test_cpu() {
 	echo ${cpus##* }  # Return last CPU
 }
 
+#
+# Backend detection and helpers
+#
+
+# Detect which backend stalld was compiled with (default)
+detect_default_backend() {
+	local stalld_bin="../stalld"
+	if [ ! -x "${stalld_bin}" ]; then
+		echo "unknown"
+		return 1
+	fi
+
+	# Check if stalld was built with BPF support
+	# Look for queue_track symbols in the binary
+	if command -v nm >/dev/null 2>&1; then
+		if nm "${stalld_bin}" 2>/dev/null | grep -q "queue_track"; then
+			echo "queue_track"
+			return 0
+		fi
+	fi
+
+	# Fall back to sched_debug
+	echo "sched_debug"
+	return 0
+}
+
+# Check if a specific backend is available
+is_backend_available() {
+	local backend=$1
+	local stalld_bin="../stalld"
+
+	if [ ! -x "${stalld_bin}" ]; then
+		return 1
+	fi
+
+	case "${backend}" in
+		"sched_debug"|"S")
+			# sched_debug is always available
+			return 0
+			;;
+		"queue_track"|"Q")
+			# Check if BPF backend is available
+			if command -v nm >/dev/null 2>&1; then
+				if nm "${stalld_bin}" 2>/dev/null | grep -q "queue_track"; then
+					return 0
+				fi
+			fi
+			return 1
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+# Get list of available backends
+get_available_backends() {
+	local backends=()
+
+	# sched_debug is always available
+	backends+=("sched_debug")
+
+	# Check for queue_track (BPF)
+	if is_backend_available "queue_track"; then
+		backends+=("queue_track")
+	fi
+
+	echo "${backends[@]}"
+}
+
+# Start stalld with specific backend
+start_stalld_with_backend() {
+	local backend=$1
+	shift  # Remove backend from args
+	local extra_args="$@"
+
+	if ! is_backend_available "${backend}"; then
+		echo -e "${YELLOW}WARNING: Backend '${backend}' not available, skipping test${NC}"
+		return 77  # Skip exit code
+	fi
+
+	echo "Starting stalld with backend: ${backend}"
+	start_stalld -b "${backend}" ${extra_args}
+	return $?
+}
+
 # Export functions for use in tests
 export -f start_test end_test
 export -f assert_equals assert_contains assert_not_contains
@@ -512,6 +613,7 @@ export -f start_stalld stop_stalld cleanup
 export -f wait_for_log_message
 export -f get_thread_policy get_thread_priority
 export -f create_cpu_load
+export -f detect_default_backend is_backend_available get_available_backends start_stalld_with_backend
 export -f require_root check_rt_throttling
 export -f save_rt_throttling restore_rt_throttling disable_rt_throttling
 export -f save_dl_server restore_dl_server disable_dl_server

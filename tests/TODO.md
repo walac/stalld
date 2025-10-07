@@ -12,11 +12,11 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ---
 
-## ✅ Phase 1: Foundation (COMPLETE)
+## ✅ Phase 0: Legacy Test Integration (COMPLETE)
 
-**Goal**: Fix existing test, create infrastructure, basic functional tests
+**Goal**: Integrate legacy test01 with modern test infrastructure
 
-### Phase 1.1: Fix test01.c Critical Issues ✅
+### Phase 0.1: Fix test01.c Critical Issues ✅
 - [x] Buffer overflow: sprintf → snprintf for CPU path construction
 - [x] Error handling: Save errno before calling functions that may modify it
 - [x] Format consistency: Add newlines to error() calls, remove redundant \n
@@ -25,10 +25,45 @@ This document tracks the comprehensive test suite implementation for stalld.
 - [x] File descriptor: Close fd on read() error path to prevent leak
 - [x] Initialization: Track barrier initialization state for safe cleanup
 
-**Files Modified**: `test01.c`
+**Files Modified**: `legacy/test01.c`
 
-### Phase 1.2: Create Test Infrastructure ✅
-- [x] Create directory structure (helpers/, functional/, unit/, integration/, fixtures/, results/)
+### Phase 0.2: Create Legacy Test Infrastructure ✅
+- [x] Create `legacy/` directory structure
+- [x] Move `test01.c` → `legacy/test01.c`
+- [x] Remove manual RT throttling check from test01.c (wrapper handles it)
+- [x] Create `legacy/test01_wrapper.sh` (160 lines)
+  - Automatic RT throttling save/disable/restore
+  - Automatic DL-server save/disable/restore
+  - Automatic stalld lifecycle management
+  - Integration with test_helpers.sh
+  - Proper cleanup via trap handlers
+- [x] Update `Makefile` for legacy directory
+- [x] Update `run_tests.sh` test discovery logic
+- [x] Create `legacy/README.md` documentation
+- [x] Update main `README.md` with legacy test information
+
+**Files Created/Modified**:
+- `legacy/test01_wrapper.sh` (new)
+- `legacy/README.md` (new)
+- `legacy/test01.c` (moved, modified)
+- `Makefile` (updated)
+- `run_tests.sh` (updated)
+- `README.md` (updated)
+
+**Benefits**:
+- Legacy test now uses modern infrastructure
+- Consistent state management across all tests
+- Easy to add future legacy tests
+- No duplicate RT throttling/DL-server management code
+
+---
+
+## ✅ Phase 1: Foundation (COMPLETE)
+
+**Goal**: Create infrastructure and basic functional tests
+
+### Phase 1.1: Create Test Infrastructure ✅
+- [x] Create directory structure (helpers/, functional/, unit/, integration/, fixtures/, results/, legacy/)
 - [x] Create `helpers/test_helpers.sh` (518 lines, 25+ helper functions)
   - Assertions: assert_equals, assert_contains, assert_file_exists, assert_process_running
   - stalld management: start_stalld, stop_stalld with PID tracking
@@ -53,9 +88,9 @@ This document tracks the comprehensive test suite implementation for stalld.
   - Build helper binaries (starvation_gen)
 - [x] Update `.gitignore` (test artifacts)
 
-**Files Created**: `run_tests.sh`, `helpers/test_helpers.sh`, `helpers/starvation_gen.c`, `Makefile` (modified), `.gitignore` (modified)
+**Files Created**: `run_tests.sh`, `helpers/test_helpers.sh`, `helpers/starvation_gen.c`, `Makefile`, `.gitignore` (modified)
 
-### Phase 1.3: Create Basic Functional Tests ✅
+### Phase 1.2: Create Basic Functional Tests ✅
 - [x] `test_foreground.sh` - Tests `-f` flag prevents daemonization
   - Verify default daemonization (parent PID = 1)
   - Verify -f prevents daemonization (parent PID != 1)
@@ -73,7 +108,7 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 **Files Created**: `functional/test_foreground.sh`, `functional/test_log_only.sh`, `functional/test_logging_destinations.sh`, `README.md`
 
-**Test Results**: 3/4 tests passing (test01 requires root + RT throttling disabled)
+**Test Results**: All Phase 1 tests passing
 
 ---
 
@@ -346,9 +381,10 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 | Phase | Status | Estimated Time | Description |
 |-------|--------|----------------|-------------|
+| Phase 0 | ✅ Complete | - | Legacy test integration |
 | Phase 1 | ✅ Complete | - | Foundation: Infrastructure and basic tests |
 | Phase 2 | ✅ Complete | - | Command-line options testing |
-| Phase 3 | 🔄 Pending | 2 weeks | Core logic testing |
+| Phase 3 | ✅ Complete | - | Core logic testing |
 | Phase 4 | 🔄 Pending | 1.5-2 weeks | Advanced features |
 | Phase 5 | 🔄 Pending | 1-1.5 weeks | Integration and edge cases |
 | Phase 6 | 🔄 Pending | 1 week | Polish and documentation |
@@ -359,9 +395,11 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ## Current Test Coverage
 
-### Completed Tests (19)
-**Phase 1 Tests (4):**
-1. ✅ `test01.c` - Original starvation test (fixed)
+### Completed Tests (20)
+**Legacy Tests (1):**
+1. ✅ `legacy/test01_wrapper.sh` - Original starvation test (fixed, wrapped)
+
+**Phase 1 Tests (3):**
 2. ✅ `test_foreground.sh` - Foreground mode (-f)
 3. ✅ `test_log_only.sh` - Log-only mode (-l)
 4. ✅ `test_logging_destinations.sh` - Logging options (-v, -k, -s)
@@ -385,11 +423,10 @@ This document tracks the comprehensive test suite implementation for stalld.
 18. ✅ `test_task_merging.sh` - Task merging logic (4 test cases)
 19. ✅ `test_idle_detection.sh` - Idle CPU detection (5 test cases)
 
-### Planned Tests (15+)
-- Phase 3 complete (7/7 core logic tests)
-- 8 advanced feature tests (Phase 4)
-- 6 integration/edge case tests (Phase 5)
-- CI/CD and polish (Phase 6)
+### Planned Tests (10+)
+- Phase 4: 8 advanced feature tests
+- Phase 5: 6 integration/edge case tests
+- Phase 6: CI/CD and polish
 
 ---
 
@@ -469,6 +506,26 @@ When adding new tests:
 
 ## Recent Updates
 
+### 2025-10-07 - Legacy Test Integration
+- **Created legacy test infrastructure**
+  - New `legacy/` directory for legacy tests
+  - `legacy/test01_wrapper.sh`: Comprehensive wrapper with modern infrastructure
+  - `legacy/README.md`: Complete documentation of legacy test philosophy
+- **Refactored test01.c**
+  - Moved from `tests/test01.c` → `tests/legacy/test01.c`
+  - Removed manual RT throttling check (wrapper handles it)
+  - Removed unused `check_throttling()` function and RUNTIME macro
+- **Updated test infrastructure**
+  - `Makefile`: Added legacy test targets, updated clean target
+  - `run_tests.sh`: Updated discovery to find `legacy/test01_wrapper.sh`
+  - `README.md`: Documented legacy test category
+  - `TODO.md`: Added Phase 0 for legacy test integration
+- **Benefits achieved**
+  - All tests now use consistent infrastructure
+  - No duplicate state management code
+  - Easy to add future legacy tests
+  - Legacy test fully integrated with modern test suite
+
 ### 2025-10-06 - DL-server Management and Test Fixes
 - **Added DL-server save/disable/restore support**
   - `test_helpers.sh`: Added save_dl_server(), restore_dl_server(), disable_dl_server()
@@ -483,5 +540,5 @@ When adding new tests:
   - Test runner now automatically saves and restores RT throttling
   - No manual RT throttling configuration required
 
-*Last Updated: 2025-10-06*
-*Status: Phases 1-3 Complete, Phase 4 Pending*
+*Last Updated: 2025-10-07*
+*Status: Phase 0 (Legacy Integration) Complete, Phases 1-3 Complete, Phase 4 Pending*

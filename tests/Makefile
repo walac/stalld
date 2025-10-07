@@ -9,16 +9,18 @@ LIBS	:= -lpthread
 # Test binaries
 UNIT_TESTS :=
 HELPER_BINS := helpers/starvation_gen
+LEGACY_TESTS := legacy/test01
 
-ALL_BINS := test01 $(UNIT_TESTS) $(HELPER_BINS)
+ALL_BINS := $(LEGACY_TESTS) $(UNIT_TESTS) $(HELPER_BINS)
 
-.PHONY: all clean test test-unit test-functional test-integration
+.PHONY: all clean test test-unit test-functional test-integration test-legacy
 
 all: $(ALL_BINS)
 
-# Original test
-test01: test01.c
-	$(CC) $(CFLAGS) -o test01 test01.c $(LIBS)
+# Legacy tests
+legacy/test01: legacy/test01.c
+	@mkdir -p legacy
+	$(CC) $(CFLAGS) -o legacy/test01 legacy/test01.c $(LIBS)
 
 # Unit tests
 unit/test_%: unit/test_%.c
@@ -36,7 +38,7 @@ test: all
 	@./run_tests.sh
 
 # Run specific test category
-test-unit: $(UNIT_TESTS) test01
+test-unit: $(UNIT_TESTS)
 	@echo "Running unit tests..."
 	@./run_tests.sh --unit-only
 
@@ -48,8 +50,12 @@ test-integration: all
 	@echo "Running integration tests..."
 	@./run_tests.sh --integration-only
 
+test-legacy: $(LEGACY_TESTS)
+	@echo "Running legacy tests..."
+	@./run_tests.sh --unit-only
+
 clean:
 	@rm -f $(ALL_BINS)
 	@rm -rf results/
-	@rm -f *~ unit/*~ functional/*~ integration/*~ helpers/*~
-	@rm -f *.o unit/*.o helpers/*.o
+	@rm -f *~ unit/*~ functional/*~ integration/*~ helpers/*~ legacy/*~
+	@rm -f *.o unit/*.o helpers/*.o legacy/*.o

@@ -42,10 +42,13 @@ make test-integration    # Integration tests only
 tests/
 ├── run_tests.sh              # Main test runner
 ├── Makefile                  # Build system
-├── test01.c                  # Original starvation test (fixed)
 ├── helpers/
 │   ├── test_helpers.sh       # Common helper functions
 │   └── starvation_gen.c      # Configurable starvation generator
+├── legacy/                   # Legacy tests (wrapped)
+│   ├── README.md             # Legacy test documentation
+│   ├── test01.c              # Original starvation test (fixed, wrapped)
+│   └── test01_wrapper.sh     # Wrapper with modern infrastructure
 ├── functional/               # Functional tests (shell scripts)
 │   ├── test_foreground.sh
 │   ├── test_log_only.sh
@@ -128,6 +131,34 @@ pick_test_cpu               # Pick a CPU for testing
 wait_for_log_message "pattern" timeout
 ```
 
+### Backend Selection
+
+```bash
+# Detect which backend stalld was compiled with
+detect_default_backend      # Returns "queue_track" or "sched_debug"
+
+# Check if a backend is available
+is_backend_available "sched_debug"    # Always returns true
+is_backend_available "queue_track"    # Returns true if BPF backend available
+
+# Get list of all available backends
+get_available_backends      # Returns space-separated list
+
+# Start stalld with specific backend
+start_stalld_with_backend "sched_debug" -f -v -t 60
+start_stalld_with_backend "queue_track" -f -v -t 60
+start_stalld_with_backend "S" -f -v    # Short name for sched_debug
+start_stalld_with_backend "Q" -f -v    # Short name for queue_track
+
+# Or use start_stalld directly with -b option
+start_stalld -b sched_debug -f -v -t 60
+start_stalld -b queue_track -f -v -t 60
+```
+
+**Backend Names:**
+- `sched_debug` or `S` - Procfs backend (always available)
+- `queue_track` or `Q` - eBPF backend (available on x86_64, aarch64, s390x with modern kernels)
+
 ### Starvation Generator
 
 ```bash
@@ -146,33 +177,37 @@ Test results are stored in `results/` directory:
 
 ## Current Test Coverage
 
+### Legacy Tests (✅ Integrated)
+- [x] test01 - Original starvation test (fixed, wrapped with modern infrastructure)
+  - See `legacy/README.md` for details
+
 ### Phase 1: Foundation (✅ Complete)
-- [x] test01.c - Fixed and improved
-- [x] Test infrastructure (run_tests.sh, helpers)
+- [x] Test infrastructure created (run_tests.sh, test_helpers.sh, starvation_gen.c)
 - [x] test_foreground.sh - Foreground mode
 - [x] test_log_only.sh - Log-only mode
 - [x] test_logging_destinations.sh - Logging options
 
-### Phase 2: Command-Line Options (Planned)
-- [ ] CPU selection (-c)
-- [ ] Starvation threshold (-t)
-- [ ] Boost parameters (-p, -r, -d)
-- [ ] Force FIFO (-F)
-- [ ] Threading modes (-A)
+### Phase 2: Command-Line Options (✅ Complete)
+- [x] CPU selection (-c)
+- [x] Starvation threshold (-t)
+- [x] Boost parameters (-p, -r, -d)
+- [x] Force FIFO (-F)
+- [x] PID file (-P)
+- [x] CPU affinity (-a)
+
+### Phase 3: Core Logic (✅ Complete)
+- [x] Starvation detection
+- [x] SCHED_DEADLINE boosting
+- [x] SCHED_FIFO boosting
+- [x] Task merging
+- [x] Idle detection
+- [x] Runqueue parsing
+
+### Phase 4: Advanced Features (In Progress)
+- [x] Backend selection and detection
+- [ ] Threading modes (single/adaptive/aggressive)
 - [ ] Filtering (-i, -I)
-- [ ] PID file (-P)
-- [ ] CPU affinity (-a)
-
-### Phase 3: Core Logic (Planned)
-- [ ] Starvation detection
-- [ ] SCHED_DEADLINE boosting
-- [ ] SCHED_FIFO boosting
-- [ ] Task merging
-- [ ] Idle detection
-
-### Phase 4: Advanced (Planned)
-- [ ] Backend comparison
-- [ ] Threading mode verification
+- [ ] Backend comparison tests
 - [ ] Integration tests
 - [ ] Stress tests
 

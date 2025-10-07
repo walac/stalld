@@ -183,14 +183,30 @@ restore_dl_server_state() {
 
 # Cleanup function
 cleanup_runner() {
+	local exit_code=$?
+
+	# If interrupted by signal, print message
+	if [ ${exit_code} -gt 128 ]; then
+		echo ""
+		echo -e "${YELLOW}Test run interrupted by signal${NC}"
+	fi
+
 	if [ $EUID -eq 0 ]; then
 		restore_dl_server_state
 		restore_rt_throttling_state
 	fi
 }
 
-# Set up cleanup trap
-trap cleanup_runner EXIT INT TERM
+# Signal handler for clean interrupts
+handle_interrupt() {
+	echo ""
+	echo -e "${YELLOW}Caught interrupt signal (Ctrl-C), cleaning up...${NC}"
+	exit 130  # Standard exit code for SIGINT
+}
+
+# Set up cleanup traps
+trap cleanup_runner EXIT
+trap handle_interrupt INT TERM
 
 # Initialize
 init_tests() {
@@ -267,9 +283,9 @@ discover_tests() {
 		done < <(find "${TEST_ROOT}/integration" -type f -name "test_*.sh" 2>/dev/null)
 	fi
 
-	# Add test01 (legacy test)
-	if [ -x "${TEST_ROOT}/test01" ]; then
-		UNIT_TESTS=("${TEST_ROOT}/test01" "${UNIT_TESTS[@]}")
+	# Add legacy test wrapper
+	if [ -x "${TEST_ROOT}/legacy/test01_wrapper.sh" ]; then
+		UNIT_TESTS=("${TEST_ROOT}/legacy/test01_wrapper.sh" "${UNIT_TESTS[@]}")
 	fi
 }
 
