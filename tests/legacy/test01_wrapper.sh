@@ -30,7 +30,7 @@ STALLD_STARTUP_WAIT=2
 if [[ "$1" == "" ]]; then
     backend="sched_debug"
 else
-    backend="queue_track"
+    backend="$1"
 fi
 
 #
