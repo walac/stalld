@@ -29,21 +29,25 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ### Phase 1.2: Create Test Infrastructure ✅
 - [x] Create directory structure (helpers/, functional/, unit/, integration/, fixtures/, results/)
-- [x] Create `helpers/test_helpers.sh` (355 lines, 20+ helper functions)
+- [x] Create `helpers/test_helpers.sh` (518 lines, 25+ helper functions)
   - Assertions: assert_equals, assert_contains, assert_file_exists, assert_process_running
   - stalld management: start_stalld, stop_stalld with PID tracking
   - System helpers: require_root, check_rt_throttling, pick_test_cpu, wait_for_log_message
+  - RT throttling: save_rt_throttling, restore_rt_throttling, disable_rt_throttling
+  - DL-server: save_dl_server, restore_dl_server, disable_dl_server
   - Automatic cleanup via trap (EXIT, INT, TERM)
 - [x] Create `helpers/starvation_gen.c` (266 lines)
   - Configurable CPU, priority, thread count, duration
   - SCHED_FIFO blocker + SCHED_OTHER blockee threads
   - Usage: `starvation_gen -c CPU -p priority -n num_threads -d duration -v`
-- [x] Create `run_tests.sh` (311 lines)
+- [x] Create `run_tests.sh` (461 lines)
   - Auto-discovery of tests in unit/, functional/, integration/
   - Color-coded output (RED/GREEN/YELLOW)
   - Individual test logs in results/
   - Statistics tracking (total/passed/failed/skipped)
   - Exit codes: 0=pass, 1=fail, 77=skip (autotools convention)
+  - Automatic RT throttling save/disable/restore
+  - Optional DL-server save/disable/restore (--disable-dl-server flag)
 - [x] Update `Makefile` with test targets
   - `make test`, `make test-unit`, `make test-functional`, `make test-integration`
   - Build helper binaries (starvation_gen)
@@ -189,11 +193,13 @@ This document tracks the comprehensive test suite implementation for stalld.
 **Status**: ✅ Complete
 
 ### Phase 3.3: Task Merging and Idle Detection ✅
-- [x] `test_task_merging.sh` - Test task merging logic (347 lines, 4 test cases)
+- [x] `test_task_merging.sh` - Test task merging logic (356 lines, 4 test cases)
   - Test 1: Timestamp preservation across monitoring cycles
   - Test 2: Merge condition verification (same PID + same ctxsw)
   - Test 3: No merge when task makes progress (ctxsw changes)
   - Test 4: Per-CPU independent task merging
+  - Includes DL-server detection and skip (exit 77) if present
+  - Fixed empty variable handling and comparison errors
 - [x] `test_idle_detection.sh` - Test idle CPU detection (274 lines, 5 test cases)
   - Test 1: Idle CPUs skipped (no parsing overhead)
   - Test 2: /proc/stat idle time parsing verification
@@ -392,10 +398,13 @@ This document tracks the comprehensive test suite implementation for stalld.
 ### Prerequisites
 - Root privileges (most tests)
 - RT throttling disabled: `echo -1 > /proc/sys/kernel/sched_rt_runtime_us`
+  - **Note**: Test runner automatically saves and disables RT throttling
 - stalld built: `make` in project root
 - Kernel version 3.10+ (older untested)
 
 ### Optional
+- DL-server disabled (for starvation detection tests on Linux 6.6+)
+  - **Note**: Use `./run_tests.sh --disable-dl-server` to automatically disable
 - systemd (for systemd integration tests)
 - Multiple CPU cores (for multi-CPU tests)
 - eBPF support (for backend comparison tests)
@@ -414,12 +423,22 @@ make test-unit
 make test-functional
 make test-integration
 
+# Run with DL-server disabled (for Linux 6.6+ kernels)
+cd tests && ./run_tests.sh --disable-dl-server
+
+# Combine options
+cd tests && ./run_tests.sh --functional-only --disable-dl-server
+
 # Run individual tests
 cd tests && functional/test_foreground.sh
-
-# Run with verbose output
-cd tests && ./run_tests.sh -v
 ```
+
+### Test Runner Options
+- `--unit-only` - Run only unit tests
+- `--functional-only` - Run only functional tests
+- `--integration-only` - Run only integration tests
+- `--disable-dl-server` - Disable kernel DL-server before tests (Linux 6.6+)
+- `-h, --help` - Show help message
 
 ---
 
@@ -445,6 +464,24 @@ When adding new tests:
 - **man/stalld.8** - Complete command-line reference
 
 ---
+
+---
+
+## Recent Updates
+
+### 2025-10-06 - DL-server Management and Test Fixes
+- **Added DL-server save/disable/restore support**
+  - `test_helpers.sh`: Added save_dl_server(), restore_dl_server(), disable_dl_server()
+  - `run_tests.sh`: Added --disable-dl-server command-line option
+  - Automatic state restoration on test completion/interruption
+  - Enables testing stalld starvation detection on Linux 6.6+ kernels
+- **Fixed test_task_merging.sh**
+  - Added DL-server detection with skip (exit 77) when present
+  - Fixed empty variable comparison errors ("unary operator expected")
+  - Improved error handling for missing starvation detections
+- **Enhanced RT throttling management**
+  - Test runner now automatically saves and restores RT throttling
+  - No manual RT throttling configuration required
 
 *Last Updated: 2025-10-06*
 *Status: Phases 1-3 Complete, Phase 4 Pending*
