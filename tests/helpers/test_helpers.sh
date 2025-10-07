@@ -225,6 +225,9 @@ cleanup() {
 	# Remove temp files
 	rm -f /tmp/stalld_test_* 2>/dev/null
 
+	# Restore DL-server if it was saved
+	restore_dl_server
+
 	# Restore RT throttling if it was saved
 	restore_rt_throttling
 }
@@ -329,6 +332,117 @@ save_rt_throttling() {
 	fi
 }
 
+# DL-server state management
+declare -A SAVED_DL_SERVER_RUNTIME
+
+# Save current DL-server state for all CPUs
+save_dl_server() {
+	local dl_server_dir="/sys/kernel/debug/sched/fair_server"
+
+	if [ ! -d "${dl_server_dir}" ]; then
+		return 0  # DL-server not present, nothing to save
+	fi
+
+	echo "Saving DL-server state for all CPUs..."
+	local cpu_count=0
+
+	for cpu_dir in "${dl_server_dir}"/cpu*; do
+		if [ -d "${cpu_dir}" ]; then
+			local cpu=$(basename "${cpu_dir}")
+			local runtime_file="${cpu_dir}/runtime"
+
+			if [ -f "${runtime_file}" ]; then
+				SAVED_DL_SERVER_RUNTIME["${cpu}"]=$(cat "${runtime_file}" 2>/dev/null)
+				if [ $? -eq 0 ]; then
+					cpu_count=$((cpu_count + 1))
+				fi
+			fi
+		fi
+	done
+
+	if [ ${cpu_count} -gt 0 ]; then
+		echo "Saved DL-server state for ${cpu_count} CPUs"
+		return 0
+	else
+		echo -e "${YELLOW}WARNING: No DL-server runtime files found${NC}"
+		return 1
+	fi
+}
+
+# Restore DL-server state for all CPUs
+restore_dl_server() {
+	local dl_server_dir="/sys/kernel/debug/sched/fair_server"
+
+	if [ ! -d "${dl_server_dir}" ]; then
+		return 0  # DL-server not present, nothing to restore
+	fi
+
+	if [ ${#SAVED_DL_SERVER_RUNTIME[@]} -eq 0 ]; then
+		return 0  # Nothing was saved
+	fi
+
+	echo "Restoring DL-server state..."
+	local cpu_count=0
+
+	for cpu in "${!SAVED_DL_SERVER_RUNTIME[@]}"; do
+		local runtime_file="${dl_server_dir}/${cpu}/runtime"
+		local saved_value="${SAVED_DL_SERVER_RUNTIME[${cpu}]}"
+
+		if [ -f "${runtime_file}" ]; then
+			echo "${saved_value}" > "${runtime_file}" 2>/dev/null
+			if [ $? -eq 0 ]; then
+				cpu_count=$((cpu_count + 1))
+			else
+				echo -e "${YELLOW}WARNING: Failed to restore ${cpu}/runtime${NC}"
+			fi
+		fi
+	done
+
+	if [ ${cpu_count} -gt 0 ]; then
+		echo "Restored DL-server state for ${cpu_count} CPUs"
+	fi
+
+	# Clear saved state
+	unset SAVED_DL_SERVER_RUNTIME
+	declare -gA SAVED_DL_SERVER_RUNTIME
+}
+
+# Disable DL-server for all CPUs (set runtime to 0)
+disable_dl_server() {
+	local dl_server_dir="/sys/kernel/debug/sched/fair_server"
+
+	if [ ! -d "${dl_server_dir}" ]; then
+		return 0  # DL-server not present, nothing to disable
+	fi
+
+	echo "Disabling DL-server for all CPUs..."
+	local cpu_count=0
+
+	for cpu_dir in "${dl_server_dir}"/cpu*; do
+		if [ -d "${cpu_dir}" ]; then
+			local cpu=$(basename "${cpu_dir}")
+			local runtime_file="${cpu_dir}/runtime"
+
+			if [ -f "${runtime_file}" ]; then
+				echo 0 > "${runtime_file}" 2>/dev/null
+				if [ $? -eq 0 ]; then
+					cpu_count=$((cpu_count + 1))
+				else
+					echo -e "${YELLOW}WARNING: Failed to disable ${cpu}/runtime${NC}"
+				fi
+			fi
+		fi
+	done
+
+	if [ ${cpu_count} -gt 0 ]; then
+		echo "Disabled DL-server for ${cpu_count} CPUs"
+		return 0
+	else
+		echo -e "${RED}ERROR: Failed to disable DL-server${NC}"
+		return 1
+	fi
+}
+
 # Restore RT throttling state
 restore_rt_throttling() {
 	if [ -n "${SAVED_RT_RUNTIME}" ] && [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
@@ -400,4 +514,5 @@ export -f get_thread_policy get_thread_priority
 export -f create_cpu_load
 export -f require_root check_rt_throttling
 export -f save_rt_throttling restore_rt_throttling disable_rt_throttling
+export -f save_dl_server restore_dl_server disable_dl_server
 export -f get_num_cpus get_online_cpus pick_test_cpu

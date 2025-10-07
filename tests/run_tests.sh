@@ -13,11 +13,17 @@ STALLD_BIN="${TEST_ROOT}/../stalld"
 RESULTS_DIR="${TEST_ROOT}/results"
 LOG_FILE="${RESULTS_DIR}/test_run_$(date +%Y%m%d_%H%M%S).log"
 
-# Source test helpers for RT throttling management
+# Source test helpers for RT throttling and DL-server management
 source "${TEST_ROOT}/helpers/test_helpers.sh" 2>/dev/null || true
 
 # RT throttling state
 SAVED_RT_RUNTIME=""
+
+# DL-server state
+declare -A SAVED_DL_SERVER_RUNTIME
+
+# Configuration flags
+DISABLE_DL_SERVER=0
 
 # Test categories
 declare -a UNIT_TESTS
@@ -73,6 +79,61 @@ save_and_disable_rt_throttling() {
 	echo "" | tee -a "${LOG_FILE}"
 }
 
+# Save and disable DL-server
+save_and_disable_dl_server() {
+	local dl_server_dir="/sys/kernel/debug/sched/fair_server"
+
+	if [ ! -d "${dl_server_dir}" ]; then
+		return 0  # DL-server not present
+	fi
+
+	echo -e "${BLUE}Saving DL-server state for all CPUs...${NC}" | tee -a "${LOG_FILE}"
+	local cpu_count=0
+
+	for cpu_dir in "${dl_server_dir}"/cpu*; do
+		if [ -d "${cpu_dir}" ]; then
+			local cpu=$(basename "${cpu_dir}")
+			local runtime_file="${cpu_dir}/runtime"
+
+			if [ -f "${runtime_file}" ]; then
+				SAVED_DL_SERVER_RUNTIME["${cpu}"]=$(cat "${runtime_file}" 2>/dev/null)
+				if [ $? -eq 0 ]; then
+					cpu_count=$((cpu_count + 1))
+				fi
+			fi
+		fi
+	done
+
+	if [ ${cpu_count} -gt 0 ]; then
+		echo -e "${GREEN}Saved DL-server state for ${cpu_count} CPUs${NC}" | tee -a "${LOG_FILE}"
+
+		# Now disable DL-server
+		echo -e "${BLUE}Disabling DL-server for all CPUs...${NC}" | tee -a "${LOG_FILE}"
+		local disabled_count=0
+
+		for cpu_dir in "${dl_server_dir}"/cpu*; do
+			if [ -d "${cpu_dir}" ]; then
+				local cpu=$(basename "${cpu_dir}")
+				local runtime_file="${cpu_dir}/runtime"
+
+				if [ -f "${runtime_file}" ]; then
+					echo 0 > "${runtime_file}" 2>/dev/null
+					if [ $? -eq 0 ]; then
+						disabled_count=$((disabled_count + 1))
+					fi
+				fi
+			fi
+		done
+
+		if [ ${disabled_count} -gt 0 ]; then
+			echo -e "${GREEN}Disabled DL-server for ${disabled_count} CPUs${NC}" | tee -a "${LOG_FILE}"
+		else
+			echo -e "${YELLOW}WARNING: Failed to disable DL-server${NC}" | tee -a "${LOG_FILE}"
+		fi
+	fi
+	echo "" | tee -a "${LOG_FILE}"
+}
+
 # Restore RT throttling
 restore_rt_throttling_state() {
 	if [ -n "${SAVED_RT_RUNTIME}" ] && [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
@@ -86,9 +147,44 @@ restore_rt_throttling_state() {
 	fi
 }
 
+# Restore DL-server
+restore_dl_server_state() {
+	local dl_server_dir="/sys/kernel/debug/sched/fair_server"
+
+	if [ ! -d "${dl_server_dir}" ]; then
+		return 0  # DL-server not present
+	fi
+
+	if [ ${#SAVED_DL_SERVER_RUNTIME[@]} -eq 0 ]; then
+		return 0  # Nothing was saved
+	fi
+
+	echo -e "\n${BLUE}Restoring DL-server state...${NC}"
+	local cpu_count=0
+
+	for cpu in "${!SAVED_DL_SERVER_RUNTIME[@]}"; do
+		local runtime_file="${dl_server_dir}/${cpu}/runtime"
+		local saved_value="${SAVED_DL_SERVER_RUNTIME[${cpu}]}"
+
+		if [ -f "${runtime_file}" ]; then
+			echo "${saved_value}" > "${runtime_file}" 2>/dev/null
+			if [ $? -eq 0 ]; then
+				cpu_count=$((cpu_count + 1))
+			else
+				echo -e "${YELLOW}WARNING: Failed to restore ${cpu}/runtime${NC}"
+			fi
+		fi
+	done
+
+	if [ ${cpu_count} -gt 0 ]; then
+		echo -e "${GREEN}Restored DL-server state for ${cpu_count} CPUs${NC}"
+	fi
+}
+
 # Cleanup function
 cleanup_runner() {
 	if [ $EUID -eq 0 ]; then
+		restore_dl_server_state
 		restore_rt_throttling_state
 	fi
 }
@@ -106,6 +202,11 @@ init_tests() {
 	# Save and disable RT throttling if running as root
 	if [ $EUID -eq 0 ]; then
 		save_and_disable_rt_throttling
+
+		# Save and disable DL-server if requested
+		if [ ${DISABLE_DL_SERVER} -eq 1 ]; then
+			save_and_disable_dl_server
+		fi
 	fi
 
 	# Check prerequisites
@@ -312,6 +413,10 @@ while [[ $# -gt 0 ]]; do
 			INTEGRATION_ONLY=1
 			shift
 			;;
+		--disable-dl-server)
+			DISABLE_DL_SERVER=1
+			shift
+			;;
 		-h|--help)
 			echo "Usage: $0 [OPTIONS]"
 			echo ""
@@ -319,6 +424,8 @@ while [[ $# -gt 0 ]]; do
 			echo "  --unit-only          Run only unit tests"
 			echo "  --functional-only    Run only functional tests"
 			echo "  --integration-only   Run only integration tests"
+			echo "  --disable-dl-server  Disable DL-server before running tests"
+			echo "                       (allows testing stalld starvation detection)"
 			echo "  -h, --help           Show this help"
 			exit 0
 			;;
