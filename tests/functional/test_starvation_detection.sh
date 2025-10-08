@@ -11,9 +11,32 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
+# Parse command-line options
+parse_test_options "$@" || exit $?
+
 # Helper function for logging test steps
 log() {
     echo "[$(date +'%H:%M:%S')] $*"
+}
+
+# Helper to start stalld with output redirected to a file
+start_stalld_with_log() {
+    local log_file="$1"
+    shift
+    local args="$@"
+
+    # Build stalld command with backend option if specified
+    local stalld_args="$args"
+    if [ -n "${STALLD_TEST_BACKEND}" ]; then
+        stalld_args="-b ${STALLD_TEST_BACKEND} ${stalld_args}"
+        echo "Using backend: ${STALLD_TEST_BACKEND}"
+    fi
+
+    # Start stalld with output redirected
+    ${TEST_ROOT}/../stalld ${stalld_args} > "${log_file}" 2>&1 &
+    STALLD_PID=$!
+    CLEANUP_PIDS+=("${STALLD_PID}")
+    sleep 1
 }
 
 # Helper to get context switch count for a PID
@@ -69,7 +92,7 @@ log "=========================================="
 
 threshold=5
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Create starvation for longer than threshold
 starvation_duration=$((threshold + 5))
@@ -125,7 +148,7 @@ log "=========================================="
 rm -f "${STALLD_LOG}"
 threshold=5
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -184,7 +207,7 @@ rm -f "${STALLD_LOG}"
 threshold=3
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 log "Will monitor for multiple detection cycles to verify timestamp preservation"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Create long starvation to trigger multiple detection cycles
 starvation_duration=15
@@ -257,7 +280,7 @@ else
 
     rm -f "${STALLD_LOG}"
     threshold=5
-    start_stalld -f -v -l -t $threshold -c ${CPU0},${CPU1} > "${STALLD_LOG}" 2>&1
+    start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${CPU0},${CPU1}
 
     # Create starvation on CPU0
     log "Creating starvation on CPU ${CPU0}"
@@ -308,7 +331,7 @@ log "=========================================="
 rm -f "${STALLD_LOG}"
 threshold=5
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Create a task that gets CPU time but isn't starved
 # Use a SCHED_OTHER task with lower priority that still gets scheduled
@@ -352,7 +375,7 @@ log "=========================================="
 rm -f "${STALLD_LOG}"
 threshold=10
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Create short-lived starvation that exits before threshold
 log "Creating short-lived starvation (3s, less than ${threshold}s threshold)"
