@@ -32,6 +32,32 @@ else
 	NC=''
 fi
 
+# Parse common test options
+# Usage: parse_test_options "$@"
+# This function should be called at the beginning of each test script
+parse_test_options() {
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+			-b|--backend)
+				export STALLD_TEST_BACKEND="$2"
+				shift 2
+				;;
+			-h|--help)
+				echo "Common test options:"
+				echo "  -b, --backend <name>  Backend to use (sched_debug|S or queue_track|Q)"
+				echo "  -h, --help            Show this help"
+				return 1
+				;;
+			*)
+				echo "Unknown option: $1"
+				echo "Usage: $0 [-b|--backend <backend>] [-h|--help]"
+				return 1
+				;;
+		esac
+	done
+	return 0
+}
+
 # Start a test
 start_test() {
 	TEST_NAME=$1

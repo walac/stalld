@@ -10,6 +10,9 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
+# Parse command-line options
+parse_test_options "$@" || exit $?
+
 start_test "Log-only Mode"
 
 # Require root for this test
@@ -43,7 +46,15 @@ sleep 1
 
 # Start stalld in log-only mode with verbose output to capture logs
 echo "Starting stalld in log-only mode with 5 second threshold"
-${TEST_ROOT}/../stalld -f -v -l -t 5 -c ${TEST_CPU} > "${LOG_FILE}" 2>&1 &
+
+# Build stalld command with backend option if specified
+STALLD_ARGS="-f -v -l -t 5 -c ${TEST_CPU}"
+if [ -n "${STALLD_TEST_BACKEND}" ]; then
+	STALLD_ARGS="-b ${STALLD_TEST_BACKEND} ${STALLD_ARGS}"
+	echo "Using backend: ${STALLD_TEST_BACKEND}"
+fi
+
+${TEST_ROOT}/../stalld ${STALLD_ARGS} > "${LOG_FILE}" 2>&1 &
 STALLD_PID=$!
 CLEANUP_PIDS+=("${STALLD_PID}")
 sleep 2

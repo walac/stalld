@@ -34,6 +34,21 @@ make test-integration    # Integration tests only
 ./run_tests.sh
 ./run_tests.sh --unit-only
 ./run_tests.sh --functional-only
+
+# Test with specific backend (applies to ALL tests)
+./run_tests.sh --backend sched_debug    # Force procfs backend
+./run_tests.sh --backend queue_track    # Force eBPF backend
+./run_tests.sh -b S                     # Short form for sched_debug
+./run_tests.sh -b Q                     # Short form for queue_track
+
+# Disable DL-server for starvation testing
+./run_tests.sh --disable-dl-server
+
+# Run individual test with backend selection
+cd functional
+sudo ./test_log_only.sh                 # Uses default backend
+sudo ./test_log_only.sh -b sched_debug  # Uses procfs backend
+sudo ./test_log_only.sh -b Q            # Uses eBPF backend
 ```
 
 ## Test Organization
@@ -69,12 +84,16 @@ tests/
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
+# Parse command-line options (supports -b/--backend)
+parse_test_options "$@" || exit $?
+
 start_test "Your Test Name"
 
 # Require root if needed
 require_root
 
 # Your test logic here
+# start_stalld automatically uses STALLD_TEST_BACKEND if set
 start_stalld -f -v -l -t 5
 assert_process_running "${STALLD_PID}" "stalld should be running"
 
@@ -83,6 +102,8 @@ stop_stalld
 
 end_test
 ```
+
+**Note**: If your test directly invokes stalld (not using `start_stalld`), check `STALLD_TEST_BACKEND` and add `-b ${STALLD_TEST_BACKEND}` to the command line. See `test_log_only.sh` for an example.
 
 ### Unit Test Template (C)
 
