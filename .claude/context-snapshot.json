@@ -1,0 +1,142 @@
+{
+  "timestamp": "2025-10-08T16:03:00-05:00",
+  "session": "Recovery and Test Backend Selection Implementation",
+  "branch": "tests",
+  "commits_ahead_of_main": 28,
+  "latest_commit": {
+    "hash": "2fcb2cf6a7890108a87f20c0cacb1b372c2d7488",
+    "message": "tests: Add backend selection support to individual tests",
+    "files_changed": [
+      "tests/README.md",
+      "tests/functional/test_log_only.sh",
+      "tests/helpers/test_helpers.sh"
+    ]
+  },
+  "recent_work": {
+    "completed": [
+      {
+        "task": "Recovered from crash",
+        "description": "Identified uncommitted changes for backend selection in individual tests"
+      },
+      {
+        "task": "Built stalld",
+        "description": "Clean build with make clean && make, eBPF enabled"
+      },
+      {
+        "task": "Tested backend selection",
+        "description": "Verified parse_test_options() and test_log_only.sh with multiple backends",
+        "tests_run": [
+          "test_log_only.sh (default backend)",
+          "test_log_only.sh -b sched_debug",
+          "test_log_only.sh -b queue_track",
+          "test_log_only.sh -b S (short form)",
+          "test_log_only.sh -h (help)"
+        ],
+        "result": "All tests passed"
+      },
+      {
+        "task": "Committed changes",
+        "description": "Created commit with sign-off for backend selection feature"
+      }
+    ]
+  },
+  "project_state": {
+    "current_phase": "Test Suite Development - Phase 1 Complete + Extensions",
+    "test_coverage": {
+      "phase_1_complete": [
+        "test01.c - Fixed original starvation test",
+        "test_foreground.sh - Tests -f flag",
+        "test_log_only.sh - Tests -l flag with backend selection support",
+        "test_logging_destinations.sh - Tests -v, -k, -s flags"
+      ],
+      "infrastructure_added": [
+        "run_tests.sh - Main test orchestrator with backend selection (all tests)",
+        "test_helpers.sh - Helper library with parse_test_options() for per-test backend selection",
+        "starvation_gen.c - Configurable starvation generator"
+      ],
+      "new_feature": "Individual test backend selection via -b/--backend flag"
+    },
+    "build_status": "Clean build successful, USE_BPF=1, x86_64",
+    "rt_throttling": "Disabled (-1)"
+  },
+  "implementation_details": {
+    "backend_selection": {
+      "levels": [
+        {
+          "scope": "All tests",
+          "method": "./run_tests.sh --backend <name>",
+          "description": "Applies backend to entire test run"
+        },
+        {
+          "scope": "Individual test",
+          "method": "./test_script.sh -b <name>",
+          "description": "Applies backend to single test script",
+          "implementation": "parse_test_options() exports STALLD_TEST_BACKEND"
+        }
+      ],
+      "supported_backends": [
+        "sched_debug (procfs backend)",
+        "queue_track (eBPF backend)",
+        "S (short form for sched_debug)",
+        "Q (short form for queue_track)"
+      ]
+    },
+    "files_modified": {
+      "tests/helpers/test_helpers.sh": {
+        "changes": [
+          "Added parse_test_options() function (26 lines)",
+          "Handles -b/--backend and -h/--help flags",
+          "Exports STALLD_TEST_BACKEND environment variable"
+        ]
+      },
+      "tests/functional/test_log_only.sh": {
+        "changes": [
+          "Added parse_test_options() call at startup",
+          "Checks STALLD_TEST_BACKEND and constructs stalld command with -b flag",
+          "Prints 'Using backend: X' when backend specified"
+        ]
+      },
+      "tests/README.md": {
+        "changes": [
+          "Added section on individual test backend selection",
+          "Documented usage examples with -b flag",
+          "Clarified difference between run_tests.sh vs individual test backend selection",
+          "Added note about direct stalld invocation in custom tests"
+        ]
+      }
+    }
+  },
+  "next_steps": {
+    "immediate": [
+      "Consider applying parse_test_options() to other functional tests",
+      "Continue with Phase 2 test development (command-line options)",
+      "Consider extending to Phase 3 (core logic tests)"
+    ],
+    "testing_roadmap": {
+      "phase_2_planned": [
+        "Monitoring options: -c (CPU selection), -t (starvation threshold)",
+        "Boosting options: -p (period), -r (runtime), -d (duration), -F (force FIFO)",
+        "Daemon options: -P (pidfile), -a (affinity)"
+      ],
+      "phase_3_planned": [
+        "Starvation detection verification",
+        "SCHED_DEADLINE boosting verification",
+        "SCHED_FIFO boosting verification",
+        "Task merging logic",
+        "Idle detection"
+      ],
+      "phase_4_planned": [
+        "Threading modes (adaptive vs aggressive)",
+        "Filtering (-i, -I options)",
+        "Backend comparison (eBPF vs procfs)",
+        "Integration and stress tests"
+      ]
+    }
+  },
+  "notes": {
+    "recovery_context": "Session recovered after crash. User had uncommitted changes for individual test backend selection feature.",
+    "testing_approach": "Comprehensive testing with multiple backends confirmed feature works correctly",
+    "code_quality": "Clean implementation following existing patterns in test_helpers.sh",
+    "documentation": "Well-documented in README.md with clear examples"
+  }
+}
