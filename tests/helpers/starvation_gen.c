@@ -214,13 +214,15 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	ret = pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+	/* Blockees should be SCHED_FIFO with priority 1 (lower than blocker)
+	 * to create actual RT starvation that stalld can detect */
+	ret = pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
 	if (ret != 0) {
 		fprintf(stderr, "pthread_attr_setschedpolicy (blockee) failed: %s\n", strerror(ret));
 		exit(1);
 	}
 
-	param.sched_priority = 0;
+	param.sched_priority = 1;
 	ret = pthread_attr_setschedparam(&attr, &param);
 	if (ret != 0) {
 		fprintf(stderr, "pthread_attr_setschedparam (blockee) failed: %s\n", strerror(ret));
