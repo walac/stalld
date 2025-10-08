@@ -51,17 +51,18 @@ void *blocker_thread(void *arg) {
 
 void *blockee_thread(void *arg) {
 	int id = *(int*)arg;
+	volatile unsigned long counter = 0;
 
 	if (cfg.verbose)
 		printf("[blockee %d] Started - will starve\n", id);
 
-	/* Try to run but will be starved by blocker */
+	/* Busy loop to stay on runqueue - will be starved by higher priority blocker */
 	while (running) {
-		usleep(1000);  /* Try to sleep but will be preempted */
+		counter++;  /* Keep thread runnable but it won't get CPU due to blocker */
 	}
 
 	if (cfg.verbose)
-		printf("[blockee %d] Exiting\n", id);
+		printf("[blockee %d] Exiting after %lu iterations\n", id, counter);
 
 	return NULL;
 }

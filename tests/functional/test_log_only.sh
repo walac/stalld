@@ -26,30 +26,37 @@ TEST_CPU=$(pick_test_cpu)
 echo "Using CPU ${TEST_CPU} for testing"
 
 # Test: stalld with -l should log starvation but not boost
-echo "Starting stalld in log-only mode with 5 second threshold"
 
 # Create a temp log file for stalld output
 LOG_FILE="/tmp/stalld_test_log_only_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
 
+echo "Creating starvation on CPU ${TEST_CPU} (will run for 15 seconds)"
+
+# Start starvation generator BEFORE stalld to ensure CPU is busy from the start
+${TEST_ROOT}/helpers/starvation_gen -c ${TEST_CPU} -p 10 -n 1 -d 15 &
+STARVGEN_PID=$!
+CLEANUP_PIDS+=("${STARVGEN_PID}")
+
+# Give the starvation generator time to start and monopolize the CPU
+sleep 1
+
 # Start stalld in log-only mode with verbose output to capture logs
-start_stalld -f -v -l -t 5 -c ${TEST_CPU} > "${LOG_FILE}" 2>&1 &
+echo "Starting stalld in log-only mode with 5 second threshold"
+${TEST_ROOT}/../stalld -f -v -l -t 5 -c ${TEST_CPU} > "${LOG_FILE}" 2>&1 &
+STALLD_PID=$!
+CLEANUP_PIDS+=("${STALLD_PID}")
 sleep 2
 
 # Verify stalld is running
 if ! assert_process_running "${STALLD_PID}" "stalld should be running"; then
 	echo "Failed to start stalld, aborting test"
+	echo "Log contents:"
+	cat "${LOG_FILE}"
 	end_test
 	exit 1
 fi
-
-echo ""
-echo "Creating starvation on CPU ${TEST_CPU} for 10 seconds"
-
-# Create starvation condition
-../helpers/starvation_gen -c ${TEST_CPU} -p 10 -n 1 -d 10 &
-STARVGEN_PID=$!
-CLEANUP_PIDS+=("${STARVGEN_PID}")
+echo "stalld started with PID ${STALLD_PID}"
 
 echo "Starvation generator started (PID ${STARVGEN_PID})"
 echo "Waiting 7 seconds for starvation detection..."
