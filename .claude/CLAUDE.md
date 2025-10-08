@@ -2,12 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Important: Read Project Rules First
+## Important: Read These Files First
 
-**ALWAYS read `.claude/rules` at the start of every session.** This file contains critical project-specific rules including:
-- Which agents to use for specific tasks (git-scm-master, c-expert, test-specialist, plan-validator)
-- Workflow requirements and best practices
-- Project conventions and standards
+At the start of every session, **ALWAYS read these files in order**:
+
+1. **`.claude/rules`** - Critical project-specific rules including:
+   - Which agents to use for specific tasks (git-scm-master, c-expert, test-specialist, plan-validator)
+   - Workflow requirements and best practices
+   - Project conventions and standards
+
+2. **`.claude/context-snapshot.json`** - Session context and progress tracking:
+   - Recent work and completed tasks
+   - Current project state and test coverage
+   - Implementation details and next steps
+   - Notes from previous sessions
 
 ## Overview
 
