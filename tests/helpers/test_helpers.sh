@@ -227,16 +227,19 @@ cleanup() {
 	done
 
 	# Kill any starvation generators
-	pkill -f starvation_gen 2>/dev/null
+	pkill -f starvation_gen 2>/dev/null || true
 
 	# Remove temp files
-	rm -f /tmp/stalld_test_* 2>/dev/null
+	rm -f /tmp/stalld_test_* 2>/dev/null || true
 
 	# Restore DL-server if it was saved
-	restore_dl_server
+	restore_dl_server || true
 
 	# Restore RT throttling if it was saved
-	restore_rt_throttling
+	restore_rt_throttling || true
+
+	# Exit with the original exit code
+	exit ${exit_code}
 }
 
 # Signal handler for interrupts
