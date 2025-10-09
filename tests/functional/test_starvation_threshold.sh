@@ -53,7 +53,7 @@ log "=========================================="
 
 threshold=5
 log "Starting stalld with ${threshold}s threshold"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -N -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG}" 2>&1
 
 # Create starvation that will last 10 seconds
 starvation_duration=10
@@ -95,7 +95,7 @@ threshold=10
 log "Starting stalld with ${threshold}s threshold"
 STALLD_LOG2="/tmp/stalld_test_threshold_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG2}" 2>&1
+start_stalld -f -v -N -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG2}" 2>&1
 
 # Create starvation that will last 6 seconds (less than threshold)
 starvation_duration=6
@@ -141,7 +141,7 @@ threshold=3
 log "Starting stalld with ${threshold}s threshold"
 STALLD_LOG3="/tmp/stalld_test_threshold_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG3}" 2>&1
+start_stalld -f -v -N -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG3}" 2>&1
 
 # Create starvation for 8 seconds
 starvation_duration=8
