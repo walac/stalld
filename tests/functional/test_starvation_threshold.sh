@@ -93,8 +93,9 @@ log "=========================================="
 
 threshold=10
 log "Starting stalld with ${threshold}s threshold"
-rm -f "${STALLD_LOG}"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG}" 2>&1
+STALLD_LOG2="/tmp/stalld_test_threshold_test2_$$.log"
+CLEANUP_FILES+=("${STALLD_LOG2}")
+start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG2}" 2>&1
 
 # Create starvation that will last 6 seconds (less than threshold)
 starvation_duration=6
@@ -106,13 +107,19 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 # Wait for starvation duration + small buffer
 sleep 8
 
+# Wait for starvation generator to fully complete
+wait "${STARVE_PID}" 2>/dev/null || true
+
+# Give stalld time to process and log (if it were to detect)
+sleep 2
+
 # Check that starvation was NOT detected (it ended before threshold)
-if ! grep -q "starved\|starving" "${STALLD_LOG}"; then
+if ! grep -q "starved\|starving" "${STALLD_LOG2}"; then
     log "✓ PASS: No starvation detected for duration less than threshold"
 else
     log "✗ FAIL: Starvation detected before threshold"
     log "Log contents:"
-    cat "${STALLD_LOG}"
+    cat "${STALLD_LOG2}"
     TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
@@ -132,8 +139,9 @@ log "=========================================="
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold"
-rm -f "${STALLD_LOG}"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG}" 2>&1
+STALLD_LOG3="/tmp/stalld_test_threshold_test3_$$.log"
+CLEANUP_FILES+=("${STALLD_LOG3}")
+start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG3}" 2>&1
 
 # Create starvation for 8 seconds
 starvation_duration=8
@@ -147,7 +155,7 @@ wait_time=$((threshold + 2))
 sleep ${wait_time}
 
 # Check if starvation was detected
-if grep -q "starved\|starving" "${STALLD_LOG}"; then
+if grep -q "starved\|starving" "${STALLD_LOG3}"; then
     log "✓ PASS: Starvation detected with ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected with ${threshold}s threshold"
