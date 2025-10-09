@@ -37,7 +37,7 @@ for the application monopolizing the CPU.
 stalld/
 ├── src/               # Main source code (5 C files)
 │   ├── stalld.c      # Main daemon logic (1,218 LOC), entry point, boosting
-│   ├── sched_debug.c # Procfs backend for parsing /proc|sys/.../sched/debug
+│   ├── sched_debug.c # debugfs/procfs backend for parsing /sys/.../debug or /proc sched_debug
 │   ├── queue_track.c # eBPF backend for BPF-based task tracking
 │   ├── utils.c       # Utilities: logging, CPU parsing, argument parsing
 │   ├── throttling.c  # RT throttling detection and control
@@ -82,8 +82,8 @@ stalld/
 - sched_debug path detection: `find_sched_debug_path()`
 - Buffer resizing and memory allocation
 
-**src/sched_debug.c** - Procfs backend
-- Parses `/sys/kernel/debug/sched/debug` or `/proc/sched_debug`
+**src/sched_debug.c** - debugfs/procfs backend
+- Parses `/sys/kernel/debug/sched/debug` (debugfs) or `/proc/sched_debug` (procfs, older kernels)
 - Auto-detects kernel format (3.x, 4.18+, 6.12+)
 - Implements `sched_debug_backend` interface defined in stalld.h
 - Fallback when eBPF unavailable (i686, powerpc, ppc64le, legacy kernels)
@@ -116,7 +116,7 @@ stalld/
 3. Check for DL-server presence (newer kernels have built-in starvation handling)
 4. **Verify RT throttling is disabled** (die if enabled, unless systemd manages it)
 5. **Detect boost method**: Try SCHED_DEADLINE first, fall back to SCHED_FIFO if unavailable
-6. Initialize backend: `queue_track_backend` (eBPF) or `sched_debug_backend` (procfs)
+6. Initialize backend: `queue_track_backend` (eBPF) or `sched_debug_backend` (debugfs/procfs)
 7. Allocate per-CPU info structures
 8. Setup signal handling
 9. Daemonize (unless `-f/--foreground`)
@@ -166,6 +166,9 @@ stalld/
 - `-k/--log_kmsg`: Log to kernel buffer (dmesg)
 - `-s/--log_syslog`: Log to syslog (default: true)
 - `-l/--log_only`: Only log, don't boost (testing mode)
+
+**Backend:**
+- `-b/--backend <name>`: Select backend (sched_debug, queue_track, S, Q)
 
 **Daemon:**
 - `-f/--foreground`: Run in foreground (don't daemonize)
@@ -222,20 +225,48 @@ make test-integration    # Integration tests only
 # Run individual tests
 cd tests && ./run_tests.sh --functional-only
 cd tests && functional/test_foreground.sh
+
+# Run tests with specific backend
+cd tests && ./run_tests.sh --backend sched_debug     # Use debugfs/procfs backend for all tests
+cd tests && functional/test_log_only.sh -b queue_track  # Use eBPF backend for one test
 ```
 
 **Test Infrastructure:**
-- **run_tests.sh** (328 lines): Main test orchestrator with auto-discovery, color-coded output, statistics
-- **helpers/test_helpers.sh** (331 lines): Reusable helper library with 20+ functions for assertions, stalld management, system checks
+- **run_tests.sh** (328 lines): Main test orchestrator with auto-discovery, color-coded output, statistics, backend selection
+- **helpers/test_helpers.sh** (331 lines): Reusable helper library with 20+ functions for assertions, stalld management, system checks, backend selection via `parse_test_options()`
 - **helpers/starvation_gen.c** (267 lines): Configurable starvation generator for controlled testing
 - **Test organization**: `unit/`, `functional/`, `integration/`, `fixtures/`, `results/`
 
+**Backend Selection in Tests:**
+
+Both the test runner and individual test scripts support runtime backend selection:
+
+```bash
+# Run all tests with specific backend
+./run_tests.sh --backend sched_debug    # Use debugfs/procfs backend
+./run_tests.sh --backend queue_track    # Use eBPF backend
+
+# Run individual test with specific backend
+./functional/test_log_only.sh -b sched_debug
+./functional/test_log_only.sh -b S      # Short form for sched_debug
+./functional/test_log_only.sh -b Q      # Short form for queue_track
+
+# Show test-specific help
+./functional/test_log_only.sh -h
+```
+
+Supported backends:
+- `sched_debug` or `S`: debugfs/procfs backend (parses /sys/kernel/debug/sched/debug or /proc/sched_debug)
+- `queue_track` or `Q`: eBPF backend (uses BPF tracepoints)
+
+Tests use `parse_test_options()` from `test_helpers.sh` to handle backend selection. The backend is passed to stalld via the `-b` flag.
+
 **Current Test Coverage:**
 
-✅ **Phase 1 Complete** (Foundation):
+✅ **Phase 1 Complete** (Foundation - 4 tests):
 - `test01.c` - Fixed original starvation test (7 critical fixes: error handling, buffer safety, memory cleanup)
 - `test_foreground.sh` - Tests `-f` flag prevents daemonization
-- `test_log_only.sh` - Tests `-l` flag logs but doesn't boost
+- `test_log_only.sh` - Tests `-l` flag logs but doesn't boost (supports backend selection)
 - `test_logging_destinations.sh` - Tests `-v`, `-k`, `-s` logging options
 
 🔄 **Phase 2 Planned** (Command-Line Options):
@@ -253,7 +284,7 @@ cd tests && functional/test_foreground.sh
 🔄 **Phase 4 Planned** (Advanced):
 - Threading modes (adaptive vs aggressive)
 - Filtering (`-i`, `-I` options)
-- Backend comparison (eBPF vs procfs)
+- Backend comparison (eBPF vs debugfs/procfs)
 - Integration and stress tests
 
 **Test Requirements:**
@@ -263,6 +294,10 @@ cd tests && functional/test_foreground.sh
 
 **Helper Functions Available:**
 ```bash
+# Test Options Parsing
+parse_test_options "$@"     # Parse -b/--backend and -h/--help flags
+                            # Sets STALLD_TEST_BACKEND environment variable
+
 # Assertions
 assert_equals expected actual "message"
 assert_contains haystack needle "message"
@@ -325,14 +360,14 @@ make clean && make    # Full rebuild after changing build options
 
 ### Understanding Backend Selection
 
-The default backend is chosen **at compile time only** (no runtime fallback):
+**Compile-time default backend** is chosen based on architecture and kernel:
 
 ```c
 // src/stalld.c:158-162
 #if USE_BPF
-    backend = &queue_track_backend;  // eBPF backend
+    backend = &queue_track_backend;  // eBPF backend (default)
 #else
-    backend = &sched_debug_backend;  // Procfs backend
+    backend = &sched_debug_backend;  // debugfs/procfs backend (default)
 #endif
 ```
 
@@ -340,7 +375,20 @@ The default backend is chosen **at compile time only** (no runtime fallback):
 - Architecture (disabled on i686, powerpc, ppc64le)
 - Kernel version (disabled on kernels ≤3.x)
 
-If eBPF is compiled in but BPF programs fail to load at runtime, stalld will fail to start (it won't fall back to sched_debug).
+**Runtime backend selection** (via `-b` flag):
+```bash
+# Force debugfs/procfs backend
+sudo ./stalld -b sched_debug -f -v
+
+# Force eBPF backend
+sudo ./stalld -b queue_track -f -v
+
+# Short forms also supported
+sudo ./stalld -b S -f -v    # sched_debug
+sudo ./stalld -b Q -f -v    # queue_track
+```
+
+If a backend is explicitly requested but unavailable (e.g., eBPF not compiled in, or BPF programs fail to load), stalld will fail to start.
 
 ## Architecture
 
@@ -354,8 +402,8 @@ If eBPF is compiled in but BPF programs fail to load at runtime, stalld will fai
    - More efficient, lower overhead
    - Tracks: `sched_wakeup`, `sched_switch`, `sched_migrate_task`, `sched_process_exit`
 
-2. **sched_debug_backend** (procfs-based, fallback)
-   - Parses `/sys/kernel/debug/sched/debug` or `/proc/sched_debug`
+2. **sched_debug_backend** (debugfs/procfs-based, fallback)
+   - Parses `/sys/kernel/debug/sched/debug` (debugfs) or `/proc/sched_debug` (procfs, older kernels)
    - Source: `src/sched_debug.c`
    - Used on i686, powerpc, ppc64le, and legacy kernels (≤3.x)
    - Handles multiple kernel sched_debug formats (3.x, 4.18+, 6.12+)
@@ -468,7 +516,7 @@ The buffer for sched_debug automatically grows when content increases (src/sched
 
 **Backends:**
 - eBPF backend: `src/queue_track.c` + `bpf/stalld.bpf.c`
-- Procfs backend: `src/sched_debug.c`
+- debugfs/procfs backend: `src/sched_debug.c`
 
 **Configuration:**
 - Argument parsing: `src/utils.c:parse_args()`
