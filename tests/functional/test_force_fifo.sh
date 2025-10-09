@@ -1,233 +1,316 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
+#
 # Test: stalld -F/--force_fifo option
 # Verifies that stalld uses SCHED_FIFO instead of SCHED_DEADLINE when -F is specified
+#
+# Copyright (C) 2025 Red Hat Inc
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "${SCRIPT_DIR}/../helpers/test_helpers.sh"
+# Load test helpers
+TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${TEST_ROOT}/helpers/test_helpers.sh"
 
-test_name="test_force_fifo"
-log_file="${RESULTS_DIR}/${test_name}.log"
+# Parse command-line options
+parse_test_options "$@" || exit $?
 
-# Cleanup function
-cleanup_test() {
-    stop_stalld
-    killall -9 starvation_gen 2>/dev/null
-    log "Test cleanup completed"
+# Helper function for logging test steps
+log() {
+    echo "[$(date +'%H:%M:%S')] $*"
 }
 
-# Run test
-{
-    log "Starting test: Force FIFO (-F option)"
+start_test "Force FIFO Option (-F)"
 
-    require_root
-    check_rt_throttling
+# Require root for this test
+require_root
 
-    # Pick a CPU for testing
-    test_cpu=$(pick_test_cpu)
-    log "Using CPU $test_cpu for testing"
+# Check RT throttling
+if ! check_rt_throttling; then
+    echo -e "${YELLOW}SKIP: RT throttling must be disabled for this test${NC}"
+    exit 77
+fi
 
-    # Check if starvation_gen exists
-    STARVE_GEN="${SCRIPT_DIR}/../helpers/starvation_gen"
-    if [ ! -x "$STARVE_GEN" ]; then
-        log "SKIP: starvation_gen not found or not executable"
-        exit 77
-    fi
+# Pick a CPU for testing
+TEST_CPU=$(pick_test_cpu)
+log "Using CPU ${TEST_CPU} for testing"
 
-    # Test 1: Default behavior (should use SCHED_DEADLINE)
-    log "Test 1: Default behavior (no -F, should use SCHED_DEADLINE)"
-    threshold=3
-    start_stalld -f -v -c "$test_cpu" -t $threshold
+# Setup paths
+STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
+STALLD_LOG="/tmp/stalld_test_force_fifo_$$.log"
+CLEANUP_FILES+=("${STALLD_LOG}")
 
-    # Create starvation
-    log "Creating starvation on CPU $test_cpu"
-    "$STARVE_GEN" -c "$test_cpu" -p 80 -n 2 -d 10 -v >> "$STALLD_LOG" 2>&1 &
-    starve_pid=$!
-    CLEANUP_PIDS+=($starve_pid)
+if [ ! -x "${STARVE_GEN}" ]; then
+    echo -e "${YELLOW}SKIP: starvation_gen not found or not executable${NC}"
+    exit 77
+fi
 
-    # Wait for detection and boosting
-    sleep $((threshold + 2))
+#=============================================================================
+# Test 1: Default behavior (should use SCHED_DEADLINE)
+#=============================================================================
+log ""
+log "=========================================="
+log "Test 1: Default behavior (no -F, should use SCHED_DEADLINE)"
+log "=========================================="
 
-    # Check if boosting occurred and look for DEADLINE mentions
-    if grep -q "boost" "$STALLD_LOG"; then
-        log "Boosting occurred"
+threshold=3
+log "Starting stalld with ${threshold}s threshold (default, no -F)"
+start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
 
-        # Look for SCHED_DEADLINE indicators
-        if grep -qi "deadline\|SCHED_DEADLINE" "$STALLD_LOG"; then
-            log "PASS: SCHED_DEADLINE used by default"
-        elif grep -qi "fifo\|SCHED_FIFO" "$STALLD_LOG"; then
-            log "WARNING: SCHED_FIFO used instead of SCHED_DEADLINE"
-        else
-            log "INFO: Scheduling policy not explicitly mentioned in logs"
-        fi
+# Create starvation
+starvation_duration=10
+log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
+"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
+STARVE_PID=$!
+CLEANUP_PIDS+=("${STARVE_PID}")
+
+# Wait for detection and boosting
+wait_time=$((threshold + 2))
+log "Waiting ${wait_time}s for detection and boosting"
+sleep ${wait_time}
+
+# Check if boosting occurred and look for DEADLINE mentions
+if grep -q "boost" "${STALLD_LOG}"; then
+    log "Boosting occurred"
+
+    # Look for SCHED_DEADLINE indicators
+    if grep -qi "deadline\|SCHED_DEADLINE" "${STALLD_LOG}"; then
+        log "✓ PASS: SCHED_DEADLINE used by default"
+    elif grep -qi "fifo\|SCHED_FIFO" "${STALLD_LOG}"; then
+        log "⚠ WARNING: SCHED_FIFO used instead of SCHED_DEADLINE"
     else
-        log "WARNING: No boosting detected in default mode"
+        log "ℹ INFO: Scheduling policy not explicitly mentioned in logs"
     fi
+else
+    log "⚠ WARNING: No boosting detected in default mode"
+fi
 
-    kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
-    stop_stalld
+# Cleanup
+kill -TERM "${STARVE_PID}" 2>/dev/null
+wait "${STARVE_PID}" 2>/dev/null || true
+stop_stalld
+sleep 1
 
-    # Test 2: Force FIFO mode (-F)
-    log "Test 2: Force FIFO mode (-F)"
+#=============================================================================
+# Test 2: Force FIFO mode (-F)
+#=============================================================================
+log ""
+log "=========================================="
+log "Test 2: Force FIFO mode (-F)"
+log "=========================================="
 
-    # Note: Single-threaded mode only works with SCHED_DEADLINE (dies with FIFO)
-    # So we need to use aggressive mode (-A) when testing FIFO
-    start_stalld -f -v -c "$test_cpu" -t $threshold -F -A
+# Note: Single-threaded mode only works with SCHED_DEADLINE (dies with FIFO)
+# So we need to use aggressive mode (-A) when testing FIFO
+STALLD_LOG2="/tmp/stalld_test_force_fifo_test2_$$.log"
+CLEANUP_FILES+=("${STALLD_LOG2}")
 
-    # Create starvation
-    log "Creating starvation on CPU $test_cpu"
-    "$STARVE_GEN" -c "$test_cpu" -p 80 -n 2 -d 10 -v >> "$STALLD_LOG" 2>&1 &
-    starve_pid=$!
-    CLEANUP_PIDS+=($starve_pid)
+log "Starting stalld with -F flag and aggressive mode (-A)"
+start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A > "${STALLD_LOG2}" 2>&1
 
-    # Wait for detection and boosting
-    sleep $((threshold + 2))
+# Create starvation
+log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
+"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
+STARVE_PID=$!
+CLEANUP_PIDS+=("${STARVE_PID}")
 
-    # Check if boosting occurred and look for FIFO mentions
-    if grep -q "boost" "$STALLD_LOG"; then
-        log "Boosting occurred with -F flag"
+# Wait for detection and boosting
+log "Waiting ${wait_time}s for detection and boosting"
+sleep ${wait_time}
 
-        # Look for SCHED_FIFO indicators
-        if grep -qi "fifo\|SCHED_FIFO" "$STALLD_LOG"; then
-            log "PASS: SCHED_FIFO used with -F flag"
-        elif grep -qi "deadline\|SCHED_DEADLINE" "$STALLD_LOG"; then
-            log "FAIL: SCHED_DEADLINE used despite -F flag"
-            exit 1
-        else
-            log "WARNING: Scheduling policy not explicitly mentioned in logs"
-        fi
+# Check if boosting occurred and look for FIFO mentions
+if grep -q "boost" "${STALLD_LOG2}"; then
+    log "Boosting occurred with -F flag"
+
+    # Look for SCHED_FIFO indicators
+    if grep -qi "fifo\|SCHED_FIFO" "${STALLD_LOG2}"; then
+        log "✓ PASS: SCHED_FIFO used with -F flag"
+    elif grep -qi "deadline\|SCHED_DEADLINE" "${STALLD_LOG2}"; then
+        log "✗ FAIL: SCHED_DEADLINE used despite -F flag"
+        TEST_FAILED=$((TEST_FAILED + 1))
     else
-        log "WARNING: No boosting detected with -F flag"
+        log "⚠ WARNING: Scheduling policy not explicitly mentioned in logs"
     fi
+else
+    log "⚠ WARNING: No boosting detected with -F flag"
+fi
 
-    kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
-    stop_stalld
+# Cleanup
+kill -TERM "${STARVE_PID}" 2>/dev/null
+wait "${STARVE_PID}" 2>/dev/null || true
+stop_stalld
+sleep 1
 
-    # Test 3: Verify FIFO priority setting
-    log "Test 3: Verify FIFO priority is set"
-    start_stalld -f -v -c "$test_cpu" -t $threshold -F -A
+#=============================================================================
+# Test 3: Verify FIFO priority setting
+#=============================================================================
+log ""
+log "=========================================="
+log "Test 3: Verify FIFO priority is set"
+log "=========================================="
 
-    # Create starvation
-    log "Creating starvation on CPU $test_cpu"
-    "$STARVE_GEN" -c "$test_cpu" -p 80 -n 2 -d 10 -v >> "$STALLD_LOG" 2>&1 &
-    starve_pid=$!
-    CLEANUP_PIDS+=($starve_pid)
+STALLD_LOG3="/tmp/stalld_test_force_fifo_test3_$$.log"
+CLEANUP_FILES+=("${STALLD_LOG3}")
 
-    # Wait for detection and boosting
-    sleep $((threshold + 2))
+log "Starting stalld with -F and -A flags"
+start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A > "${STALLD_LOG3}" 2>&1
 
-    # Check logs for priority information
-    if grep -qi "priority\|prio" "$STALLD_LOG"; then
-        log "INFO: Priority information found in logs"
-    fi
+# Create starvation
+log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
+"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
+STARVE_PID=$!
+CLEANUP_PIDS+=("${STARVE_PID}")
 
-    if grep -q "boost" "$STALLD_LOG"; then
-        log "PASS: FIFO boosting with priority setting completed"
+# Wait for detection and boosting
+log "Waiting ${wait_time}s for detection and boosting"
+sleep ${wait_time}
+
+# Check logs for priority information
+if grep -qi "priority\|prio" "${STALLD_LOG3}"; then
+    log "ℹ INFO: Priority information found in logs"
+fi
+
+if grep -q "boost" "${STALLD_LOG3}"; then
+    log "✓ PASS: FIFO boosting with priority setting completed"
+else
+    log "⚠ WARNING: No boosting detected"
+fi
+
+# Cleanup
+kill -TERM "${STARVE_PID}" 2>/dev/null
+wait "${STARVE_PID}" 2>/dev/null || true
+stop_stalld
+sleep 1
+
+#=============================================================================
+# Test 4: Verify FIFO emulation behavior (sleep runtime, restore, sleep remainder)
+#=============================================================================
+log ""
+log "=========================================="
+log "Test 4: FIFO emulation behavior"
+log "=========================================="
+
+boost_duration=3
+long_starvation=12
+STALLD_LOG4="/tmp/stalld_test_force_fifo_test4_$$.log"
+CLEANUP_FILES+=("${STALLD_LOG4}")
+
+log "Starting stalld with -F, -A, and ${boost_duration}s boost duration"
+start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${boost_duration} > "${STALLD_LOG4}" 2>&1
+
+# Create starvation
+log "Creating starvation on CPU ${TEST_CPU} for ${long_starvation}s"
+"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation} &
+STARVE_PID=$!
+CLEANUP_PIDS+=("${STARVE_PID}")
+
+# Wait for detection and boosting
+log "Waiting ${wait_time}s for detection and boosting"
+sleep ${wait_time}
+
+if grep -q "boost" "${STALLD_LOG4}"; then
+    log "Boosting detected, waiting for duration cycle"
+
+    # Wait for boost duration + buffer to see restoration
+    sleep 5
+
+    # Check for restoration messages (part of FIFO emulation)
+    if grep -qi "restor\|unboosted\|normal\|original" "${STALLD_LOG4}"; then
+        log "✓ PASS: FIFO emulation with restoration detected"
     else
-        log "WARNING: No boosting detected"
+        log "ℹ INFO: FIFO boosting completed (restoration may be implicit)"
     fi
+else
+    log "⚠ WARNING: No boosting detected for FIFO emulation test"
+fi
 
-    kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
-    stop_stalld
+# Cleanup
+kill -TERM "${STARVE_PID}" 2>/dev/null
+wait "${STARVE_PID}" 2>/dev/null || true
+stop_stalld
+sleep 1
 
-    # Test 4: Verify FIFO emulation behavior (sleep runtime, restore, sleep remainder)
-    log "Test 4: FIFO emulation behavior"
-    start_stalld -f -v -c "$test_cpu" -t $threshold -F -A -d 3
+#=============================================================================
+# Test 5: Single-threaded mode with FIFO (should fail/exit)
+#=============================================================================
+log ""
+log "=========================================="
+log "Test 5: Single-threaded mode with FIFO (should fail)"
+log "=========================================="
 
-    # Create starvation
-    log "Creating starvation on CPU $test_cpu"
-    "$STARVE_GEN" -c "$test_cpu" -p 80 -n 2 -d 12 -v >> "$STALLD_LOG" 2>&1 &
-    starve_pid=$!
-    CLEANUP_PIDS+=($starve_pid)
+# Try to run stalld with -F but without -A (single-threaded mode)
+# According to CLAUDE.md, this should die/exit
+FIFO_SINGLE_LOG="/tmp/stalld_test_force_fifo_single_$$.log"
+CLEANUP_FILES+=("${FIFO_SINGLE_LOG}")
 
-    # Wait for detection and boosting
-    sleep $((threshold + 2))
+log "Testing single-threaded mode with -F (should exit)"
+${TEST_ROOT}/../stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F > "${FIFO_SINGLE_LOG}" 2>&1 &
+fifo_pid=$!
+sleep 3
 
-    if grep -q "boost" "$STALLD_LOG"; then
-        log "Boosting detected, waiting for duration cycle"
-
-        # Wait for boost duration + buffer to see restoration
-        sleep 5
-
-        # Check for restoration messages (part of FIFO emulation)
-        if grep -qi "restor\|unboosted\|normal\|original" "$STALLD_LOG"; then
-            log "PASS: FIFO emulation with restoration detected"
-        else
-            log "INFO: FIFO boosting completed (restoration may be implicit)"
-        fi
+if ! kill -0 "${fifo_pid}" 2>/dev/null; then
+    # Process exited - this is expected
+    if grep -qi "error\|single.*thread\|not.*support" "${FIFO_SINGLE_LOG}"; then
+        log "✓ PASS: Single-threaded mode rejected FIFO with error message"
     else
-        log "WARNING: No boosting detected for FIFO emulation test"
+        log "✓ PASS: Single-threaded mode with FIFO caused exit (as expected)"
     fi
+else
+    # Process still running - unexpected
+    log "⚠ WARNING: Single-threaded mode accepted FIFO (may have switched to multi-threaded)"
+    kill -TERM "${fifo_pid}" 2>/dev/null
+    wait "${fifo_pid}" 2>/dev/null || true
+fi
 
-    kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
-    stop_stalld
+#=============================================================================
+# Test 6: Compare effectiveness (informational)
+#=============================================================================
+log ""
+log "=========================================="
+log "Test 6: FIFO vs DEADLINE comparison (informational)"
+log "=========================================="
 
-    # Test 5: Single-threaded mode with FIFO (should fail/exit)
-    log "Test 5: Single-threaded mode with FIFO (should fail)"
+comparison_duration=2
+comparison_starvation=8
 
-    # Try to run stalld with -F but without -A (single-threaded mode)
-    # According to CLAUDE.md, this should die/exit
-    "$STALLD_BIN" -f -v -c "$test_cpu" -t $threshold -F > "${STALLD_LOG}.fifo_single" 2>&1 &
-    fifo_pid=$!
-    sleep 3
+# Run with DEADLINE
+STALLD_LOG_DL="/tmp/stalld_test_force_fifo_deadline_$$.log"
+CLEANUP_FILES+=("${STALLD_LOG_DL}")
 
-    if ! kill -0 "$fifo_pid" 2>/dev/null; then
-        # Process exited - this is expected
-        if grep -qi "error\|single.*thread\|not.*support" "${STALLD_LOG}.fifo_single"; then
-            log "PASS: Single-threaded mode rejected FIFO with error message"
-        else
-            log "PASS: Single-threaded mode with FIFO caused exit (as expected)"
-        fi
-    else
-        # Process still running - unexpected
-        log "WARNING: Single-threaded mode accepted FIFO (may have switched to multi-threaded)"
-        kill -TERM "$fifo_pid" 2>/dev/null
-        wait "$fifo_pid" 2>/dev/null
-    fi
+log "Running comparison test with SCHED_DEADLINE"
+start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -d ${comparison_duration} > "${STALLD_LOG_DL}" 2>&1
+"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${comparison_starvation} &
+STARVE_PID=$!
+CLEANUP_PIDS+=("${STARVE_PID}")
+sleep $((threshold + 3))
 
-    # Test 6: Compare effectiveness (informational)
-    log "Test 6: FIFO vs DEADLINE comparison (informational)"
+deadline_boosts=$(grep -c "boost" "${STALLD_LOG_DL}" || echo 0)
+log "ℹ INFO: SCHED_DEADLINE boosts: $deadline_boosts"
 
-    # Run with DEADLINE
-    start_stalld -f -v -c "$test_cpu" -t $threshold -d 2
-    "$STARVE_GEN" -c "$test_cpu" -p 80 -n 2 -d 8 -v >> "$STALLD_LOG" 2>&1 &
-    starve_pid=$!
-    sleep $((threshold + 3))
+kill -TERM "${STARVE_PID}" 2>/dev/null
+wait "${STARVE_PID}" 2>/dev/null || true
+stop_stalld
+sleep 1
 
-    deadline_boosts=$(grep -c "boost" "$STALLD_LOG" || echo 0)
-    log "INFO: SCHED_DEADLINE boosts: $deadline_boosts"
+# Run with FIFO
+STALLD_LOG_FIFO="/tmp/stalld_test_force_fifo_comparison_$$.log"
+CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
 
-    kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
-    stop_stalld
+log "Running comparison test with SCHED_FIFO"
+start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${comparison_duration} > "${STALLD_LOG_FIFO}" 2>&1
+"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${comparison_starvation} &
+STARVE_PID=$!
+CLEANUP_PIDS+=("${STARVE_PID}")
+sleep $((threshold + 3))
 
-    # Run with FIFO
-    start_stalld -f -v -c "$test_cpu" -t $threshold -F -A -d 2
-    "$STARVE_GEN" -c "$test_cpu" -p 80 -n 2 -d 8 -v >> "$STALLD_LOG" 2>&1 &
-    starve_pid=$!
-    sleep $((threshold + 3))
+fifo_boosts=$(grep -c "boost" "${STALLD_LOG_FIFO}" || echo 0)
+log "ℹ INFO: SCHED_FIFO boosts: $fifo_boosts"
 
-    fifo_boosts=$(grep -c "boost" "$STALLD_LOG" || echo 0)
-    log "INFO: SCHED_FIFO boosts: $fifo_boosts"
+kill -TERM "${STARVE_PID}" 2>/dev/null
+wait "${STARVE_PID}" 2>/dev/null || true
+stop_stalld
+sleep 1
 
-    kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
-    stop_stalld
+log "ℹ INFO: Comparison complete (DEADLINE: $deadline_boosts, FIFO: $fifo_boosts)"
 
-    log "INFO: Comparison complete (DEADLINE: $deadline_boosts, FIFO: $fifo_boosts)"
+log ""
+log "All force FIFO tests completed"
 
-    # Cleanup
-    rm -f "${STALLD_LOG}.fifo_single"
-
-    log "All force FIFO tests passed"
-    exit 0
-
-} 2>&1 | tee "$log_file"
-
-# Capture exit code
-exit_code=${PIPESTATUS[0]}
-exit $exit_code
+end_test
