@@ -1,142 +1,298 @@
 {
-  "timestamp": "2025-10-08T16:03:00-05:00",
-  "session": "Recovery and Test Backend Selection Implementation",
+  "timestamp": "2025-10-09T15:30:00-05:00",
+  "session": "Test Suite Framework Hardening - PID Tracking and Old-Style Test Fixes",
   "branch": "tests",
-  "commits_ahead_of_main": 28,
+  "commits_ahead_of_main": 42,
   "latest_commit": {
-    "hash": "2fcb2cf6a7890108a87f20c0cacb1b372c2d7488",
-    "message": "tests: Add backend selection support to individual tests",
+    "hash": "61696332e64b",
+    "message": "tests: Update TODO.md with 2025-10-09 progress and old-style test issues",
     "files_changed": [
-      "tests/README.md",
-      "tests/functional/test_log_only.sh",
-      "tests/helpers/test_helpers.sh"
+      "tests/TODO.md"
     ]
   },
+  "uncommitted_changes": [],
   "recent_work": {
     "completed": [
       {
-        "task": "Recovered from crash",
-        "description": "Identified uncommitted changes for backend selection in individual tests"
+        "task": "Fixed critical PID tracking bug in test_helpers.sh",
+        "description": "Root cause: start_stalld() was capturing shell PID instead of actual stalld PID",
+        "problem": "When stalld forks or output is redirected, $! captures the shell PID, not stalld",
+        "solution": "Use pgrep -n -x stalld to find the real stalld process after backgrounding",
+        "impact": "All tests using start_stalld() now correctly track stalld process",
+        "commit": "23d4107eecca",
+        "files_modified": [
+          "tests/helpers/test_helpers.sh"
+        ]
       },
       {
-        "task": "Built stalld",
-        "description": "Clean build with make clean && make, eBPF enabled"
-      },
-      {
-        "task": "Tested backend selection",
-        "description": "Verified parse_test_options() and test_log_only.sh with multiple backends",
-        "tests_run": [
-          "test_log_only.sh (default backend)",
-          "test_log_only.sh -b sched_debug",
-          "test_log_only.sh -b queue_track",
-          "test_log_only.sh -b S (short form)",
-          "test_log_only.sh -h (help)"
+        "task": "Fixed double-backgrounding issues",
+        "description": "Removed 6 instances of redundant & after start_stalld calls",
+        "problem": "Tests were adding & after start_stalld which already backgrounds the process",
+        "solution": "Removed & from all start_stalld invocations",
+        "files_fixed": [
+          "test_foreground.sh (3 instances, lines 20, 49, 73)",
+          "test_logging_destinations.sh (3 instances, lines 53, 95, 118)"
         ],
-        "result": "All tests passed"
+        "commit": "23d4107eecca"
       },
       {
-        "task": "Committed changes",
-        "description": "Created commit with sign-off for backend selection feature"
+        "task": "Fixed output redirection issues in test_logging_destinations.sh",
+        "description": "Redirecting start_stalld output captured function messages instead of stalld's output",
+        "problem": "start_stalld > file 2>&1 redirects the entire function output including echo statements",
+        "solution": "Bypass helper for output tests, call ../stalld directly and set PID via pgrep",
+        "affected_tests": [
+          "Test 1: Verbose mode (-v)",
+          "Test 4: Combined logging modes"
+        ],
+        "commit": "23d4107eecca"
+      },
+      {
+        "task": "Rewrote test_boost_period.sh using modern framework",
+        "description": "Complete rewrite to fix hanging issues and undefined variables",
+        "issues_fixed": [
+          "Unprotected wait commands (6 instances)",
+          "Undefined STALLD_LOG variable",
+          "Undefined STALLD_BIN variable",
+          "Old SCRIPT_DIR pattern",
+          "No cleanup trap mechanism",
+          "exit 1 instead of TEST_FAILED counter",
+          "Manual tee redirection"
+        ],
+        "improvements": [
+          "Added parse_test_options for backend selection",
+          "Defined STALLD_LOG as /tmp/stalld_test_boost_period_$$.log",
+          "Added CLEANUP_PIDS and CLEANUP_FILES arrays",
+          "Protected all wait commands with || true",
+          "Added start_test/end_test framework integration",
+          "Added test section headers and structured logging"
+        ],
+        "tests_included": 6,
+        "commit": "5ef2d6702c03"
+      },
+      {
+        "task": "Rewrote test_starvation_threshold.sh using modern framework",
+        "description": "Complete rewrite to fix undefined variables and hanging",
+        "issues_fixed": [
+          "Undefined log() function calls",
+          "Undefined STALLD_LOG, STALLD_BIN, RESULTS_DIR variables",
+          "Old SCRIPT_DIR pattern",
+          "No cleanup via arrays",
+          "Manual tee redirection"
+        ],
+        "improvements": [
+          "Added parse_test_options for backend selection",
+          "Defined STALLD_LOG and separate logs for each test",
+          "Added CLEANUP_FILES array tracking",
+          "Protected all wait commands with || true",
+          "Added proper timing for starvation completion",
+          "Fixed log file collision between test cases"
+        ],
+        "tests_included": 4,
+        "commit": "24ce6b7c161d"
+      },
+      {
+        "task": "Fixed test_starvation_threshold.sh log file collision",
+        "description": "Test 2 was failing due to log file reuse causing false positives",
+        "problem": "Tests 1-3 reused same log file, grep found old messages from previous tests",
+        "solution": "Use separate log files: STALLD_LOG, STALLD_LOG2, STALLD_LOG3",
+        "additional_fixes": [
+          "Added wait for starvation_gen completion before checking logs",
+          "Added 2s buffer to ensure stalld has time to log if it were to detect"
+        ],
+        "commit": "cf7894a7c587"
+      },
+      {
+        "task": "Updated tests/TODO.md with comprehensive progress documentation",
+        "description": "Documented all fixes, identified remaining issues, provided fix pattern",
+        "sections_added": [
+          "2025-10-09 progress section with all fixes documented",
+          "Test results after fixes (8 tests passing)",
+          "Known issues: 5 old-style tests identified",
+          "Common issues in old-style tests (8 problems)",
+          "Recommended fix pattern (8-step process)",
+          "All 4 commits documented"
+        ],
+        "commit": "61696332e64b"
       }
     ]
   },
   "project_state": {
-    "current_phase": "Test Suite Development - Phase 1 Complete + Extensions",
+    "current_phase": "Test Suite Framework Stabilization Complete",
     "test_coverage": {
       "phase_1_complete": [
-        "test01.c - Fixed original starvation test",
-        "test_foreground.sh - Tests -f flag",
-        "test_log_only.sh - Tests -l flag with backend selection support",
-        "test_logging_destinations.sh - Tests -v, -k, -s flags"
+        "test01.c - Fixed original starvation test (7 critical fixes)",
+        "test_foreground.sh - Tests -f flag (FIXED - PID tracking)",
+        "test_log_only.sh - Tests -l flag with backend selection",
+        "test_logging_destinations.sh - Tests -v, -k, -s flags (FIXED - PID tracking, output redirection)"
       ],
-      "infrastructure_added": [
-        "run_tests.sh - Main test orchestrator with backend selection (all tests)",
-        "test_helpers.sh - Helper library with parse_test_options() for per-test backend selection",
-        "starvation_gen.c - Configurable starvation generator"
+      "phase_2_status": [
+        "test_cpu_selection.sh - ✅ PASSING (rewritten, modern framework)",
+        "test_boost_period.sh - ✅ PASSING (rewritten, was hanging)",
+        "test_starvation_threshold.sh - ✅ PASSING (rewritten, was failing)",
+        "test_boost_runtime.sh - ⚠️ OLD STYLE (needs rewrite)",
+        "test_boost_duration.sh - ⚠️ OLD STYLE (hanging, needs rewrite)",
+        "test_affinity.sh - ⚠️ OLD STYLE (needs rewrite)",
+        "test_force_fifo.sh - ⚠️ OLD STYLE (needs rewrite)",
+        "test_pidfile.sh - ⚠️ OLD STYLE (needs rewrite)"
       ],
-      "new_feature": "Individual test backend selection via -b/--backend flag"
+      "phase_3_complete": [
+        "test_starvation_detection.sh - ✅ PASSING (6 tests)",
+        "test_idle_detection.sh - ✅ PASSING (5 tests)",
+        "test_task_merging.sh - ✅ PASSING (4 tests, skips if DL-server present)",
+        "test_deadline_boosting.sh - ✅ PASSING (5 tests)",
+        "test_fifo_boosting.sh - ✅ PASSING (5 tests)",
+        "test_runqueue_parsing.sh - ✅ PASSING (5 tests)",
+        "test_boost_restoration.sh - ✅ PASSING (5 tests)"
+      ],
+      "infrastructure": [
+        "run_tests.sh - Auto-discovery, backend selection (328 lines)",
+        "test_helpers.sh - FIXED PID tracking, comprehensive library (518 lines)",
+        "starvation_gen.c - Configurable starvation generator (267 lines)"
+      ]
+    },
+    "test_results_summary": {
+      "passing": 8,
+      "details": [
+        "test_foreground.sh - All 3 tests PASS",
+        "test_logging_destinations.sh - All 4 tests PASS",
+        "test_cpu_selection.sh - All 6 tests PASS",
+        "test_log_only.sh - PASS",
+        "test_starvation_detection.sh - All 6 tests PASS",
+        "test_deadline_boosting.sh - All 5 tests PASS",
+        "test_starvation_threshold.sh - All 4 tests PASS",
+        "test_boost_period.sh - All 6 tests PASS"
+      ]
     },
     "build_status": "Clean build successful, USE_BPF=1, x86_64",
     "rt_throttling": "Disabled (-1)"
   },
-  "implementation_details": {
-    "backend_selection": {
-      "levels": [
-        {
-          "scope": "All tests",
-          "method": "./run_tests.sh --backend <name>",
-          "description": "Applies backend to entire test run"
-        },
-        {
-          "scope": "Individual test",
-          "method": "./test_script.sh -b <name>",
-          "description": "Applies backend to single test script",
-          "implementation": "parse_test_options() exports STALLD_TEST_BACKEND"
-        }
-      ],
-      "supported_backends": [
-        "sched_debug (procfs backend)",
-        "queue_track (eBPF backend)",
-        "S (short form for sched_debug)",
-        "Q (short form for queue_track)"
-      ]
+  "commits_created": [
+    {
+      "hash": "5ef2d6702c03",
+      "message": "tests: Rewrite test_boost_period.sh to fix hanging issues",
+      "description": "Complete rewrite with modern framework, fixed wait commands, undefined variables"
     },
-    "files_modified": {
-      "tests/helpers/test_helpers.sh": {
-        "changes": [
-          "Added parse_test_options() function (26 lines)",
-          "Handles -b/--backend and -h/--help flags",
-          "Exports STALLD_TEST_BACKEND environment variable"
-        ]
+    {
+      "hash": "23d4107eecca",
+      "message": "tests: Fix PID tracking and backgrounding issues in test suite",
+      "description": "Fixed start_stalld() PID tracking, removed double-backgrounding, fixed output redirection"
+    },
+    {
+      "hash": "24ce6b7c161d",
+      "message": "tests: Rewrite test_starvation_threshold.sh to fix undefined variables",
+      "description": "Complete rewrite with modern framework, fixed undefined variables and logging"
+    },
+    {
+      "hash": "cf7894a7c587",
+      "message": "tests: Fix test_starvation_threshold.sh log file collision issue",
+      "description": "Use separate log files per test to prevent cross-contamination"
+    },
+    {
+      "hash": "61696332e64b",
+      "message": "tests: Update TODO.md with 2025-10-09 progress and old-style test issues",
+      "description": "Comprehensive documentation of all fixes and remaining issues"
+    }
+  ],
+  "known_issues": {
+    "old_style_tests_needing_rewrites": [
+      {
+        "file": "test_boost_runtime.sh",
+        "status": "Uses old SCRIPT_DIR pattern, undefined variables",
+        "priority": "medium",
+        "impact": "Likely to hang or fail if run"
       },
-      "tests/functional/test_log_only.sh": {
-        "changes": [
-          "Added parse_test_options() call at startup",
-          "Checks STALLD_TEST_BACKEND and constructs stalld command with -b flag",
-          "Prints 'Using backend: X' when backend specified"
-        ]
+      {
+        "file": "test_boost_duration.sh",
+        "status": "Uses old SCRIPT_DIR pattern, undefined variables",
+        "priority": "high",
+        "impact": "Currently hanging when run",
+        "note": "Needs immediate attention"
       },
-      "tests/README.md": {
-        "changes": [
-          "Added section on individual test backend selection",
-          "Documented usage examples with -b flag",
-          "Clarified difference between run_tests.sh vs individual test backend selection",
-          "Added note about direct stalld invocation in custom tests"
-        ]
+      {
+        "file": "test_affinity.sh",
+        "status": "Uses old SCRIPT_DIR pattern, undefined variables",
+        "priority": "medium",
+        "impact": "Likely to hang or fail if run"
+      },
+      {
+        "file": "test_force_fifo.sh",
+        "status": "Uses old SCRIPT_DIR pattern, undefined variables",
+        "priority": "medium",
+        "impact": "Likely to hang or fail if run"
+      },
+      {
+        "file": "test_pidfile.sh",
+        "status": "Uses old SCRIPT_DIR pattern, undefined variables",
+        "priority": "medium",
+        "impact": "Likely to hang or fail if run"
       }
+    ],
+    "common_issues_in_old_tests": [
+      "Undefined $STALLD_LOG variable → 'No such file or directory' errors",
+      "Undefined $STALLD_BIN variable → command failures",
+      "Undefined $RESULTS_DIR variable → path errors",
+      "log() function calls without modern framework → 'command not found'",
+      "Old SCRIPT_DIR pattern instead of TEST_ROOT",
+      "Manual cleanup_test() instead of CLEANUP_PIDS/CLEANUP_FILES arrays",
+      "exit 1 instead of TEST_FAILED counter",
+      "Manual tee redirection instead of start_test/end_test framework"
+    ]
+  },
+  "recommended_fix_pattern": {
+    "description": "8-step pattern for converting old-style tests to modern framework",
+    "steps": [
+      "1. Change SCRIPT_DIR → TEST_ROOT",
+      "2. Add parse_test_options \"$@\" || exit $? for backend selection",
+      "3. Define STALLD_LOG=\"/tmp/stalld_test_<name>_$$.log\"",
+      "4. Use ${TEST_ROOT}/../stalld instead of $STALLD_BIN",
+      "5. Add CLEANUP_FILES and CLEANUP_PIDS arrays",
+      "6. Use start_test/end_test framework",
+      "7. Add proper logging with timestamps",
+      "8. Protect all wait commands with || true"
+    ],
+    "examples": [
+      "tests/functional/test_boost_period.sh (255 lines, modern)",
+      "tests/functional/test_starvation_threshold.sh (216 lines, modern)"
+    ]
+  },
+  "test_framework_improvements": {
+    "pid_tracking_fix": {
+      "before": "STALLD_PID=$! (captured shell PID)",
+      "after": "STALLD_PID=$(pgrep -n -x stalld 2>/dev/null) with fallback",
+      "benefit": "All tests now correctly track stalld process regardless of forking/redirection"
+    },
+    "cleanup_robustness": {
+      "features": [
+        "Automatic CLEANUP_PIDS array tracking",
+        "Automatic CLEANUP_FILES array tracking",
+        "Graceful → Forced termination (SIGTERM → SIGKILL)",
+        "Process tree handling (pkill -9 -f starvation_gen)",
+        "Wait protection (|| true on all wait commands)",
+        "Automatic cleanup traps (EXIT, INT, TERM)"
+      ],
+      "verdict": "Multi-layer protection prevents test hangs"
     }
   },
   "next_steps": {
     "immediate": [
-      "Consider applying parse_test_options() to other functional tests",
-      "Continue with Phase 2 test development (command-line options)",
-      "Consider extending to Phase 3 (core logic tests)"
+      "Monitor test runs to verify all fixes are stable",
+      "Consider rewriting remaining 5 old-style tests when needed",
+      "Update context-snapshot.json (this file) - DONE"
     ],
-    "testing_roadmap": {
-      "phase_2_planned": [
-        "Monitoring options: -c (CPU selection), -t (starvation threshold)",
-        "Boosting options: -p (period), -r (runtime), -d (duration), -F (force FIFO)",
-        "Daemon options: -P (pidfile), -a (affinity)"
-      ],
-      "phase_3_planned": [
-        "Starvation detection verification",
-        "SCHED_DEADLINE boosting verification",
-        "SCHED_FIFO boosting verification",
-        "Task merging logic",
-        "Idle detection"
-      ],
-      "phase_4_planned": [
-        "Threading modes (adaptive vs aggressive)",
-        "Filtering (-i, -I options)",
-        "Backend comparison (eBPF vs procfs)",
-        "Integration and stress tests"
-      ]
-    }
+    "future_work": [
+      "Rewrite test_boost_duration.sh (currently hanging)",
+      "Rewrite test_boost_runtime.sh",
+      "Rewrite test_affinity.sh",
+      "Rewrite test_force_fifo.sh",
+      "Rewrite test_pidfile.sh",
+      "Continue with Phase 4: Advanced Features (threading modes, filtering, backends)"
+    ]
   },
   "notes": {
-    "recovery_context": "Session recovered after crash. User had uncommitted changes for individual test backend selection feature.",
-    "testing_approach": "Comprehensive testing with multiple backends confirmed feature works correctly",
-    "code_quality": "Clean implementation following existing patterns in test_helpers.sh",
-    "documentation": "Well-documented in README.md with clear examples"
+    "test_framework_quality": "Excellent multi-layer protection in test_helpers.sh. PID tracking fix resolves fundamental issue affecting all tests.",
+    "old_vs_new_framework": "Clear evolution: old (SCRIPT_DIR, manual cleanup, undefined vars) → new (TEST_ROOT, automatic arrays, all vars defined).",
+    "fix_approach": "Complete rewrites using modern framework proven more reliable than patching old-style tests.",
+    "test_stability": "With PID tracking fixed and 3 tests rewritten, core test suite is now stable and reliable.",
+    "documentation_quality": "TODO.md comprehensively documents all issues, fixes, and provides clear pattern for future conversions."
   }
 }
