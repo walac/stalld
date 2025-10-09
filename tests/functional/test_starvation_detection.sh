@@ -356,7 +356,6 @@ log "Creating a busy task that should NOT be starved"
 (
     taskset -c ${TEST_CPU} bash -c 'for i in {1..100}; do sleep 0.1; done' &
     BUSY_PID=$!
-    CLEANUP_PIDS+=("${BUSY_PID}")
 
     # Wait beyond threshold
     sleep $((threshold + 3))
@@ -377,7 +376,8 @@ log "Creating a busy task that should NOT be starved"
     kill ${BUSY_PID} 2>/dev/null
     wait ${BUSY_PID} 2>/dev/null
 ) &
-wait
+SUBSHELL_PID=$!
+wait ${SUBSHELL_PID}
 
 stop_stalld
 
