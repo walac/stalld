@@ -26,7 +26,8 @@ start_stalld_with_log() {
     local args="$@"
 
     # Build stalld command with backend option if specified
-    local stalld_args="$args"
+    # Also add -g 1 for 1-second granularity to ensure timely detection
+    local stalld_args="-g 1 $args"
     if [ -n "${STALLD_TEST_BACKEND}" ]; then
         stalld_args="-b ${STALLD_TEST_BACKEND} ${stalld_args}"
         echo "Using backend: ${STALLD_TEST_BACKEND}"
@@ -91,15 +92,19 @@ log "Test 1: Basic Starvation Detection"
 log "=========================================="
 
 threshold=5
-log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
-# Create starvation for longer than threshold
+# Create starvation BEFORE starting stalld to avoid idle detection race
 starvation_duration=$((threshold + 5))
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
+
+# Give starvation generator time to start and pin to CPU
+sleep 2
+
+log "Starting stalld with ${threshold}s threshold (log-only mode)"
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Wait for detection (threshold + small buffer)
 wait_time=$((threshold + 2))
@@ -147,14 +152,18 @@ log "=========================================="
 
 rm -f "${STALLD_LOG}"
 threshold=5
-log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 15 &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
+
+# Give starvation generator time to start
+sleep 2
+
+log "Starting stalld with ${threshold}s threshold (log-only mode)"
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Wait for detection
 sleep $((threshold + 2))
@@ -205,9 +214,6 @@ log "=========================================="
 
 rm -f "${STALLD_LOG}"
 threshold=3
-log "Starting stalld with ${threshold}s threshold (log-only mode)"
-log "Will monitor for multiple detection cycles to verify timestamp preservation"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Create long starvation to trigger multiple detection cycles
 starvation_duration=15
@@ -215,6 +221,13 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
+
+# Give starvation generator time to start
+sleep 2
+
+log "Starting stalld with ${threshold}s threshold (log-only mode)"
+log "Will monitor for multiple detection cycles to verify timestamp preservation"
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
 
 # Wait for multiple detection cycles
 log "Waiting for multiple detection cycles..."
@@ -280,7 +293,6 @@ else
 
     rm -f "${STALLD_LOG}"
     threshold=5
-    start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${CPU0},${CPU1}
 
     # Create starvation on CPU0
     log "Creating starvation on CPU ${CPU0}"
@@ -293,6 +305,11 @@ else
     "${STARVE_GEN}" -c ${CPU1} -p 80 -n 1 -d 12 &
     STARVE_PID1=$!
     CLEANUP_PIDS+=("${STARVE_PID1}")
+
+    # Give starvation generators time to start
+    sleep 2
+
+    start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${CPU0},${CPU1}
 
     # Wait for detection
     sleep $((threshold + 2))
