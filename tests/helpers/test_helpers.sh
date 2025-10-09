@@ -200,11 +200,20 @@ start_stalld() {
 	fi
 
 	${stalld_bin} ${args} &
-	STALLD_PID=$!
-	CLEANUP_PIDS+=("${STALLD_PID}")
+	local shell_pid=$!
 
-	# Wait for stalld to initialize
+	# Wait for stalld to start
 	sleep 1
+
+	# Get the actual stalld PID (not the shell wrapper)
+	# Look for stalld process that was started recently
+	STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
+
+	# If pgrep didn't find it, fall back to the shell PID
+	# (might be the case if stalld was exec'd or if pgrep isn't available)
+	if [ -z "${STALLD_PID}" ]; then
+		STALLD_PID=${shell_pid}
+	fi
 
 	# Verify it's running
 	if ! kill -0 ${STALLD_PID} 2>/dev/null; then
@@ -212,6 +221,7 @@ start_stalld() {
 		return 1
 	fi
 
+	CLEANUP_PIDS+=("${STALLD_PID}")
 	echo "stalld started with PID ${STALLD_PID}"
 	return 0
 }

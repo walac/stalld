@@ -10,6 +10,9 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
+# Parse command-line options
+parse_test_options "$@" || exit $?
+
 start_test "Foreground Mode"
 
 # Require root for this test
@@ -17,7 +20,7 @@ require_root
 
 # Test 1: Without -f flag, stalld should daemonize
 echo "Test 1: stalld daemonizes by default"
-start_stalld -l -t 5 &
+start_stalld -l -t 5
 sleep 2
 
 # Check if stalld is running
@@ -46,7 +49,7 @@ echo ""
 echo "Test 2: stalld stays in foreground with -f"
 
 # Start stalld in foreground but in background job
-start_stalld -f -l -t 5 &
+start_stalld -f -l -t 5
 sleep 2
 
 # Check if stalld is running
@@ -70,7 +73,7 @@ stop_stalld
 echo ""
 echo "Test 3: -v implies foreground mode"
 
-start_stalld -v -l -t 5 &
+start_stalld -v -l -t 5
 sleep 2
 
 if assert_process_running "${STALLD_PID}" "stalld should be running with -v"; then

@@ -62,7 +62,7 @@ cleanup_test() {
 
     # Cleanup
     kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
+    wait "$starve_pid" 2>/dev/null || true
     stop_stalld
 
     # Test 2: Verify no detection before threshold
@@ -91,7 +91,7 @@ cleanup_test() {
 
     # Cleanup
     kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
+    wait "$starve_pid" 2>/dev/null || true
     stop_stalld
 
     # Test 3: Different threshold values (shorter)
@@ -119,7 +119,7 @@ cleanup_test() {
 
     # Cleanup
     kill -TERM "$starve_pid" 2>/dev/null
-    wait "$starve_pid" 2>/dev/null
+    wait "$starve_pid" 2>/dev/null || true
     stop_stalld
 
     # Test 4: Invalid threshold values
@@ -140,7 +140,7 @@ cleanup_test() {
     else
         log "WARNING: stalld accepted zero threshold"
         kill -TERM "$invalid_pid" 2>/dev/null
-        wait "$invalid_pid" 2>/dev/null
+        wait "$invalid_pid" 2>/dev/null || true
     fi
 
     # Test with negative threshold
@@ -158,7 +158,7 @@ cleanup_test() {
     else
         log "WARNING: stalld accepted negative threshold"
         kill -TERM "$invalid_pid" 2>/dev/null
-        wait "$invalid_pid" 2>/dev/null
+        wait "$invalid_pid" 2>/dev/null || true
     fi
 
     # Cleanup invalid test logs

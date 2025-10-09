@@ -10,6 +10,9 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
+# Parse command-line options
+parse_test_options "$@" || exit $?
+
 start_test "Logging Destinations"
 
 # Require root for this test
@@ -21,8 +24,13 @@ echo "Test 1: Verbose mode (-v) logs to stdout"
 LOG_FILE="/tmp/stalld_test_verbose_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
 
-start_stalld -f -v -l -t 5 > "${LOG_FILE}" 2>&1 &
+# Start stalld directly (not using start_stalld helper) to capture output
+../stalld -f -v -l -t 5 > "${LOG_FILE}" 2>&1 &
 sleep 2
+STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
+if [ -n "${STALLD_PID}" ]; then
+	CLEANUP_PIDS+=("${STALLD_PID}")
+fi
 
 if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 	# Check that output was written to our log file
@@ -50,7 +58,7 @@ echo "Test 2: Kernel message log (-k)"
 if command -v dmesg >/dev/null 2>&1; then
 	DMESG_BEFORE=$(dmesg | wc -l)
 
-	start_stalld -f -k -l -t 5 &
+	start_stalld -f -k -l -t 5
 	sleep 2
 
 	if assert_process_running "${STALLD_PID}" "stalld with -k should be running"; then
@@ -92,7 +100,7 @@ if [ -n "${SYSLOG_FILE}" ]; then
 	# Get current line count
 	SYSLOG_BEFORE=$(wc -l < "${SYSLOG_FILE}")
 
-	start_stalld -f -s -l -t 5 &
+	start_stalld -f -s -l -t 5
 	sleep 3
 
 	if assert_process_running "${STALLD_PID}" "stalld with -s should be running"; then
@@ -115,7 +123,7 @@ elif command -v journalctl >/dev/null 2>&1; then
 	# Try journalctl instead
 	echo "Using journalctl instead of syslog file"
 
-	start_stalld -f -s -l -t 5 &
+	start_stalld -f -s -l -t 5
 	sleep 3
 
 	if assert_process_running "${STALLD_PID}" "stalld with -s should be running"; then
@@ -141,8 +149,13 @@ echo "Test 4: Combined logging modes"
 LOG_FILE="/tmp/stalld_test_combined_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
 
-start_stalld -f -v -k -s -l -t 5 > "${LOG_FILE}" 2>&1 &
+# Start stalld directly (not using start_stalld helper) to capture output
+../stalld -f -v -k -s -l -t 5 > "${LOG_FILE}" 2>&1 &
 sleep 2
+STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
+if [ -n "${STALLD_PID}" ]; then
+	CLEANUP_PIDS+=("${STALLD_PID}")
+fi
 
 if assert_process_running "${STALLD_PID}" "stalld with combined logging should be running"; then
 	# Verify verbose output
