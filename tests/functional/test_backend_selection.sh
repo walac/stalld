@@ -15,22 +15,23 @@ start_test "Backend Selection"
 
 require_root
 
-echo "=== Test 1: Detect default backend ==="
-default_backend=$(detect_default_backend)
-echo "Default backend: ${default_backend}"
-assert_contains "${default_backend}" "sched_debug\|queue_track" "Default backend should be sched_debug or queue_track"
-
-echo ""
-echo "=== Test 2: List available backends ==="
-available_backends=$(get_available_backends)
-echo "Available backends: ${available_backends}"
-assert_contains "${available_backends}" "sched_debug" "sched_debug should always be available"
-
-echo ""
-echo "=== Test 3: Check sched_debug backend availability ==="
-if is_backend_available "sched_debug"; then
-	echo "✓ sched_debug backend is available"
-	TEST_PASSED=$((TEST_PASSED + 1))
+# Test 1: Start stalld with sched_debug backend
+echo "Test 1: Starting stalld with sched_debug backend"
+if start_stalld -b sched_debug -f -v -l -t 60 > /tmp/stalld_backend_test.log 2>&1; then
+	sleep 2
+	if kill -0 ${STALLD_PID} 2>/dev/null; then
+		# Check if log contains backend message
+		if grep -q "using sched_debug backend\|sched_debug" /tmp/stalld_backend_test.log; then
+			assert_equals "0" "0" "sched_debug backend selected"
+		else
+			TEST_FAILED=$((TEST_FAILED + 1))
+			echo -e "  ${RED}FAIL${NC}: Backend message not found in log"
+		fi
+		stop_stalld
+	else
+		TEST_FAILED=$((TEST_FAILED + 1))
+		echo -e "  ${RED}FAIL${NC}: stalld failed to start with sched_debug backend"
+	fi
 else
 	echo "✗ sched_debug backend should always be available"
 	TEST_FAILED=$((TEST_FAILED + 1))
@@ -39,40 +40,48 @@ fi
 echo ""
 echo "=== Test 4: Check queue_track (BPF) backend availability ==="
 if is_backend_available "queue_track"; then
-	echo "✓ queue_track (BPF) backend is available"
-	echo "  (This system supports eBPF backend)"
-	TEST_PASSED=$((TEST_PASSED + 1))
+	echo "Test 2a: Starting stalld with queue_track backend"
+	if start_stalld -b queue_track -f -v -l -t 60 > /tmp/stalld_backend_test.log 2>&1; then
+		sleep 2
+		if kill -0 ${STALLD_PID} 2>/dev/null; then
+			# Check if log contains backend message
+			if grep -q "using queue_track backend\|queue_track" /tmp/stalld_backend_test.log; then
+				assert_equals "0" "0" "queue_track backend selected"
+			else
+				TEST_FAILED=$((TEST_FAILED + 1))
+				echo -e "  ${RED}FAIL${NC}: Backend message not found in log"
+			fi
+			stop_stalld
+		else
+			TEST_FAILED=$((TEST_FAILED + 1))
+			echo -e "  ${RED}FAIL${NC}: stalld failed to start with queue_track backend"
+		fi
+	else
+		TEST_FAILED=$((TEST_FAILED + 1))
+		echo -e "  ${RED}FAIL${NC}: stalld failed to start with queue_track backend"
+	fi
 else
 	echo "ℹ queue_track (BPF) backend not available"
 	echo "  (This is expected on i686, powerpc, ppc64le, or kernels ≤3.x)"
 	TEST_PASSED=$((TEST_PASSED + 1))
 fi
 
-echo ""
-echo "=== Test 5: Start stalld with sched_debug backend ==="
-save_rt_throttling
-disable_rt_throttling
-
-start_stalld_with_backend "sched_debug" -f -v -t 60
-if [ $? -eq 0 ]; then
-	assert_process_running "${STALLD_PID}" "stalld should be running with sched_debug backend"
-
-	# Give stalld time to log backend selection
-	sleep 1
-
-	# Check logs for backend selection message
-	if journalctl -u stalld --since "10 seconds ago" 2>/dev/null | grep -q "sched_debug"; then
-		echo "✓ stalld logged use of sched_debug backend"
-		TEST_PASSED=$((TEST_PASSED + 1))
-	elif grep -q "sched_debug" "${STALLD_LOG}" 2>/dev/null; then
-		echo "✓ stalld logged use of sched_debug backend"
-		TEST_PASSED=$((TEST_PASSED + 1))
+# Test 3: Test short names (S for sched_debug)
+echo "Test 3: Testing short name 'S' for sched_debug"
+if start_stalld -b S -f -v -l -t 60 > /tmp/stalld_backend_test.log 2>&1; then
+	sleep 2
+	if kill -0 ${STALLD_PID} 2>/dev/null; then
+		if grep -q "using sched_debug backend\|sched_debug" /tmp/stalld_backend_test.log; then
+			assert_equals "0" "0" "Short name 'S' works for sched_debug"
+		else
+			TEST_FAILED=$((TEST_FAILED + 1))
+			echo -e "  ${RED}FAIL${NC}: Backend message not found for short name"
+		fi
+		stop_stalld
 	else
-		echo "ℹ Could not verify backend in logs (may not be logged)"
-		TEST_PASSED=$((TEST_PASSED + 1))
+		TEST_FAILED=$((TEST_FAILED + 1))
+		echo -e "  ${RED}FAIL${NC}: stalld failed to start with short name 'S'"
 	fi
-
-	stop_stalld
 else
 	echo "✗ Failed to start stalld with sched_debug backend"
 	TEST_FAILED=$((TEST_FAILED + 1))

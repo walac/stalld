@@ -25,16 +25,16 @@ check_affinity() {
     # Use taskset to check affinity
     if command -v taskset > /dev/null 2>&1; then
         affinity=$(taskset -cp "$pid" 2>/dev/null | awk -F': ' '{print $2}')
-        log "ℹ INFO: Current affinity for PID $pid: $affinity"
+        log "ℹ INFO: Current affinity for PID $pid: $affinity" >&2
         echo "$affinity"
     else
         # Fallback: check /proc/PID/status
         if [ -f "/proc/$pid/status" ]; then
             affinity=$(grep "Cpus_allowed_list:" "/proc/$pid/status" | awk '{print $2}')
-            log "ℹ INFO: Current affinity for PID $pid (from /proc): $affinity"
+            log "ℹ INFO: Current affinity for PID $pid (from /proc): $affinity" >&2
             echo "$affinity"
         else
-            log "⚠ WARNING: Cannot check affinity (no taskset, no /proc)"
+            log "⚠ WARNING: Cannot check affinity (no taskset, no /proc)" >&2
             echo ""
         fi
     fi

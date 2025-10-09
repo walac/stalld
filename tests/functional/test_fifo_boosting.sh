@@ -363,7 +363,7 @@ CLEANUP_FILES+=("${STALLD_LOG_FAIL}")
 
 # Try to start stalld with -F but without -A (single-threaded mode)
 # This should fail because single-threaded mode only works with DEADLINE
-./stalld -f -v -F -t 5 -c ${TEST_CPU} > "${STALLD_LOG_FAIL}" 2>&1 &
+${TEST_ROOT}/../stalld -f -v -F -t 5 -c ${TEST_CPU} > "${STALLD_LOG_FAIL}" 2>&1 &
 FAIL_PID=$!
 
 # Wait a bit for it to fail
