@@ -238,8 +238,13 @@ stop_stalld() {
 			if kill -0 ${STALLD_PID} 2>/dev/null; then
 				kill -9 ${STALLD_PID} 2>/dev/null || true
 			fi
-			# Wait for it to finish, ignore errors if we don't have permission
-			wait ${STALLD_PID} 2>/dev/null || true
+			# Poll for process termination (don't use wait - might not be a child)
+			local timeout=10
+			local elapsed=0
+			while kill -0 ${STALLD_PID} 2>/dev/null && [ ${elapsed} -lt ${timeout} ]; do
+				sleep 0.1
+				elapsed=$((elapsed + 1))
+			done
 		fi
 		STALLD_PID=""
 	fi
@@ -278,8 +283,13 @@ cleanup() {
 				if kill -0 ${pid} 2>/dev/null; then
 					kill -9 ${pid} 2>/dev/null || true
 				fi
-				# Don't wait if we don't have permission - just continue
-				wait ${pid} 2>/dev/null || true
+				# Poll for termination (don't use wait - might not be a child)
+				local timeout=5
+				local elapsed=0
+				while kill -0 ${pid} 2>/dev/null && [ ${elapsed} -lt ${timeout} ]; do
+					sleep 0.1
+					elapsed=$((elapsed + 1))
+				done
 			fi
 		fi
 	done
