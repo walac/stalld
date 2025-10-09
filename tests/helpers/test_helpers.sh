@@ -220,8 +220,16 @@ start_stalld() {
 stop_stalld() {
 	if [ -n "${STALLD_PID}" ]; then
 		if kill -0 ${STALLD_PID} 2>/dev/null; then
-			kill ${STALLD_PID} 2>/dev/null
-			wait ${STALLD_PID} 2>/dev/null
+			# Try graceful shutdown first
+			kill ${STALLD_PID} 2>/dev/null || true
+			# Give it a moment to exit gracefully
+			sleep 0.2
+			# Force kill if still running
+			if kill -0 ${STALLD_PID} 2>/dev/null; then
+				kill -9 ${STALLD_PID} 2>/dev/null || true
+			fi
+			# Wait for it to finish, ignore errors if we don't have permission
+			wait ${STALLD_PID} 2>/dev/null || true
 		fi
 		STALLD_PID=""
 	fi
@@ -239,11 +247,30 @@ cleanup() {
 	# Stop stalld
 	stop_stalld
 
+	# Kill any starvation generators first (these often have child processes)
+	# Use pkill which handles process trees better
+	pkill -9 -f starvation_gen 2>/dev/null || true
+
+	# Small delay to let processes terminate
+	sleep 0.2
+
 	# Kill any tracked processes
+	# Use SIGKILL (-9) and ignore EPERM errors (process may have different privileges)
 	for pid in "${CLEANUP_PIDS[@]}"; do
-		if [ -n "${pid}" ] && kill -0 ${pid} 2>/dev/null; then
-			kill ${pid} 2>/dev/null
-			wait ${pid} 2>/dev/null
+		if [ -n "${pid}" ] && [ "${pid}" -gt 0 ] 2>/dev/null; then
+			# Check if process exists
+			if kill -0 ${pid} 2>/dev/null; then
+				# Try gentle kill first
+				kill ${pid} 2>/dev/null || true
+				# Give it a moment
+				sleep 0.1
+				# Force kill if still running
+				if kill -0 ${pid} 2>/dev/null; then
+					kill -9 ${pid} 2>/dev/null || true
+				fi
+				# Don't wait if we don't have permission - just continue
+				wait ${pid} 2>/dev/null || true
+			fi
 		fi
 	done
 
@@ -251,9 +278,6 @@ cleanup() {
 	for file in "${CLEANUP_FILES[@]}"; do
 		rm -f "${file}" 2>/dev/null
 	done
-
-	# Kill any starvation generators
-	pkill -f starvation_gen 2>/dev/null || true
 
 	# Remove temp files
 	rm -f /tmp/stalld_test_* 2>/dev/null || true
