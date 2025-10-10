@@ -77,7 +77,7 @@ log "=========================================="
 log "Test 1: Default behavior (no affinity restriction)"
 log "=========================================="
 
-start_stalld -f -v -l -t 5 > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -l -t 5
 sleep 2
 
 default_affinity=$(check_affinity "${STALLD_PID}")
@@ -104,7 +104,7 @@ log "=========================================="
 STALLD_LOG2="/tmp/stalld_test_affinity_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
 
-start_stalld -f -v -l -t 5 -a 0 > "${STALLD_LOG2}" 2>&1
+start_stalld -f -v -l -t 5 -a 0
 sleep 2
 
 affinity=$(check_affinity "${STALLD_PID}")
@@ -131,7 +131,7 @@ if [ "$num_cpus" -ge 4 ]; then
     STALLD_LOG3="/tmp/stalld_test_affinity_test3_$$.log"
     CLEANUP_FILES+=("${STALLD_LOG3}")
 
-    start_stalld -f -v -l -t 5 -a 0,2 > "${STALLD_LOG3}" 2>&1
+    start_stalld -f -v -l -t 5 -a 0,2
     sleep 2
 
     affinity=$(check_affinity "${STALLD_PID}")
@@ -162,7 +162,7 @@ if [ "$num_cpus" -ge 4 ]; then
     STALLD_LOG4="/tmp/stalld_test_affinity_test4_$$.log"
     CLEANUP_FILES+=("${STALLD_LOG4}")
 
-    start_stalld -f -v -l -t 5 -a 0-2 > "${STALLD_LOG4}" 2>&1
+    start_stalld -f -v -l -t 5 -a 0-2
     sleep 2
 
     affinity=$(check_affinity "${STALLD_PID}")
@@ -193,7 +193,7 @@ if [ "$num_cpus" -ge 2 ]; then
     STALLD_LOG5="/tmp/stalld_test_affinity_test5_$$.log"
     CLEANUP_FILES+=("${STALLD_LOG5}")
 
-    start_stalld -f -v -l -t 5 -a "$test_cpu" > "${STALLD_LOG5}" 2>&1
+    start_stalld -f -v -l -t 5 -a "$test_cpu"
     sleep 2
 
     # Check affinity
@@ -230,7 +230,7 @@ if [ "$num_cpus" -ge 2 ]; then
     CLEANUP_FILES+=("${STALLD_LOG6}")
 
     # Run stalld on CPU 0, but monitor CPU 1
-    start_stalld -f -v -l -t 5 -a 0 -c 1 > "${STALLD_LOG6}" 2>&1
+    start_stalld -f -v -l -t 5 -a 0 -c 1
     sleep 2
 
     affinity=$(check_affinity "${STALLD_PID}")
@@ -266,7 +266,13 @@ invalid_cpu=999
 INVALID_LOG="/tmp/stalld_test_affinity_invalid_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
 
-${TEST_ROOT}/../stalld -f -v -l -t 5 -a ${invalid_cpu} > "${INVALID_LOG}" 2>&1 &
+# Add backend flag for consistency
+BACKEND_FLAG=""
+if [ -n "${STALLD_TEST_BACKEND}" ]; then
+    BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
+fi
+
+${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 -a ${invalid_cpu} > "${INVALID_LOG}" 2>&1 &
 invalid_pid=$!
 sleep 2
 
@@ -280,7 +286,7 @@ if ! kill -0 "${invalid_pid}" 2>/dev/null; then
 else
     # Process still running - might have been ignored
     log "⚠ WARNING: stalld accepted invalid CPU affinity"
-    kill -TERM "${invalid_pid}" 2>/dev/null
+    kill -TERM "${invalid_pid}" 2>/dev/null || true
     wait "${invalid_pid}" 2>/dev/null || true
 fi
 
@@ -295,7 +301,7 @@ log "=========================================="
 STALLD_LOG8="/tmp/stalld_test_affinity_test8_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG8}")
 
-start_stalld -f -v -l -t 5 -a 0 > "${STALLD_LOG8}" 2>&1
+start_stalld -f -v -l -t 5 -a 0
 sleep 2
 
 affinity_start=$(check_affinity "${STALLD_PID}")
