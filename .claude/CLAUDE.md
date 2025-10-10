@@ -269,22 +269,30 @@ Tests use `parse_test_options()` from `test_helpers.sh` to handle backend select
 - `test_log_only.sh` - Tests `-l` flag logs but doesn't boost (supports backend selection)
 - `test_logging_destinations.sh` - Tests `-v`, `-k`, `-s` logging options
 
-🔄 **Phase 2 Planned** (Command-Line Options):
-- Monitoring options: `-c` (CPU selection), `-t` (starvation threshold)
-- Boosting options: `-p` (period), `-r` (runtime), `-d` (duration), `-F` (force FIFO)
-- Daemon options: `-P` (pidfile), `-a` (affinity)
+✅ **Phase 2 Complete** (Command-Line Options - 9 of 10 tests):
+- `test_backend_selection.sh` - Tests `-b` backend selection (argument ordering fix)
+- `test_cpu_selection.sh` - Tests `-c` CPU selection
+- `test_starvation_threshold.sh` - Tests `-t` threshold option
+- `test_boost_period.sh` - Tests `-p` period option (6 tests)
+- `test_boost_runtime.sh` - Tests `-r` runtime option (7 tests)
+- `test_boost_duration.sh` - Tests `-d` duration option (6 tests)
+- `test_affinity.sh` - Tests `-a` affinity option (8 tests)
+- `test_pidfile.sh` - Tests `--pidfile` option (7 tests, fixed -P→--pidfile bug)
+- `test_boost_restoration.sh` - Verifies policy restoration after boosting (5 tests)
+- ⚠️ `test_force_fifo.sh` - SKIPPED (user requested, may return later)
 
-🔄 **Phase 3 Planned** (Core Logic):
-- Starvation detection verification
-- SCHED_DEADLINE boosting verification
-- SCHED_FIFO boosting verification
-- Task merging logic
-- Idle detection
+✅ **Phase 3 Complete** (Core Logic - 6 tests):
+- `test_starvation_detection.sh` - Verifies starvation detection (6 tests)
+- `test_idle_detection.sh` - Tests `-N` idle detection disable (5 tests)
+- `test_task_merging.sh` - Verifies timestamp preservation (4 tests)
+- `test_deadline_boosting.sh` - Tests SCHED_DEADLINE boosting (5 tests)
+- `test_fifo_boosting.sh` - Tests SCHED_FIFO boosting (5 tests)
+- `test_runqueue_parsing.sh` - Verifies runqueue parsing (5 tests)
 
-🔄 **Phase 4 Planned** (Advanced):
+🔄 **Phase 4 Planned** (Advanced Features):
 - Threading modes (adaptive vs aggressive)
 - Filtering (`-i`, `-I` options)
-- Backend comparison (eBPF vs debugfs/procfs)
+- Backend comparison tests (eBPF vs debugfs/procfs)
 - Integration and stress tests
 
 **Test Requirements:**
