@@ -1,6 +1,6 @@
 {
-  "timestamp": "2025-10-09T15:30:00-05:00",
-  "session": "Test Suite Framework Hardening - PID Tracking and Old-Style Test Fixes",
+  "timestamp": "2025-10-09T21:45:00-05:00",
+  "session": "Fix test_backend_selection.sh Output Redirection Issue",
   "branch": "tests",
   "commits_ahead_of_main": 42,
   "latest_commit": {
@@ -10,7 +10,61 @@
       "tests/TODO.md"
     ]
   },
-  "uncommitted_changes": [],
+  "uncommitted_changes": [
+    "tests/functional/test_backend_selection.sh - MODIFIED (output redirection fix)"
+  ],
+  "current_work": {
+    "task": "Fix test_backend_selection.sh backend message detection",
+    "status": "READY FOR TESTING",
+    "problem_identified": {
+      "root_cause": "Output redirection on start_stalld() call captured function's echo statements instead of stalld's actual stderr",
+      "symptom": "Backend selection messages 'using sched_debug backend' not found in logs",
+      "affected_tests": "All 4 tests in test_backend_selection.sh",
+      "similar_to": "Same issue previously fixed in test_logging_destinations.sh"
+    },
+    "solution_implemented": {
+      "approach": "Bypass start_stalld() helper and call ../stalld directly with output redirection",
+      "pattern": "Same pattern used successfully in test_logging_destinations.sh",
+      "changes": [
+        "Test 1: sched_debug backend - redirect ../stalld output to log, capture PID with pgrep",
+        "Test 2: queue_track backend - same pattern",
+        "Test 3: short name 'S' - same pattern",
+        "Test 4: STALLD_TEST_BACKEND env var - same pattern"
+      ],
+      "key_code_pattern": [
+        "STALLD_LOG=\"/tmp/stalld_backend_<test>_$$.log\"",
+        "../stalld -b <backend> -f -v -l -t 60 > \"${STALLD_LOG}\" 2>&1 &",
+        "sleep 1",
+        "STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)",
+        "CLEANUP_PIDS+=(\"${STALLD_PID}\")",
+        "grep -q \"using <backend> backend\" \"${STALLD_LOG}\"",
+        "stop_stalld",
+        "rm -f \"${STALLD_LOG}\""
+      ]
+    },
+    "backend_message_details": {
+      "source_location": "src/utils.c:1155 and src/utils.c:1159",
+      "messages": [
+        "log_msg(\"using sched_debug backend\\n\")",
+        "log_msg(\"using queue_track backend\\n\")"
+      ],
+      "log_msg_outputs_to": [
+        "stderr (if -v verbose flag is set)",
+        "kmsg (if -k flag is set)",
+        "syslog (if -s flag is set)"
+      ],
+      "test_uses": "-f -v -l flags, so backend messages go to stderr"
+    },
+    "files_modified": [
+      "tests/functional/test_backend_selection.sh - Complete rewrite of all 4 tests"
+    ],
+    "next_steps": [
+      "Test the fixed test_backend_selection.sh with sudo",
+      "Verify all 4 tests can find backend messages in logs",
+      "Commit if tests pass",
+      "Update TODO.md to document this fix"
+    ]
+  },
   "recent_work": {
     "completed": [
       {
@@ -117,7 +171,7 @@
     ]
   },
   "project_state": {
-    "current_phase": "Test Suite Framework Stabilization Complete",
+    "current_phase": "Fixing test_backend_selection.sh Output Redirection",
     "test_coverage": {
       "phase_1_complete": [
         "test01.c - Fixed original starvation test (7 critical fixes)",
@@ -144,6 +198,9 @@
         "test_runqueue_parsing.sh - ✅ PASSING (5 tests)",
         "test_boost_restoration.sh - ✅ PASSING (5 tests)"
       ],
+      "backend_tests": [
+        "test_backend_selection.sh - 🔧 FIXING (output redirection issue, same as test_logging_destinations.sh)"
+      ],
       "infrastructure": [
         "run_tests.sh - Auto-discovery, backend selection (328 lines)",
         "test_helpers.sh - FIXED PID tracking, comprehensive library (518 lines)",
@@ -161,6 +218,9 @@
         "test_deadline_boosting.sh - All 5 tests PASS",
         "test_starvation_threshold.sh - All 4 tests PASS",
         "test_boost_period.sh - All 6 tests PASS"
+      ],
+      "failing_before_fix": [
+        "test_backend_selection.sh - All 4 tests FAIL (backend messages not found in logs)"
       ]
     },
     "build_status": "Clean build successful, USE_BPF=1, x86_64",
@@ -193,6 +253,22 @@
       "description": "Comprehensive documentation of all fixes and remaining issues"
     }
   ],
+  "pending_commit": {
+    "message": "tests: Fix test_backend_selection.sh backend message detection",
+    "description": "Fix output redirection to capture stalld stderr instead of start_stalld() echo statements",
+    "files": [
+      "tests/functional/test_backend_selection.sh"
+    ],
+    "details": [
+      "Bypass start_stalld() helper for all 4 tests",
+      "Call ../stalld directly with output redirection to capture stderr",
+      "Use pgrep to find actual stalld PID after backgrounding",
+      "Search for 'using <backend> backend' messages in log files",
+      "Added debug output (cat log) when backend message not found",
+      "Same pattern as test_logging_destinations.sh fix"
+    ],
+    "testing_required": true
+  },
   "known_issues": {
     "old_style_tests_needing_rewrites": [
       {
@@ -253,13 +329,33 @@
     "examples": [
       "tests/functional/test_boost_period.sh (255 lines, modern)",
       "tests/functional/test_starvation_threshold.sh (216 lines, modern)"
-    ]
+    ],
+    "special_case_output_redirection": {
+      "problem": "start_stalld > file 2>&1 redirects function output (echo statements) not stalld's stderr",
+      "solution": "Call ../stalld directly: ../stalld [args] > file 2>&1 &",
+      "then": "STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)",
+      "and": "CLEANUP_PIDS+=(\"${STALLD_PID}\")",
+      "examples": [
+        "tests/functional/test_logging_destinations.sh (Tests 1 and 4)",
+        "tests/functional/test_backend_selection.sh (All 4 tests) - FIXED TODAY"
+      ]
+    }
   },
   "test_framework_improvements": {
     "pid_tracking_fix": {
       "before": "STALLD_PID=$! (captured shell PID)",
       "after": "STALLD_PID=$(pgrep -n -x stalld 2>/dev/null) with fallback",
       "benefit": "All tests now correctly track stalld process regardless of forking/redirection"
+    },
+    "output_redirection_pattern": {
+      "problem": "Helper function output redirection captures helper's echo, not stalld's stderr",
+      "solution": "Bypass helper when testing output - call stalld directly",
+      "pattern": "../stalld [args] > log 2>&1 & ; STALLD_PID=$(pgrep -n -x stalld)",
+      "applies_to": [
+        "Tests checking stdout/stderr content",
+        "Tests checking log messages",
+        "Tests checking backend selection messages"
+      ]
     },
     "cleanup_robustness": {
       "features": [
@@ -275,9 +371,10 @@
   },
   "next_steps": {
     "immediate": [
-      "Monitor test runs to verify all fixes are stable",
-      "Consider rewriting remaining 5 old-style tests when needed",
-      "Update context-snapshot.json (this file) - DONE"
+      "Run sudo ./functional/test_backend_selection.sh to verify fix",
+      "Verify all 4 tests find backend messages in logs",
+      "Commit with message: 'tests: Fix test_backend_selection.sh backend message detection'",
+      "Consider adding this pattern to test writing documentation"
     ],
     "future_work": [
       "Rewrite test_boost_duration.sh (currently hanging)",
@@ -293,6 +390,8 @@
     "old_vs_new_framework": "Clear evolution: old (SCRIPT_DIR, manual cleanup, undefined vars) → new (TEST_ROOT, automatic arrays, all vars defined).",
     "fix_approach": "Complete rewrites using modern framework proven more reliable than patching old-style tests.",
     "test_stability": "With PID tracking fixed and 3 tests rewritten, core test suite is now stable and reliable.",
-    "documentation_quality": "TODO.md comprehensively documents all issues, fixes, and provides clear pattern for future conversions."
+    "documentation_quality": "TODO.md comprehensively documents all issues, fixes, and provides clear pattern for future conversions.",
+    "output_redirection_lesson": "When testing stalld's output (stdout/stderr), bypass start_stalld() helper and call ../stalld directly. The helper's echo statements pollute the output stream.",
+    "crash_recovery": "User mentioned crash during 'Fix test_backend_selection.sh backend message detection' - EPERM issue while stopping root process. Fix completed successfully."
   }
 }
