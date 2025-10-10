@@ -41,7 +41,7 @@ log "=========================================="
 log "Test 1: Default behavior (no -P specified)"
 log "=========================================="
 
-start_stalld -l -t 5 > "${STALLD_LOG}" 2>&1
+start_stalld -l -t 5
 
 # Give stalld time to create pidfile
 sleep 2
@@ -90,7 +90,7 @@ STALLD_LOG2="/tmp/stalld_test_pidfile_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
 
 log "Starting stalld with custom pidfile: ${custom_pidfile}"
-start_stalld -l -t 5 -P "${custom_pidfile}" > "${STALLD_LOG2}" 2>&1
+start_stalld -l -t 5 --pidfile "${custom_pidfile}"
 sleep 2
 
 # Verify pidfile was created
@@ -139,7 +139,7 @@ STALLD_LOG4="/tmp/stalld_test_pidfile_test4_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG4}")
 
 log "Starting stalld with /tmp pidfile: ${tmp_pidfile}"
-start_stalld -l -t 5 -P "${tmp_pidfile}" > "${STALLD_LOG4}" 2>&1
+start_stalld -l -t 5 --pidfile "${tmp_pidfile}"
 sleep 2
 
 if [ -f "${tmp_pidfile}" ]; then
@@ -176,7 +176,7 @@ STALLD_LOG5="/tmp/stalld_test_pidfile_test5_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG5}")
 
 log "Starting stalld in foreground mode with pidfile: ${fg_pidfile}"
-start_stalld -f -v -l -t 5 -P "${fg_pidfile}" > "${STALLD_LOG5}" 2>&1
+start_stalld -f -v -l -t 5 --pidfile "${fg_pidfile}"
 sleep 2
 
 if [ -f "${fg_pidfile}" ]; then
@@ -214,8 +214,14 @@ CLEANUP_FILES+=("${test_dir}")
 INVALID_LOG="/tmp/stalld_test_pidfile_invalid_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
 
+# Add backend flag for consistency
+BACKEND_FLAG=""
+if [ -n "${STALLD_TEST_BACKEND}" ]; then
+    BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
+fi
+
 log "Testing invalid pidfile path: ${invalid_pidfile}"
-${TEST_ROOT}/../stalld -f -v -l -t 5 -P "${invalid_pidfile}" > "${INVALID_LOG}" 2>&1 &
+${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 --pidfile "${invalid_pidfile}" > "${INVALID_LOG}" 2>&1 &
 invalid_pid=$!
 sleep 2
 
@@ -230,7 +236,7 @@ if ! kill -0 "${invalid_pid}" 2>/dev/null; then
 else
     # Process still running - might have accepted it or created elsewhere
     log "⚠ WARNING: stalld running despite potentially invalid pidfile path"
-    kill -TERM "${invalid_pid}" 2>/dev/null
+    kill -TERM "${invalid_pid}" 2>/dev/null || true
     wait "${invalid_pid}" 2>/dev/null || true
 fi
 
@@ -253,7 +259,7 @@ STALLD_LOG7="/tmp/stalld_test_pidfile_test7_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG7}")
 
 log "Starting stalld with readable pidfile: ${readable_pidfile}"
-start_stalld -l -t 5 -P "${readable_pidfile}" > "${STALLD_LOG7}" 2>&1
+start_stalld -l -t 5 --pidfile "${readable_pidfile}"
 sleep 2
 
 if [ -f "${readable_pidfile}" ]; then
