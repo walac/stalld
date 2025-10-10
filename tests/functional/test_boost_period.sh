@@ -50,7 +50,7 @@ log "=========================================="
 
 threshold=5
 log "Starting stalld with default period"
-start_stalld -f -v -c "${TEST_CPU}" -t $threshold > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -t $threshold -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 starvation_duration=$((threshold + 5))
@@ -95,7 +95,7 @@ log "=========================================="
 custom_period=500000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with custom period ${custom_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $custom_period > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $custom_period -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -130,7 +130,7 @@ log "=========================================="
 short_period=100000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with short period ${short_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $short_period > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $short_period -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -165,7 +165,7 @@ log "=========================================="
 long_period=10000000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with long period ${long_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $long_period > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $long_period -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -200,7 +200,13 @@ log "=========================================="
 INVALID_LOG="/tmp/stalld_test_boost_period_invalid_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
 
-${TEST_ROOT}/../stalld -f -v -t $threshold -p 0 > "${INVALID_LOG}" 2>&1 &
+# Add backend flag for consistency
+BACKEND_FLAG=""
+if [ -n "${STALLD_TEST_BACKEND}" ]; then
+    BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
+fi
+
+${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p 0 > "${INVALID_LOG}" 2>&1 &
 invalid_pid=$!
 sleep 2
 
@@ -227,7 +233,7 @@ log "=========================================="
 INVALID_LOG2="/tmp/stalld_test_boost_period_invalid2_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG2}")
 
-${TEST_ROOT}/../stalld -f -v -t $threshold -p -1000000 > "${INVALID_LOG2}" 2>&1 &
+${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p -1000000 > "${INVALID_LOG2}" 2>&1 &
 invalid_pid=$!
 sleep 2
 
