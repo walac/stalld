@@ -67,8 +67,9 @@ wait_time=$((threshold + 3))
 log "Waiting ${wait_time}s for detection (threshold: ${threshold}s)"
 sleep ${wait_time}
 
-# Check if starvation was detected
-if grep -q "starved\|starving" "${STALLD_LOG}"; then
+# Check if starvation was detected (excluding pre-existing kworker tasks)
+# Look for any starved task that's not a kworker
+if grep -E "starved on CPU" "${STALLD_LOG}" | grep -v "kworker"; then
     log "✓ PASS: Starvation detected after ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected after ${threshold}s threshold"
@@ -113,13 +114,14 @@ wait "${STARVE_PID}" 2>/dev/null || true
 # Give stalld time to process and log (if it were to detect)
 sleep 2
 
-# Check that starvation was NOT detected (it ended before threshold)
-if ! grep -q "starved\|starving" "${STALLD_LOG2}"; then
+# Check that starvation was NOT detected for non-kworker tasks
+# (kworker tasks may pre-exist and be detected, that's OK)
+if ! grep -E "starved on CPU" "${STALLD_LOG2}" | grep -v "kworker"; then
     log "✓ PASS: No starvation detected for duration less than threshold"
 else
     log "✗ FAIL: Starvation detected before threshold"
-    log "Log contents:"
-    cat "${STALLD_LOG2}"
+    log "Found non-kworker starved task in logs:"
+    grep -E "starved on CPU" "${STALLD_LOG2}" | grep -v "kworker"
     TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
@@ -154,11 +156,13 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 wait_time=$((threshold + 2))
 sleep ${wait_time}
 
-# Check if starvation was detected
-if grep -q "starved\|starving" "${STALLD_LOG3}"; then
+# Check if starvation was detected (excluding pre-existing kworker tasks)
+if grep -E "starved on CPU" "${STALLD_LOG3}" | grep -v "kworker"; then
     log "✓ PASS: Starvation detected with ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected with ${threshold}s threshold"
+    log "Log contents:"
+    cat "${STALLD_LOG3}"
     TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
