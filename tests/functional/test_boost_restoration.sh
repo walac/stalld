@@ -11,6 +11,9 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
+# Parse command-line options
+parse_test_options "$@" || exit $?
+
 # Helper function for logging test steps
 log() {
     echo "[$(date +'%H:%M:%S')] $*"
@@ -79,7 +82,7 @@ threshold=5
 boost_duration=3
 
 log "Starting stalld with ${boost_duration}s boost duration"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation (starvation_gen creates SCHED_OTHER tasks by default)
 log "Creating starvation with SCHED_OTHER tasks"
@@ -150,8 +153,8 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
+kill -TERM ${STARVE_PID} 2>/dev/null || true
+wait ${STARVE_PID} 2>/dev/null || true
 stop_stalld
 
 #=============================================================================
@@ -168,7 +171,7 @@ boost_duration=3
 
 log "Starting stalld"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # Create a SCHED_FIFO task that will starve
 # We'll create our own RT task instead of using starvation_gen
@@ -248,14 +251,14 @@ if chrt -f -p 10 ${FIFO_TASK_PID} 2>/dev/null; then
         log "ℹ INFO: Task exited before final verification"
     fi
 
-    kill ${FIFO_TASK_PID} 2>/dev/null
+    kill ${FIFO_TASK_PID} 2>/dev/null || true
 else
     log "⚠ SKIP: Could not create SCHED_FIFO task (insufficient privileges?)"
 fi
 
 # Cleanup
-kill -TERM ${BLOCKER_PID} 2>/dev/null
-wait ${BLOCKER_PID} 2>/dev/null
+kill -TERM ${BLOCKER_PID} 2>/dev/null || true
+wait ${BLOCKER_PID} 2>/dev/null || true
 stop_stalld
 
 #=============================================================================
@@ -272,7 +275,7 @@ boost_duration=3
 
 log "Starting stalld"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # The starvation_gen doesn't set nice values, so this is informational
 # We verify that whatever nice value exists is preserved
@@ -315,8 +318,8 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
+kill -TERM ${STARVE_PID} 2>/dev/null || true
+wait ${STARVE_PID} 2>/dev/null || true
 stop_stalld
 
 #=============================================================================
@@ -332,7 +335,7 @@ boost_duration=4  # 4 second boost
 
 log "Starting stalld with ${boost_duration}s boost duration"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation"
@@ -373,8 +376,8 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
+kill -TERM ${STARVE_PID} 2>/dev/null || true
+wait ${STARVE_PID} 2>/dev/null || true
 stop_stalld
 
 #=============================================================================
@@ -390,7 +393,7 @@ boost_duration=10  # Long boost, but task will exit earlier
 
 log "Starting stalld with ${boost_duration}s boost (task will exit during boost)"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation that exits after threshold + 3s
 short_duration=$((threshold + 3))
@@ -429,8 +432,8 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
+kill -TERM ${STARVE_PID} 2>/dev/null || true
+wait ${STARVE_PID} 2>/dev/null || true
 stop_stalld
 
 #=============================================================================
