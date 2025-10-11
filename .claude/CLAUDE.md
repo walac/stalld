@@ -136,9 +136,9 @@ stalld/
 
 ### Threading Modes
 
-- **Single-threaded** (default): One thread calls `boost_cpu_starving_vector()` to boost all CPUs at once
-- **Adaptive**: Spawns per-CPU threads when tasks approach ½ starvation threshold, threads exit after 10 idle cycles
-- **Aggressive** (`-A`): Per-CPU threads from startup, never exit, continuous monitoring
+- **Power/Single-threaded** (`-O/--power_mode`): One thread calls `boost_cpu_starving_vector()` to boost all CPUs at once, lower CPU usage, only works with SCHED_DEADLINE (not FIFO)
+- **Adaptive** (`-M/--adaptive_mode`, default): Spawns per-CPU threads when tasks approach ½ starvation threshold, threads exit after 10 idle cycles
+- **Aggressive** (`-A/--aggressive_mode`): Per-CPU threads from startup, never exit, continuous monitoring, highest precision
 
 ## Command Line Interface
 
@@ -155,7 +155,9 @@ stalld/
 - `-F/--force_fifo`: Force SCHED_FIFO instead of SCHED_DEADLINE
 
 **Threading:**
-- `-A/--aggressive_mode`: Spawn per-CPU threads immediately (vs. adaptive)
+- `-O/--power_mode`: Power/single-threaded mode (only works with SCHED_DEADLINE)
+- `-M/--adaptive_mode`: Adaptive mode (default)
+- `-A/--aggressive_mode`: Aggressive mode (per-CPU threads)
 
 **Filtering:**
 - `-i <regex>`: Ignore thread names matching regex (comma-separated)
@@ -226,16 +228,25 @@ make test-integration    # Integration tests only
 cd tests && ./run_tests.sh --functional-only
 cd tests && functional/test_foreground.sh
 
-# Run tests with specific backend
-cd tests && ./run_tests.sh --backend sched_debug     # Use debugfs/procfs backend for all tests
-cd tests && functional/test_log_only.sh -b queue_track  # Use eBPF backend for one test
+# Matrix testing (test multiple backends/modes)
+cd tests && ./run_tests.sh                          # Default: backend matrix (2× runtime)
+cd tests && ./run_tests.sh --full-matrix            # Full matrix: backends × modes (6× runtime)
+cd tests && ./run_tests.sh --backend-only           # Backends only, adaptive mode (2× runtime)
+cd tests && ./run_tests.sh --quick                  # Quick: sched_debug + adaptive (1× runtime)
+
+# Run tests with specific backend/mode
+cd tests && ./run_tests.sh --backend sched_debug    # Use debugfs/procfs backend
+cd tests && ./run_tests.sh -m power                 # Use power/single-threaded mode
+cd tests && functional/test_log_only.sh -b queue_track -m aggressive  # Specific test
 ```
 
 **Test Infrastructure:**
-- **run_tests.sh** (328 lines): Main test orchestrator with auto-discovery, color-coded output, statistics, backend selection
-- **helpers/test_helpers.sh** (331 lines): Reusable helper library with 20+ functions for assertions, stalld management, system checks, backend selection via `parse_test_options()`
+- **run_tests.sh** (~785 lines): Main test orchestrator with auto-discovery, color output, matrix testing (backend × threading mode), per-backend/mode statistics
+- **helpers/test_helpers.sh** (~706 lines): Helper library with 20+ functions for assertions, stalld management, backend/mode selection via `parse_test_options()`
 - **helpers/starvation_gen.c** (267 lines): Configurable starvation generator for controlled testing
 - **Test organization**: `unit/`, `functional/`, `integration/`, `fixtures/`, `results/`
+- **Matrix testing**: Default tests 2 backends (sched_debug, queue_track), optional 3 threading modes (power, adaptive, aggressive)
+- **Skip logic**: Power mode automatically skips FIFO tests (incompatible with single-threaded)
 
 **Backend Selection in Tests:**
 
@@ -259,7 +270,12 @@ Supported backends:
 - `sched_debug` or `S`: debugfs/procfs backend (parses /sys/kernel/debug/sched/debug or /proc/sched_debug)
 - `queue_track` or `Q`: eBPF backend (uses BPF tracepoints)
 
-Tests use `parse_test_options()` from `test_helpers.sh` to handle backend selection. The backend is passed to stalld via the `-b` flag.
+Supported threading modes:
+- `power`: Power/single-threaded mode (`-O` flag) - only works with SCHED_DEADLINE
+- `adaptive`: Adaptive/conservative mode (`-M` flag) - default
+- `aggressive`: Aggressive mode (`-A` flag) - per-CPU threads
+
+Tests use `parse_test_options()` from `test_helpers.sh` to handle backend and threading mode selection via `-b/--backend` and `-m/--threading-mode` flags.
 
 **Current Test Coverage:**
 
@@ -303,8 +319,8 @@ Tests use `parse_test_options()` from `test_helpers.sh` to handle backend select
 **Helper Functions Available:**
 ```bash
 # Test Options Parsing
-parse_test_options "$@"     # Parse -b/--backend and -h/--help flags
-                            # Sets STALLD_TEST_BACKEND environment variable
+parse_test_options "$@"     # Parse -b/--backend, -m/--threading-mode, and -h/--help flags
+                            # Sets STALLD_TEST_BACKEND and STALLD_TEST_THREADING_MODE env vars
 
 # Assertions
 assert_equals expected actual "message"
@@ -422,18 +438,18 @@ Backend selection is automatic at compile time (src/stalld.c:158-162) based on a
 
 Three threading modes controlled by `-A` and internal flags:
 
-1. **Single-threaded mode** (default, `config_single_threaded=1`)
+1. **Power/Single-threaded mode** (`-O/--power_mode`, `config_single_threaded=1`)
    - One thread monitors all CPUs
    - Uses `boost_cpu_starving_vector()` to boost all starving tasks at once
    - Lower CPU usage, lower precision
    - **Only works with SCHED_DEADLINE** (not FIFO)
 
-2. **Conservative/Adaptive mode** (`config_adaptive_multi_threaded=1`)
+2. **Adaptive/Conservative mode** (`-M/--adaptive_mode`, `config_adaptive_multi_threaded=1`, default)
    - Starts with single thread
    - Spawns per-CPU threads when tasks approach starvation (½ threshold)
    - Per-CPU threads exit after 10 idle cycles
 
-3. **Aggressive mode** (`-A`, `config_aggressive=1`)
+3. **Aggressive mode** (`-A/--aggressive_mode`, `config_aggressive=1`)
    - Dedicated thread per monitored CPU from start
    - Highest precision, highest CPU usage
    - Never exit, continuous monitoring
