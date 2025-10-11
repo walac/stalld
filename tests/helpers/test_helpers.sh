@@ -42,15 +42,20 @@ parse_test_options() {
 				export STALLD_TEST_BACKEND="$2"
 				shift 2
 				;;
+			-m|--threading-mode)
+				export STALLD_TEST_THREADING_MODE="$2"
+				shift 2
+				;;
 			-h|--help)
 				echo "Common test options:"
-				echo "  -b, --backend <name>  Backend to use (sched_debug|S or queue_track|Q)"
-				echo "  -h, --help            Show this help"
+				echo "  -b, --backend <name>         Backend to use (sched_debug|S or queue_track|Q)"
+				echo "  -m, --threading-mode <mode>  Threading mode (power|adaptive|aggressive)"
+				echo "  -h, --help                   Show this help"
 				return 1
 				;;
 			*)
 				echo "Unknown option: $1"
-				echo "Usage: $0 [-b|--backend <backend>] [-h|--help]"
+				echo "Usage: $0 [-b|--backend <backend>] [-m|--threading-mode <mode>] [-h|--help]"
 				return 1
 				;;
 		esac
@@ -197,6 +202,33 @@ start_stalld() {
 	if [ ! -x "${stalld_bin}" ]; then
 		echo -e "${RED}ERROR: stalld binary not found at ${stalld_bin}${NC}"
 		return 1
+	fi
+
+	# Add backend option if STALLD_TEST_BACKEND is set
+	if [ -n "${STALLD_TEST_BACKEND}" ]; then
+		args="-b ${STALLD_TEST_BACKEND} ${args}"
+		echo "Using backend: ${STALLD_TEST_BACKEND}"
+	fi
+
+	# Add threading mode flag if STALLD_TEST_THREADING_MODE is set
+	if [ -n "${STALLD_TEST_THREADING_MODE}" ]; then
+		case "${STALLD_TEST_THREADING_MODE}" in
+			power)
+				args="-O ${args}"
+				echo "Using threading mode: power (single-threaded)"
+				;;
+			adaptive)
+				args="-M ${args}"
+				echo "Using threading mode: adaptive"
+				;;
+			aggressive)
+				args="-A ${args}"
+				echo "Using threading mode: aggressive"
+				;;
+			*)
+				echo -e "${YELLOW}WARNING: Unknown threading mode '${STALLD_TEST_THREADING_MODE}', using default${NC}"
+				;;
+		esac
 	fi
 
 	${stalld_bin} ${args} &
