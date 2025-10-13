@@ -26,6 +26,7 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 TEST_NAME="test01 (legacy starvation test)"
 STARVATION_THRESHOLD=5
 STALLD_STARTUP_WAIT=2
+TEST01_TIMEOUT=60  # Maximum time for test01 to run (seconds)
 
 if [[ "$1" == "" ]]; then
     backend="sched_debug"
@@ -86,19 +87,31 @@ main() {
 	# Give stalld time to initialize
 	sleep "${STALLD_STARTUP_WAIT}"
 
-	# Run the legacy test01 binary
-	echo "Executing legacy test01 binary..."
+	# Run the legacy test01 binary with timeout
+	echo "Executing legacy test01 binary (timeout: ${TEST01_TIMEOUT}s)..."
 	local test_output
 	local test_exit_code=0
 
-	# Capture output and exit code
+	# Capture output and exit code with timeout
+	# Note: test01 blocks all signals except SIGINT, so we must use SIGINT
+	# If that fails after 5s, escalate to SIGKILL
 	set +e
-	test_output=$("${TEST01_BIN}" -v 2>&1)
+	test_output=$(timeout --kill-after=5 --signal=SIGINT "${TEST01_TIMEOUT}" "${TEST01_BIN}" -v 2>&1)
 	test_exit_code=$?
 	set -e
 
 	# Show test output
 	echo "${test_output}"
+
+	# Check for timeout (exit code 124)
+	if [ ${test_exit_code} -eq 124 ]; then
+		echo "ERROR: test01 binary timed out after ${TEST01_TIMEOUT} seconds"
+		echo "This may indicate:"
+		echo "  - test01 is stuck in an infinite loop"
+		echo "  - Starvation scenario not resolving as expected"
+		echo "  - System performance issues"
+		exit 1
+	fi
 
 	# Check exit code
 	if [ ${test_exit_code} -eq 0 ]; then
