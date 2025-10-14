@@ -19,6 +19,7 @@
 struct config {
 	int cpu;
 	int blocker_priority;
+	int blockee_priority;
 	int num_blockees;
 	int duration;
 	int verbose;
@@ -27,6 +28,7 @@ struct config {
 static struct config cfg = {
 	.cpu = -1,
 	.blocker_priority = 10,
+	.blockee_priority = 1,
 	.num_blockees = 1,
 	.duration = 30,
 	.verbose = 0
@@ -78,13 +80,16 @@ void usage(void) {
 	printf("Options:\n");
 	printf("  -c, --cpu N              CPU to use for test (default: auto-select)\n");
 	printf("  -p, --priority N         SCHED_FIFO priority for blocker (default: 10)\n");
+	printf("  -b, --blockee-priority N SCHED_FIFO priority for blockees (default: 1)\n");
 	printf("  -n, --num-blockees N     Number of blockee threads (default: 1)\n");
 	printf("  -d, --duration N         Duration in seconds (default: 30)\n");
 	printf("  -v, --verbose            Verbose output\n");
 	printf("  -h, --help               Show this help\n");
-	printf("\nExample:\n");
+	printf("\nExamples:\n");
 	printf("  starvation_gen -c 2 -p 15 -n 3 -d 60 -v\n");
-	printf("  (Create starvation on CPU 2 with 1 blocker at priority 15 and 3 blockees for 60 seconds)\n");
+	printf("    (Create starvation on CPU 2 with blocker at priority 15 and 3 blockees at priority 1)\n\n");
+	printf("  starvation_gen -c 2 -p 10 -b 5 -n 2 -d 30\n");
+	printf("    (Test FIFO-on-FIFO starvation: blocker at priority 10 starves blockees at priority 5)\n");
 }
 
 int pick_cpu(void) {
@@ -103,19 +108,20 @@ int main(int argc, char **argv) {
 	int i, ret;
 
 	struct option long_options[] = {
-		{"cpu",          required_argument, 0, 'c'},
-		{"priority",     required_argument, 0, 'p'},
-		{"num-blockees", required_argument, 0, 'n'},
-		{"duration",     required_argument, 0, 'd'},
-		{"verbose",      no_argument,       0, 'v'},
-		{"help",         no_argument,       0, 'h'},
+		{"cpu",              required_argument, 0, 'c'},
+		{"priority",         required_argument, 0, 'p'},
+		{"blockee-priority", required_argument, 0, 'b'},
+		{"num-blockees",     required_argument, 0, 'n'},
+		{"duration",         required_argument, 0, 'd'},
+		{"verbose",          no_argument,       0, 'v'},
+		{"help",             no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
 
 	/* Parse command line */
 	while (1) {
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "c:p:n:d:vh", long_options, &option_index);
+		int c = getopt_long(argc, argv, "c:p:b:n:d:vh", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -126,6 +132,9 @@ int main(int argc, char **argv) {
 			break;
 		case 'p':
 			cfg.blocker_priority = atoi(optarg);
+			break;
+		case 'b':
+			cfg.blockee_priority = atoi(optarg);
 			break;
 		case 'n':
 			cfg.num_blockees = atoi(optarg);
@@ -152,6 +161,17 @@ int main(int argc, char **argv) {
 	/* Validate parameters */
 	if (cfg.blocker_priority < 1 || cfg.blocker_priority > 99) {
 		fprintf(stderr, "Error: blocker priority must be 1-99\n");
+		exit(1);
+	}
+
+	if (cfg.blockee_priority < 1 || cfg.blockee_priority > 99) {
+		fprintf(stderr, "Error: blockee priority must be 1-99\n");
+		exit(1);
+	}
+
+	if (cfg.blockee_priority >= cfg.blocker_priority) {
+		fprintf(stderr, "Error: blockee priority (%d) must be less than blocker priority (%d)\n",
+			cfg.blockee_priority, cfg.blocker_priority);
 		exit(1);
 	}
 
@@ -214,7 +234,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	/* Blockees should be SCHED_FIFO with priority 1 (lower than blocker)
+	/* Blockees should be SCHED_FIFO with lower priority than blocker
 	 * to create actual RT starvation that stalld can detect */
 	ret = pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
 	if (ret != 0) {
@@ -222,7 +242,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	param.sched_priority = 1;
+	param.sched_priority = cfg.blockee_priority;
 	ret = pthread_attr_setschedparam(&attr, &param);
 	if (ret != 0) {
 		fprintf(stderr, "pthread_attr_setschedparam (blockee) failed: %s\n", strerror(ret));
@@ -240,10 +260,11 @@ int main(int argc, char **argv) {
 
 	/* Print configuration */
 	printf("Starvation generator started:\n");
-	printf("  CPU:            %d\n", cfg.cpu);
+	printf("  CPU:              %d\n", cfg.cpu);
 	printf("  Blocker priority: %d\n", cfg.blocker_priority);
+	printf("  Blockee priority: %d\n", cfg.blockee_priority);
 	printf("  Blockee threads:  %d\n", cfg.num_blockees);
-	printf("  Duration:       %d seconds\n", cfg.duration);
+	printf("  Duration:         %d seconds\n", cfg.duration);
 	printf("  Blocker TID:    %ld\n", (long)blocker);
 	for (i = 0; i < cfg.num_blockees; i++) {
 		printf("  Blockee %d TID:   %ld\n", i, (long)blockees[i]);

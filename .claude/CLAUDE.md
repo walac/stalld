@@ -243,7 +243,10 @@ cd tests && functional/test_log_only.sh -b queue_track -m aggressive  # Specific
 **Test Infrastructure:**
 - **run_tests.sh** (~785 lines): Main test orchestrator with auto-discovery, color output, matrix testing (backend × threading mode), per-backend/mode statistics
 - **helpers/test_helpers.sh** (~706 lines): Helper library with 20+ functions for assertions, stalld management, backend/mode selection via `parse_test_options()`
-- **helpers/starvation_gen.c** (267 lines): Configurable starvation generator for controlled testing
+- **helpers/starvation_gen.c** (~290 lines): Configurable starvation generator for controlled testing
+  - Creates SCHED_FIFO blocker at specified priority (default 10, `-p` flag)
+  - Creates SCHED_FIFO blockees at specified priority (default 1, `-b` flag)
+  - Enables testing both standard starvation and FIFO-on-FIFO priority starvation scenarios
 - **Test organization**: `unit/`, `functional/`, `integration/`, `fixtures/`, `results/`
 - **Matrix testing**: Default tests 2 backends (sched_debug, queue_track), optional 3 threading modes (power, adaptive, aggressive)
 - **Skip logic**: Power mode automatically skips FIFO tests (incompatible with single-threaded)
@@ -297,12 +300,13 @@ Tests use `parse_test_options()` from `test_helpers.sh` to handle backend and th
 - `test_boost_restoration.sh` - Verifies policy restoration after boosting (5 tests, 3 pass on sched_debug)
 - ⚠️ `test_force_fifo.sh` - SKIPPED (user requested, may return later)
 
-✅ **Phase 3 Complete** (Core Logic - 6 tests):
+✅ **Phase 3 Complete** (Core Logic - 7 tests):
 - `test_starvation_detection.sh` - Verifies starvation detection (6 tests)
 - `test_idle_detection.sh` - Tests `-N` idle detection disable (5 tests)
 - `test_task_merging.sh` - Verifies timestamp preservation (4 tests)
 - `test_deadline_boosting.sh` - Tests SCHED_DEADLINE boosting (5 tests)
 - `test_fifo_boosting.sh` - Tests SCHED_FIFO boosting (5 tests, 3 pass on sched_debug)
+- `test_fifo_priority_starvation.sh` - Tests FIFO-on-FIFO priority starvation (5 tests, sched_debug only)
 - `test_runqueue_parsing.sh` - Verifies runqueue parsing (5 tests)
 
 **Known Issues:**
@@ -343,7 +347,10 @@ pick_test_cpu               # Pick CPU for testing
 wait_for_log_message "pattern" timeout
 
 # Starvation Generator
-../helpers/starvation_gen -c CPU -p priority -n num_threads -d duration -v
+../helpers/starvation_gen -c CPU -p blocker_priority -b blockee_priority -n num_threads -d duration -v
+# Examples:
+#   starvation_gen -c 2 -p 80 -n 2 -d 30        # Standard: blocker prio 80, blockees prio 1
+#   starvation_gen -c 2 -p 10 -b 5 -n 2 -d 30   # FIFO-on-FIFO: blocker prio 10, blockees prio 5
 ```
 
 See `tests/README.md` for complete test documentation, writing tests, and troubleshooting.

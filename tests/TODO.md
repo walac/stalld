@@ -395,7 +395,7 @@ This document tracks the comprehensive test suite implementation for stalld.
 
 ## Current Test Coverage
 
-### Completed Tests (20)
+### Completed Tests (21)
 **Legacy Tests (1):**
 1. ✅ `legacy/test01_wrapper.sh` - Original starvation test (fixed, wrapped)
 
@@ -414,14 +414,15 @@ This document tracks the comprehensive test suite implementation for stalld.
 11. ✅ `test_pidfile.sh` - PID file management (-P)
 12. ✅ `test_affinity.sh` - CPU affinity (-a)
 
-**Phase 3 Tests (7):**
+**Phase 3 Tests (8):**
 13. ✅ `test_starvation_detection.sh` - Starvation detection logic (6 test cases)
 14. ✅ `test_runqueue_parsing.sh` - Backend task parsing (5 test cases)
 15. ✅ `test_deadline_boosting.sh` - SCHED_DEADLINE boosting (5 test cases)
 16. ✅ `test_fifo_boosting.sh` - SCHED_FIFO boosting (5 test cases)
-17. ✅ `test_boost_restoration.sh` - Policy restoration (5 test cases)
-18. ✅ `test_task_merging.sh` - Task merging logic (4 test cases)
-19. ✅ `test_idle_detection.sh` - Idle CPU detection (5 test cases)
+17. ✅ `test_fifo_priority_starvation.sh` - FIFO-on-FIFO priority starvation (5 test cases)
+18. ✅ `test_boost_restoration.sh` - Policy restoration (5 test cases)
+19. ✅ `test_task_merging.sh` - Task merging logic (4 test cases)
+20. ✅ `test_idle_detection.sh` - Idle CPU detection (5 test cases)
 
 ### Planned Tests (10+)
 - Phase 4: 8 advanced feature tests
@@ -646,6 +647,36 @@ Follow test_boost_period.sh and test_starvation_threshold.sh rewrites:
 1. 7af4f55a5765 - Fix segfault in adaptive/aggressive modes
 2. e87ae9fcd224 - Document queue_track backend limitation in test_starvation_threshold.sh
 
-*Last Updated: 2025-10-13*
+### 2025-10-14 - FIFO-on-FIFO Priority Starvation Test
+- **Enhanced starvation_gen.c with configurable blockee priority**
+  - Added `--blockee-priority/-b` flag to allow configurable SCHED_FIFO priority for blockees
+  - Default blockee priority: 1 (maintains backward compatibility)
+  - Validation: blockee_priority must be less than blocker_priority
+  - Enables testing FIFO-on-FIFO starvation scenarios (e.g., FIFO:10 starves FIFO:5)
+  - Usage: `starvation_gen -c 2 -p 10 -b 5 -n 2 -d 30` creates blocker at priority 10, blockees at priority 5
+  - Files modified: `tests/helpers/starvation_gen.c` (~290 lines, +23 lines)
+- **Created test_fifo_priority_starvation.sh**
+  - Tests FIFO-on-FIFO priority starvation detection (SCHED_FIFO:10 blocks SCHED_FIFO:5)
+  - 5 test cases:
+    1. Basic FIFO-on-FIFO starvation detection (CPU ID, duration logging)
+    2. Boosting effectiveness (verify lower-priority task makes progress)
+    3. Starvation duration tracking (task merging across cycles)
+    4. Close priority gap edge case (FIFO:6 vs FIFO:5)
+    5. Correct task boosted (blockee, not blocker)
+  - Known limitation: queue_track backend cannot detect SCHED_FIFO tasks (same as other FIFO tests)
+  - Recommendation: Use sched_debug backend for reliable results
+  - Files created: `tests/functional/test_fifo_priority_starvation.sh` (411 lines)
+- **Updated documentation**
+  - CLAUDE.md: Added test_fifo_priority_starvation.sh to Phase 3 test list (now 7 tests)
+  - CLAUDE.md: Updated starvation_gen documentation with -b flag and usage examples
+  - TODO.md: Added this entry documenting the enhancement
+
+**Benefits:**
+- Comprehensive testing of FIFO-on-FIFO starvation scenarios
+- More flexible starvation_gen for future test development
+- Better coverage of real-world RT priority starvation cases
+- Maintains backward compatibility (default blockee_priority=1)
+
+*Last Updated: 2025-10-14*
 *Status: Phase 0 (Legacy Integration) Complete, Phases 1-3 Complete, Phase 4 Pending*
 *Known Issues: queue_track backend limitation with SCHED_FIFO tasks, 5 old-style Phase 2 tests need rewrites*
