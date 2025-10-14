@@ -620,6 +620,32 @@ Follow test_boost_period.sh and test_starvation_threshold.sh rewrites:
   - Test runner now automatically saves and restores RT throttling
   - No manual RT throttling configuration required
 
-*Last Updated: 2025-10-09*
+### 2025-10-13 - Critical Segfault Fix and Backend Limitation Documentation
+- **Fixed critical segfault in adaptive/aggressive modes**
+  - **Root cause**: `merge_taks_info()` unconditionally called `update_cpu_starving_vector()` at line 389
+  - **Problem**: `cpu_starving_vector` only allocated in `single_threaded_main()` (line 1007)
+  - **Impact**: Adaptive/aggressive modes crashed when parsing tasks (any backend)
+  - **Fix**: Added `if (config_single_threaded)` guards before both `update_cpu_starving_vector()` calls
+  - **Commit**: 7af4f55a5765
+  - **Files modified**: `src/stalld.c` (lines 389, 401)
+  - **Result**: test_starvation_threshold.sh now passes on sched_debug with adaptive mode
+- **Documented queue_track backend limitation**
+  - **Finding**: queue_track (BPF) backend cannot detect SCHED_FIFO tasks waiting on runqueue
+  - **Root cause**: `task_running()` check at `stalld.bpf.c:273` only tracks `__state == TASK_RUNNING`
+  - **Problem**: Runnable SCHED_FIFO tasks waiting on runqueue have different `__state` values
+  - **Evidence**: Manual testing showed queue_track only detected pre-existing kworker tasks, completely missed SCHED_FIFO blockee tasks created by starvation_gen (blocker at priority 80, blockees at priority 1)
+  - **Impact**: Tests using starvation_gen fail on queue_track but pass on sched_debug
+  - **Documentation**: Added detailed comment to test_starvation_threshold.sh (commit e87ae9fcd224)
+  - **Workaround**: Use sched_debug backend for tests requiring SCHED_FIFO task detection
+- **Test validation**
+  - test_boost_restoration.sh on sched_debug: 3/5 passes (2 timing-related failures)
+  - test_fifo_boosting.sh on sched_debug: 3/5 passes (2 timing-related failures)
+  - Both tests work reasonably well, remaining failures are edge cases
+
+**Commits Created:**
+1. 7af4f55a5765 - Fix segfault in adaptive/aggressive modes
+2. e87ae9fcd224 - Document queue_track backend limitation in test_starvation_threshold.sh
+
+*Last Updated: 2025-10-13*
 *Status: Phase 0 (Legacy Integration) Complete, Phases 1-3 Complete, Phase 4 Pending*
-*Known Issues: 5 old-style Phase 2 tests need rewrites (test_boost_runtime, test_boost_duration, test_affinity, test_force_fifo, test_pidfile)*
+*Known Issues: queue_track backend limitation with SCHED_FIFO tasks, 5 old-style Phase 2 tests need rewrites*

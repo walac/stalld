@@ -288,13 +288,13 @@ Tests use `parse_test_options()` from `test_helpers.sh` to handle backend and th
 ✅ **Phase 2 Complete** (Command-Line Options - 9 of 10 tests):
 - `test_backend_selection.sh` - Tests `-b` backend selection (argument ordering fix)
 - `test_cpu_selection.sh` - Tests `-c` CPU selection
-- `test_starvation_threshold.sh` - Tests `-t` threshold option
+- `test_starvation_threshold.sh` - Tests `-t` threshold option (fixed segfault, documented queue_track limitation)
 - `test_boost_period.sh` - Tests `-p` period option (6 tests)
 - `test_boost_runtime.sh` - Tests `-r` runtime option (7 tests)
 - `test_boost_duration.sh` - Tests `-d` duration option (6 tests)
 - `test_affinity.sh` - Tests `-a` affinity option (8 tests)
 - `test_pidfile.sh` - Tests `--pidfile` option (7 tests, fixed -P→--pidfile bug)
-- `test_boost_restoration.sh` - Verifies policy restoration after boosting (5 tests)
+- `test_boost_restoration.sh` - Verifies policy restoration after boosting (5 tests, 3 pass on sched_debug)
 - ⚠️ `test_force_fifo.sh` - SKIPPED (user requested, may return later)
 
 ✅ **Phase 3 Complete** (Core Logic - 6 tests):
@@ -302,8 +302,12 @@ Tests use `parse_test_options()` from `test_helpers.sh` to handle backend and th
 - `test_idle_detection.sh` - Tests `-N` idle detection disable (5 tests)
 - `test_task_merging.sh` - Verifies timestamp preservation (4 tests)
 - `test_deadline_boosting.sh` - Tests SCHED_DEADLINE boosting (5 tests)
-- `test_fifo_boosting.sh` - Tests SCHED_FIFO boosting (5 tests)
+- `test_fifo_boosting.sh` - Tests SCHED_FIFO boosting (5 tests, 3 pass on sched_debug)
 - `test_runqueue_parsing.sh` - Verifies runqueue parsing (5 tests)
+
+**Known Issues:**
+- **queue_track backend limitation**: BPF backend cannot detect SCHED_FIFO tasks waiting on runqueue due to `task_running()` check in `stalld.bpf.c:273` only tracking `__state == TASK_RUNNING`. Tests using `starvation_gen` (SCHED_FIFO workloads) pass on sched_debug but fail on queue_track.
+- **Segfault fix**: Fixed critical bug in `merge_taks_info()` that caused crashes in adaptive/aggressive modes (commit 7af4f55a5765)
 
 🔄 **Phase 4 Planned** (Advanced Features):
 - Threading modes (adaptive vs aggressive)
