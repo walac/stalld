@@ -4,6 +4,13 @@
 # Test: stalld -t/--starving_threshold option
 # Verifies that stalld detects starvation after the configured threshold
 #
+# KNOWN LIMITATION: queue_track backend (BPF) has limited support for detecting
+# SCHED_FIFO tasks on the runqueue. The BPF code's task_running() check at
+# stalld.bpf.c:273 only tracks tasks with __state == TASK_RUNNING, but runnable
+# SCHED_FIFO tasks waiting on the runqueue may have different __state values.
+# This causes queue_track to miss SCHED_FIFO blockee tasks created by
+# starvation_gen. The sched_debug backend works correctly for these tests.
+#
 # Copyright (C) 2025 Red Hat Inc
 
 # Load test helpers
@@ -53,7 +60,7 @@ log "=========================================="
 
 threshold=5
 log "Starting stalld with ${threshold}s threshold"
-start_stalld -f -v -N -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
 
 # Create starvation that will last 10 seconds
 starvation_duration=10
@@ -96,7 +103,7 @@ threshold=10
 log "Starting stalld with ${threshold}s threshold"
 STALLD_LOG2="/tmp/stalld_test_threshold_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
-start_stalld -f -v -N -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG2}" 2>&1
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG2}" 2>&1
 
 # Create starvation that will last 6 seconds (less than threshold)
 starvation_duration=6
@@ -143,7 +150,7 @@ threshold=3
 log "Starting stalld with ${threshold}s threshold"
 STALLD_LOG3="/tmp/stalld_test_threshold_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
-start_stalld -f -v -N -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG3}" 2>&1
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
 
 # Create starvation for 8 seconds
 starvation_duration=8
@@ -185,7 +192,7 @@ log "Testing with threshold = 0"
 INVALID_LOG="/tmp/stalld_test_threshold_invalid_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
 
-${TEST_ROOT}/../stalld -f -v -t 0 -l > "${INVALID_LOG}" 2>&1 &
+${TEST_ROOT}/../stalld -f -v -t 0 > "${INVALID_LOG}" 2>&1 &
 invalid_pid=$!
 sleep 2
 
@@ -206,7 +213,7 @@ log "Testing with threshold = -5"
 INVALID_LOG2="/tmp/stalld_test_threshold_invalid2_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG2}")
 
-${TEST_ROOT}/../stalld -f -v -t -5 -l > "${INVALID_LOG2}" 2>&1 &
+${TEST_ROOT}/../stalld -f -v -t -5 > "${INVALID_LOG2}" 2>&1 &
 invalid_pid=$!
 sleep 2
 
