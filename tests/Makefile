@@ -56,6 +56,7 @@ test-legacy: $(LEGACY_TESTS)
 
 clean:
 	@rm -f $(ALL_BINS)
-	@rm -rf results/
+	@# Use sudo for results/ as tests run as root create root-owned log files
+	@if [ -d results/ ]; then sudo rm -rf results/; fi
 	@rm -f *~ unit/*~ functional/*~ integration/*~ helpers/*~ legacy/*~
 	@rm -f *.o unit/*.o helpers/*.o legacy/*.o

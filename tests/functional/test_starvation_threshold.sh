@@ -4,12 +4,9 @@
 # Test: stalld -t/--starving_threshold option
 # Verifies that stalld detects starvation after the configured threshold
 #
-# KNOWN LIMITATION: queue_track backend (BPF) has limited support for detecting
-# SCHED_FIFO tasks on the runqueue. The BPF code's task_running() check at
-# stalld.bpf.c:273 only tracks tasks with __state == TASK_RUNNING, but runnable
-# SCHED_FIFO tasks waiting on the runqueue may have different __state values.
-# This causes queue_track to miss SCHED_FIFO blockee tasks created by
-# starvation_gen. The sched_debug backend works correctly for these tests.
+# IMPORTANT: stalld must run on a different CPU than the test CPU to avoid
+# interference with the starvation scenario. This test uses CPU affinity (-a)
+# to ensure stalld runs on a separate CPU.
 #
 # Copyright (C) 2025 Red Hat Inc
 
@@ -40,6 +37,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Setup paths
 STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
 STALLD_LOG="/tmp/stalld_test_threshold_$$.log"
@@ -60,7 +64,7 @@ log "=========================================="
 
 threshold=5
 log "Starting stalld with ${threshold}s threshold"
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
 
 # Create starvation that will last 10 seconds
 starvation_duration=10
@@ -103,7 +107,7 @@ threshold=10
 log "Starting stalld with ${threshold}s threshold"
 STALLD_LOG2="/tmp/stalld_test_threshold_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG2}" 2>&1
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG2}" 2>&1
 
 # Create starvation that will last 6 seconds (less than threshold)
 starvation_duration=6
@@ -150,7 +154,7 @@ threshold=3
 log "Starting stalld with ${threshold}s threshold"
 STALLD_LOG3="/tmp/stalld_test_threshold_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
 
 # Create starvation for 8 seconds
 starvation_duration=8
@@ -160,7 +164,7 @@ STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
 # Wait for threshold + buffer
-wait_time=$((threshold + 2))
+wait_time=$((threshold + 3))
 sleep ${wait_time}
 
 # Check if starvation was detected (excluding pre-existing kworker tasks)

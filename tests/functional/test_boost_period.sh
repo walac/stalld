@@ -30,6 +30,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Setup paths
 STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
 STALLD_LOG="/tmp/stalld_test_boost_period_$$.log"
@@ -50,7 +57,7 @@ log "=========================================="
 
 threshold=5
 log "Starting stalld with default period"
-start_stalld -f -v -c "${TEST_CPU}" -t $threshold -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 starvation_duration=$((threshold + 5))
@@ -95,7 +102,7 @@ log "=========================================="
 custom_period=500000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with custom period ${custom_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $custom_period -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $custom_period -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -130,7 +137,7 @@ log "=========================================="
 short_period=100000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with short period ${short_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $short_period -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $short_period -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -165,7 +172,7 @@ log "=========================================="
 long_period=10000000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with long period ${long_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -t $threshold -p $long_period -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $long_period -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"

@@ -75,6 +75,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Get number of CPUs for multi-CPU tests
 NUM_CPUS=$(get_num_cpus)
 
@@ -104,7 +111,7 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 sleep 2
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for detection (threshold + small buffer)
 wait_time=$((threshold + 2))
@@ -163,7 +170,7 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 sleep 2
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for detection
 sleep $((threshold + 2))
@@ -309,7 +316,7 @@ else
     # Give starvation generators time to start
     sleep 2
 
-    start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${CPU0},${CPU1}
+    start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU}
 
     # Wait for detection
     sleep $((threshold + 2))
@@ -348,7 +355,7 @@ log "=========================================="
 rm -f "${STALLD_LOG}"
 threshold=5
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Create a task that gets CPU time but isn't starved
 # Use a SCHED_OTHER task with lower priority that still gets scheduled
@@ -392,7 +399,7 @@ log "=========================================="
 rm -f "${STALLD_LOG}"
 threshold=10
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Create short-lived starvation that exits before threshold
 log "Creating short-lived starvation (3s, less than ${threshold}s threshold)"

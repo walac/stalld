@@ -81,6 +81,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Get number of CPUs for multi-CPU tests
 NUM_CPUS=$(get_num_cpus)
 
@@ -99,7 +106,7 @@ log "=========================================="
 
 threshold=5
 log "Starting stalld with ${threshold}s threshold (default DEADLINE boosting)"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 starvation_duration=$((threshold + 8))
@@ -164,7 +171,7 @@ log "  Runtime: ${boost_runtime}ns (50µs)"
 log "  Duration: ${boost_duration}s"
 
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} \
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
     -p ${boost_period} -r ${boost_runtime} -d ${boost_duration} \
     > "${STALLD_LOG}" 2>&1
 
@@ -225,7 +232,7 @@ boost_duration=5
 
 log "Starting stalld with ${boost_duration}s boost duration"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -298,7 +305,7 @@ boost_duration=3
 
 log "Starting stalld with ${boost_duration}s boost duration"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -391,7 +398,7 @@ else
     log "Testing simultaneous boosts on CPU ${CPU0} and CPU ${CPU1}"
 
     rm -f "${STALLD_LOG}"
-    start_stalld -f -v -t $threshold -c ${CPU0},${CPU1} > "${STALLD_LOG}" 2>&1
+    start_stalld -f -v -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
     # Create starvation on CPU0
     log "Creating starvation on CPU ${CPU0}"

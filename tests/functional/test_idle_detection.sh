@@ -53,6 +53,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Setup paths
 STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
 STALLD_LOG="/tmp/stalld_test_idle_$$.log"
@@ -75,7 +82,7 @@ log "Idle CPUs should be skipped to reduce overhead"
 
 threshold=5
 log "Starting stalld with verbose logging"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Let stalld run while CPU is idle (no load)
 log "CPU ${TEST_CPU} should be idle (no load created)"
@@ -143,7 +150,7 @@ log "=========================================="
 threshold=5
 rm -f "${STALLD_LOG}"
 log "Starting stalld"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Initially idle
 log "CPU ${TEST_CPU} initially idle"

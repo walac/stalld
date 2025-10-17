@@ -65,6 +65,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Setup paths
 STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
 STALLD_LOG="/tmp/stalld_test_restoration_$$.log"
@@ -82,7 +89,7 @@ threshold=5
 boost_duration=3
 
 log "Starting stalld with ${boost_duration}s boost duration"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation (starvation_gen creates SCHED_OTHER tasks by default)
 log "Creating starvation with SCHED_OTHER tasks"
@@ -171,7 +178,7 @@ boost_duration=3
 
 log "Starting stalld"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # Create a SCHED_FIFO task that will starve
 # We'll create our own RT task instead of using starvation_gen
@@ -275,7 +282,7 @@ boost_duration=3
 
 log "Starting stalld"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # The starvation_gen doesn't set nice values, so this is informational
 # We verify that whatever nice value exists is preserved
@@ -335,7 +342,7 @@ boost_duration=4  # 4 second boost
 
 log "Starting stalld with ${boost_duration}s boost duration"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation"
@@ -393,7 +400,7 @@ boost_duration=10  # Long boost, but task will exit earlier
 
 log "Starting stalld with ${boost_duration}s boost (task will exit during boost)"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
 # Create starvation that exits after threshold + 3s
 short_duration=$((threshold + 3))

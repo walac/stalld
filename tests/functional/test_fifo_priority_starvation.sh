@@ -5,12 +5,9 @@
 # Verify stalld correctly detects when one SCHED_FIFO task is starved by another
 # SCHED_FIFO task with higher priority (e.g., FIFO:10 starves FIFO:5)
 #
-# KNOWN LIMITATION: queue_track backend (BPF) has limited support for detecting
-# SCHED_FIFO tasks on the runqueue. The BPF code's task_running() check at
-# stalld.bpf.c:273 only tracks tasks with __state == TASK_RUNNING, but runnable
-# SCHED_FIFO tasks waiting on the runqueue may have different __state values.
-# This causes queue_track to miss SCHED_FIFO blockee tasks created by
-# starvation_gen. The sched_debug backend works correctly for these tests.
+# IMPORTANT: stalld must run on a different CPU than the test CPU to avoid
+# interference with the starvation scenario. This test uses CPU affinity (-a)
+# to ensure stalld runs on a separate CPU.
 #
 # Copyright (C) 2025 Red Hat Inc
 
@@ -75,6 +72,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Setup paths
 STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
 STALLD_LOG="/tmp/stalld_test_fifo_prio_$$.log"
@@ -104,7 +108,7 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 sleep 2
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for detection (threshold + small buffer)
 wait_time=$((threshold + 2))
@@ -182,7 +186,7 @@ if [ -n "${blockee_pid}" ]; then
 fi
 
 log "Starting stalld with boosting enabled"
-start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -d ${boost_duration}
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -a ${STALLD_CPU} -d ${boost_duration}
 
 # Wait for detection and boosting
 sleep $((threshold + boost_duration + 1))
@@ -239,7 +243,7 @@ sleep 2
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 log "Will monitor for multiple detection cycles to verify timestamp preservation"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for multiple detection cycles
 log "Waiting for multiple detection cycles..."
@@ -307,7 +311,7 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 sleep 2
 
 log "Starting stalld with ${threshold}s threshold"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for detection
 sleep $((threshold + 2))
@@ -353,7 +357,7 @@ sleep 3
 log "Starvation generator PID: ${STARVE_PID}"
 
 log "Starting stalld with boosting enabled"
-start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for detection and boosting
 sleep $((threshold + 2))

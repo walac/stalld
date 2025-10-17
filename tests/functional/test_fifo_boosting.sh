@@ -63,6 +63,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Setup paths
 STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
 STALLD_LOG="/tmp/stalld_test_fifo_boost_$$.log"
@@ -79,7 +86,7 @@ log "=========================================="
 threshold=5
 log "Starting stalld with -F flag to force SCHED_FIFO boosting"
 # Note: -F requires non-single-threaded mode (aggressive mode)
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 starvation_duration=$((threshold + 8))
@@ -128,7 +135,7 @@ threshold=5
 log "Starting stalld with -F flag (FIFO boosting)"
 
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -197,7 +204,7 @@ log "  Runtime: ${boost_runtime}ns (20µs)"
 log "  Expected cycles: ~5"
 
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} \
+start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
     -d ${boost_duration} -p ${boost_period} -r ${boost_runtime} \
     > "${STALLD_LOG}" 2>&1
 
@@ -245,7 +252,7 @@ log "Running with SCHED_DEADLINE boosting..."
 STALLD_LOG_DEADLINE="/tmp/stalld_test_deadline_compare_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG_DEADLINE}")
 
-start_stalld -f -v -N -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG_DEADLINE}" 2>&1
+start_stalld -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_DEADLINE}" 2>&1
 
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d 15 &
 STARVE_PID=$!
@@ -291,7 +298,7 @@ log "Running with SCHED_FIFO boosting..."
 STALLD_LOG_FIFO="/tmp/stalld_test_fifo_compare_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
 
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -d ${boost_duration} > "${STALLD_LOG_FIFO}" 2>&1
+start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_FIFO}" 2>&1
 
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d 15 &
 STARVE_PID=$!

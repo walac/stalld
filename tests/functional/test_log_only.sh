@@ -28,6 +28,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 echo "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+echo "Stalld will run on CPU ${STALLD_CPU}"
+
 # Test: stalld with -l should log starvation but not boost
 
 # Create a temp log file for stalld output
@@ -48,7 +55,7 @@ sleep 1
 echo "Starting stalld in log-only mode with 5 second threshold"
 
 # Build stalld command with backend option if specified
-STALLD_ARGS="-f -v -l -t 5 -c ${TEST_CPU}"
+STALLD_ARGS="-f -v -l -t 5 -c ${TEST_CPU} -a ${STALLD_CPU}"
 if [ -n "${STALLD_TEST_BACKEND}" ]; then
 	STALLD_ARGS="-b ${STALLD_TEST_BACKEND} ${STALLD_ARGS}"
 	echo "Using backend: ${STALLD_TEST_BACKEND}"

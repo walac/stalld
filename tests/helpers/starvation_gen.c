@@ -22,6 +22,7 @@ struct config {
 	int blockee_priority;
 	int num_blockees;
 	int duration;
+	unsigned long work_target;
 	int verbose;
 };
 
@@ -31,10 +32,12 @@ static struct config cfg = {
 	.blockee_priority = 1,
 	.num_blockees = 1,
 	.duration = 30,
+	.work_target = 100000000,  /* 100M iterations - enough to see progress when boosted */
 	.verbose = 0
 };
 
 volatile int running = 1;
+volatile int *blockee_completed = NULL;  /* Track which blockees finished their work */
 
 void *blocker_thread(void *arg) {
 	if (cfg.verbose)
@@ -54,19 +57,27 @@ void *blocker_thread(void *arg) {
 void *blockee_thread(void *arg) {
 	int id = *(int*)arg;
 	volatile unsigned long counter = 0;
+	unsigned long target = cfg.work_target;
 
 	if (cfg.verbose)
-		printf("[blockee %d] Started - will starve\n", id);
+		printf("[blockee %d] Started - will work toward %lu iterations\n", id, target);
 
-	/* Busy loop to stay on runqueue - will be starved by higher priority blocker */
-	while (running) {
-		counter++;  /* Keep thread runnable but it won't get CPU due to blocker */
+	/*
+	 * Busy loop to stay on runqueue - will be starved by higher priority blocker.
+	 * When boosted by stalld, will be able to make progress and eventually complete.
+	 */
+	while (running && counter < target) {
+		counter++;
 	}
 
-	if (cfg.verbose)
-		printf("[blockee %d] Exiting after %lu iterations\n", id, counter);
+	if (counter >= target) {
+		blockee_completed[id] = 1;
+		printf("[blockee %d] ✓ COMPLETED work after %lu iterations\n", id, counter);
+	} else if (cfg.verbose) {
+		printf("[blockee %d] Interrupted after %lu/%lu iterations\n", id, counter, target);
+	}
 
-	return NULL;
+	return (void *)(unsigned long)blockee_completed[id];
 }
 
 void signal_handler(int sig) {
@@ -83,13 +94,16 @@ void usage(void) {
 	printf("  -b, --blockee-priority N SCHED_FIFO priority for blockees (default: 1)\n");
 	printf("  -n, --num-blockees N     Number of blockee threads (default: 1)\n");
 	printf("  -d, --duration N         Duration in seconds (default: 30)\n");
+	printf("  -w, --work-target N      Work iterations for blockees to complete (default: 100000000)\n");
 	printf("  -v, --verbose            Verbose output\n");
 	printf("  -h, --help               Show this help\n");
 	printf("\nExamples:\n");
 	printf("  starvation_gen -c 2 -p 15 -n 3 -d 60 -v\n");
 	printf("    (Create starvation on CPU 2 with blocker at priority 15 and 3 blockees at priority 1)\n\n");
 	printf("  starvation_gen -c 2 -p 10 -b 5 -n 2 -d 30\n");
-	printf("    (Test FIFO-on-FIFO starvation: blocker at priority 10 starves blockees at priority 5)\n");
+	printf("    (Test FIFO-on-FIFO starvation: blocker at priority 10 starves blockees at priority 5)\n\n");
+	printf("  starvation_gen -c 2 -w 50000000 -v\n");
+	printf("    (Blockees will complete after 50M iterations if boosted by stalld)\n");
 }
 
 int pick_cpu(void) {
@@ -113,6 +127,7 @@ int main(int argc, char **argv) {
 		{"blockee-priority", required_argument, 0, 'b'},
 		{"num-blockees",     required_argument, 0, 'n'},
 		{"duration",         required_argument, 0, 'd'},
+		{"work-target",      required_argument, 0, 'w'},
 		{"verbose",          no_argument,       0, 'v'},
 		{"help",             no_argument,       0, 'h'},
 		{0, 0, 0, 0}
@@ -121,7 +136,7 @@ int main(int argc, char **argv) {
 	/* Parse command line */
 	while (1) {
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "c:p:b:n:d:vh", long_options, &option_index);
+		int c = getopt_long(argc, argv, "c:p:b:n:d:w:vh", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -141,6 +156,9 @@ int main(int argc, char **argv) {
 			break;
 		case 'd':
 			cfg.duration = atoi(optarg);
+			break;
+		case 'w':
+			cfg.work_target = strtoul(optarg, NULL, 10);
 			break;
 		case 'v':
 			cfg.verbose = 1;
@@ -229,7 +247,8 @@ int main(int argc, char **argv) {
 	/* Setup blockee threads */
 	blockees = malloc(cfg.num_blockees * sizeof(pthread_t));
 	blockee_ids = malloc(cfg.num_blockees * sizeof(int));
-	if (!blockees || !blockee_ids) {
+	blockee_completed = calloc(cfg.num_blockees, sizeof(int));
+	if (!blockees || !blockee_ids || !blockee_completed) {
 		fprintf(stderr, "malloc failed\n");
 		exit(1);
 	}
@@ -264,12 +283,14 @@ int main(int argc, char **argv) {
 	printf("  Blocker priority: %d\n", cfg.blocker_priority);
 	printf("  Blockee priority: %d\n", cfg.blockee_priority);
 	printf("  Blockee threads:  %d\n", cfg.num_blockees);
+	printf("  Work target:      %lu iterations\n", cfg.work_target);
 	printf("  Duration:         %d seconds\n", cfg.duration);
 	printf("  Blocker TID:    %ld\n", (long)blocker);
 	for (i = 0; i < cfg.num_blockees; i++) {
 		printf("  Blockee %d TID:   %ld\n", i, (long)blockees[i]);
 	}
-	printf("\nPress Ctrl+C to stop early\n");
+	printf("\nBlockees will complete if boosted enough to finish %lu iterations\n", cfg.work_target);
+	printf("Press Ctrl+C to stop early\n");
 
 	/* Run for specified duration */
 	sleep(cfg.duration);
@@ -281,10 +302,28 @@ int main(int argc, char **argv) {
 		pthread_join(blockees[i], NULL);
 	}
 
+	/* Report results */
+	printf("\nStarvation generator completed\n");
+	int num_completed = 0;
+	for (i = 0; i < cfg.num_blockees; i++) {
+		if (blockee_completed[i]) {
+			num_completed++;
+		}
+	}
+	printf("Blockees completed: %d/%d\n", num_completed, cfg.num_blockees);
+
+	if (num_completed == cfg.num_blockees) {
+		printf("✓ SUCCESS: All blockees completed their work (stalld boosting worked!)\n");
+	} else if (num_completed > 0) {
+		printf("⚠ PARTIAL: Some blockees completed (%d/%d)\n", num_completed, cfg.num_blockees);
+	} else {
+		printf("✗ NONE: No blockees completed (may need longer boost or lower work target)\n");
+	}
+
 	free(blockees);
 	free(blockee_ids);
+	free((void *)blockee_completed);
 	pthread_attr_destroy(&attr);
 
-	printf("Starvation generator completed\n");
-	return 0;
+	return (num_completed == cfg.num_blockees) ? 0 : 1;
 }

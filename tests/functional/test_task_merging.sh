@@ -43,6 +43,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Check for DL-server (kernel automatic starvation handling)
 # If DL-server is present, the kernel handles starvation automatically,
 # so stalld won't detect starvation and we can't test task merging logic
@@ -68,7 +75,7 @@ log "Task merging: same PID + same ctxsw = preserved timestamp"
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (log-only, verbose)"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Create long starvation to span multiple monitoring cycles
 starvation_duration=18
@@ -148,7 +155,7 @@ log "Merging occurs when: PID matches AND context switches unchanged"
 
 threshold=5
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation"
@@ -223,7 +230,7 @@ log "When context switches change, timestamp should reset"
 
 threshold=5
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -d 2 > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d 2 > "${STALLD_LOG}" 2>&1
 
 # Create starvation that will get boosted (allowing progress)
 log "Creating starvation that will be boosted"
@@ -292,7 +299,7 @@ else
     log "Testing task merging on CPU ${CPU0} and CPU ${CPU1} independently"
 
     rm -f "${STALLD_LOG}"
-    start_stalld -f -v -l -t $threshold -c ${CPU0},${CPU1} > "${STALLD_LOG}" 2>&1
+    start_stalld -f -v -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
     # Create starvation on both CPUs
     log "Creating starvation on CPU ${CPU0}"

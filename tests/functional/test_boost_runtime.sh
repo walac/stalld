@@ -33,6 +33,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Setup paths
 STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
 STALLD_LOG="/tmp/stalld_test_boost_runtime_$$.log"
@@ -53,7 +60,7 @@ log "=========================================="
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (default boost runtime)"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -l > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -l > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 starvation_duration=10
@@ -94,7 +101,7 @@ STALLD_LOG2="/tmp/stalld_test_boost_runtime_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
 
 log "Starting stalld with ${threshold}s threshold and ${custom_runtime}ns runtime"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -r ${custom_runtime} -l > "${STALLD_LOG2}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${custom_runtime} -l > "${STALLD_LOG2}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
@@ -133,7 +140,7 @@ STALLD_LOG3="/tmp/stalld_test_boost_runtime_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
 
 log "Starting stalld with ${threshold}s threshold and ${large_runtime}ns runtime"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -r ${large_runtime} -l > "${STALLD_LOG3}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${large_runtime} -l > "${STALLD_LOG3}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
@@ -174,7 +181,7 @@ STALLD_LOG4="/tmp/stalld_test_boost_runtime_test4_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG4}")
 
 log "Starting stalld with runtime ${valid_runtime}ns < period ${period}ns"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -r ${valid_runtime} -p ${period} -l > "${STALLD_LOG4}" 2>&1
+start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${valid_runtime} -p ${period} -l > "${STALLD_LOG4}" 2>&1
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"

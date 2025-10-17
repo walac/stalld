@@ -44,6 +44,13 @@ fi
 TEST_CPU=$(pick_test_cpu)
 log "Using CPU ${TEST_CPU} for testing"
 
+# Pick a different CPU for stalld to run on (avoid interference)
+STALLD_CPU=0
+if [ ${TEST_CPU} -eq 0 ]; then
+    STALLD_CPU=1
+fi
+log "Stalld will run on CPU ${STALLD_CPU}"
+
 # Setup paths
 STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
 STALLD_LOG_BPF="/tmp/stalld_test_parse_bpf_$$.log"
@@ -84,7 +91,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
 
     threshold=5
     log "Starting stalld with eBPF backend (queue_track)"
-    start_stalld -f -v -l -b queue_track -t $threshold -c ${TEST_CPU} > "${STALLD_LOG_BPF}" 2>&1
+    start_stalld -f -v -l -b queue_track -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_BPF}" 2>&1
 
     # Create starvation to generate task data
     starvation_duration=$((threshold + 5))
@@ -144,7 +151,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
     threshold=5
     log "Starting stalld with sched_debug backend"
-    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} > "${STALLD_LOG_SCHED}" 2>&1
+    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
 
     # Create starvation
     starvation_duration=$((threshold + 5))
@@ -216,7 +223,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     log ""
     log "Running with eBPF backend..."
     rm -f "${STALLD_LOG_BPF}"
-    start_stalld -f -v -l -b queue_track -t $threshold -c ${TEST_CPU} > "${STALLD_LOG_BPF}" 2>&1
+    start_stalld -f -v -l -b queue_track -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_BPF}" 2>&1
 
     "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
     STARVE_PID=$!
@@ -237,7 +244,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     log ""
     log "Running with sched_debug backend..."
     rm -f "${STALLD_LOG_SCHED}"
-    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} > "${STALLD_LOG_SCHED}" 2>&1
+    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
 
     "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
     STARVE_PID=$!
@@ -303,7 +310,7 @@ if [ -n "$test_backend" ]; then
     log "Testing task field extraction with ${test_backend} backend"
 
     rm -f "${log_file}"
-    start_stalld -f -v -l -b ${test_backend} -t $threshold -c ${TEST_CPU} > "${log_file}" 2>&1
+    start_stalld -f -v -l -b ${test_backend} -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${log_file}" 2>&1
 
     # Create starvation with known parameters
     log "Creating starvation with known task name (starvation_gen)"
@@ -367,7 +374,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
     threshold=5
     rm -f "${STALLD_LOG_SCHED}"
-    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} > "${STALLD_LOG_SCHED}" 2>&1
+    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
 
     # Create brief starvation just to initialize the backend
     "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 8 &
