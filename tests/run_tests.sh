@@ -659,6 +659,7 @@ print_summary() {
 UNIT_ONLY=0
 FUNCTIONAL_ONLY=0
 INTEGRATION_ONLY=0
+SPECIFIC_TEST=""  # Run specific test by name
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
@@ -673,6 +674,10 @@ while [[ $# -gt 0 ]]; do
 		--integration-only)
 			INTEGRATION_ONLY=1
 			shift
+			;;
+		-t|--test)
+			SPECIFIC_TEST="$2"
+			shift 2
 			;;
 		--disable-dl-server)
 			DISABLE_DL_SERVER=1
@@ -719,6 +724,7 @@ while [[ $# -gt 0 ]]; do
 			echo "  --unit-only          Run only unit tests"
 			echo "  --functional-only    Run only functional tests"
 			echo "  --integration-only   Run only integration tests"
+			echo "  -t, --test <name>    Run specific test by name (e.g., test_fifo_boosting)"
 			echo ""
 			echo "Matrix Testing Modes:"
 			echo "  (default)            Backend matrix: test both backends (2× runtime)"
@@ -754,6 +760,68 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+# Run a specific test by name
+run_specific_test() {
+	local test_name="$1"
+	local found=0
+	local test_path=""
+
+	# Search for the test in all test directories
+	for dir in unit functional integration legacy; do
+		if [ -f "${TEST_ROOT}/${dir}/${test_name}.sh" ]; then
+			test_path="${TEST_ROOT}/${dir}/${test_name}.sh"
+			found=1
+			break
+		elif [ -f "${TEST_ROOT}/${dir}/${test_name}" ]; then
+			test_path="${TEST_ROOT}/${dir}/${test_name}"
+			found=1
+			break
+		fi
+	done
+
+	if [ ${found} -eq 0 ]; then
+		echo -e "${RED}Error: Test '${test_name}' not found${NC}"
+		echo "Searched in: unit/, functional/, integration/, legacy/"
+		exit 1
+	fi
+
+	echo -e "${BOLD}=========================================${NC}"
+	echo -e "${BOLD}   Running Single Test: ${test_name}${NC}"
+	if [ -n "${BACKEND}" ]; then
+		echo -e "${BOLD}   Backend: ${BACKEND}${NC}"
+	fi
+	if [ -n "${THREADING_MODE}" ]; then
+		echo -e "${BOLD}   Threading mode: ${THREADING_MODE}${NC}"
+	fi
+	echo -e "${BOLD}=========================================${NC}"
+	echo ""
+
+	# Export settings
+	export STALLD_TEST_BACKEND="${BACKEND}"
+	export STALLD_TEST_THREADING_MODE="${THREADING_MODE}"
+
+	# Run the test
+	init_tests
+
+	# Determine test type and run appropriately
+	if [[ "${test_path}" == */unit/* ]]; then
+		run_unit_test "${test_path}"
+	else
+		run_shell_test "${test_path}"
+	fi
+
+	# Print result
+	echo ""
+	if [ ${FAILED_TESTS} -eq 0 ]; then
+		echo -e "${GREEN}${BOLD}✓ Test PASSED${NC}"
+		exit 0
+	else
+		echo -e "${RED}${BOLD}✗ Test FAILED${NC}"
+		echo -e "  See ${RESULTS_DIR}/${test_name}.log for details"
+		exit 1
+	fi
+}
+
 # Main execution
 main() {
 	# Export BACKEND and THREADING_MODE for use by test scripts
@@ -764,7 +832,9 @@ main() {
 	discover_tests
 
 	# Run test suites based on options
-	if [ ${UNIT_ONLY} -eq 1 ]; then
+	if [ -n "${SPECIFIC_TEST}" ]; then
+		run_specific_test "${SPECIFIC_TEST}"
+	elif [ ${UNIT_ONLY} -eq 1 ]; then
 		run_unit_tests
 	elif [ ${FUNCTIONAL_ONLY} -eq 1 ]; then
 		run_functional_tests
