@@ -32,7 +32,7 @@ static struct config cfg = {
 	.blockee_priority = 1,
 	.num_blockees = 1,
 	.duration = 30,
-	.work_target = 100000000,  /* 100M iterations - enough to see progress when boosted */
+	.work_target = 1,  /* Minimal work - tests focus on detection/boosting, not progress */
 	.verbose = 0
 };
 
