@@ -36,20 +36,29 @@ static struct config cfg = {
 	.verbose = 0
 };
 
-volatile int running = 1;
+volatile int running = 0;  /* Number of blockees still running (initialized in main) */
 volatile int *blockee_completed = NULL;  /* Track which blockees finished their work */
+pthread_barrier_t start_barrier;  /* Synchronize thread startup */
 
 void *blocker_thread(void *arg) {
 	if (cfg.verbose)
 		printf("[blocker] Started on CPU %d with priority %d\n", cfg.cpu, cfg.blocker_priority);
 
-	/* Busy loop to monopolize CPU */
-	while (running) {
+	/* Wait for all threads to be ready before starting */
+	pthread_barrier_wait(&start_barrier);
+
+	/*
+	 * Busy loop to monopolize CPU.
+	 * Continue running as long as there are blockees that haven't finished.
+	 * The 'running' variable counts the number of active blockees - each blockee
+	 * decrements it when completing their work.
+	 */
+	while (running > 0) {
 		/* Intentionally empty - monopolize CPU */
 	}
 
 	if (cfg.verbose)
-		printf("[blocker] Exiting\n");
+		printf("[blocker] Exiting - all blockees finished\n");
 
 	return NULL;
 }
@@ -62,11 +71,15 @@ void *blockee_thread(void *arg) {
 	if (cfg.verbose)
 		printf("[blockee %d] Started - will work toward %lu iterations\n", id, target);
 
+	/* Wait for all threads to be ready before starting */
+	pthread_barrier_wait(&start_barrier);
+
 	/*
 	 * Busy loop to stay on runqueue - will be starved by higher priority blocker.
 	 * When boosted by stalld, will be able to make progress and eventually complete.
+	 * Loop while: (1) there are still blockees running AND (2) haven't reached target
 	 */
-	while (running && counter < target) {
+	while (running > 0 && counter < target) {
 		counter++;
 	}
 
@@ -76,6 +89,12 @@ void *blockee_thread(void *arg) {
 	} else if (cfg.verbose) {
 		printf("[blockee %d] Interrupted after %lu/%lu iterations\n", id, counter, target);
 	}
+
+	/*
+	 * Decrement the running count to signal this blockee has finished.
+	 * When the last blockee decrements running to 0, the blocker will exit.
+	 */
+	__sync_sub_and_fetch(&running, 1);
 
 	return (void *)(unsigned long)blockee_completed[id];
 }
@@ -202,6 +221,16 @@ int main(int argc, char **argv) {
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 
+	/*
+	 * Initialize barrier to synchronize thread startup.
+	 * Count = 1 blocker + num_blockees (all threads must reach barrier before starting).
+	 */
+	ret = pthread_barrier_init(&start_barrier, NULL, cfg.num_blockees + 1);
+	if (ret != 0) {
+		fprintf(stderr, "pthread_barrier_init failed: %s\n", strerror(ret));
+		exit(1);
+	}
+
 	/* Initialize pthread attributes */
 	ret = pthread_attr_init(&attr);
 	if (ret != 0) {
@@ -253,6 +282,13 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
+	/*
+	 * Initialize running count to number of blockees.
+	 * The blocker will continue running while running > 0.
+	 * Each blockee decrements this when it finishes.
+	 */
+	running = cfg.num_blockees;
+
 	/* Blockees should be SCHED_FIFO with lower priority than blocker
 	 * to create actual RT starvation that stalld can detect */
 	ret = pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
@@ -292,11 +328,23 @@ int main(int argc, char **argv) {
 	printf("\nBlockees will complete if boosted enough to finish %lu iterations\n", cfg.work_target);
 	printf("Press Ctrl+C to stop early\n");
 
-	/* Run for specified duration */
-	sleep(cfg.duration);
+	/*
+	 * Wait for specified duration OR until all blockees complete (whichever comes first).
+	 * The blocker will exit automatically when all blockees decrement running to 0.
+	 * We use a timeout to prevent hanging if blockees never complete.
+	 */
+	for (i = 0; i < cfg.duration && running > 0; i++) {
+		sleep(1);
+	}
 
-	/* Cleanup */
-	running = 0;
+	/* Force shutdown if duration expires and blockees still haven't finished */
+	if (running > 0) {
+		if (cfg.verbose)
+			printf("\n[main] Duration expired, forcing shutdown\n");
+		running = 0;
+	}
+
+	/* Wait for all threads to finish */
 	pthread_join(blocker, NULL);
 	for (i = 0; i < cfg.num_blockees; i++) {
 		pthread_join(blockees[i], NULL);
@@ -323,6 +371,7 @@ int main(int argc, char **argv) {
 	free(blockees);
 	free(blockee_ids);
 	free((void *)blockee_completed);
+	pthread_barrier_destroy(&start_barrier);
 	pthread_attr_destroy(&attr);
 
 	return (num_completed == cfg.num_blockees) ? 0 : 1;
