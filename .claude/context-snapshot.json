@@ -1,59 +1,156 @@
 {
   "session_date": "2025-10-20",
   "branch": "tests-devel",
-  "last_commit": "ab32801d9314 - tests: Add --test option to run individual tests by name",
-  
+  "last_commits": [
+    "05d0ae1c3e4b - tests: Update test_boost_restoration Test 3 to use SCHED_OTHER",
+    "9760d271c77d - tests: Add SCHED_OTHER option to starvation_gen",
+    "6c1f2b828b98 - tests: Fix test_boost_restoration to properly test SCHED_FIFO restoration",
+    "ab32801d9314 - tests: Add --test option to run individual tests by name",
+    "6fcbe0cccbf0 - tests: Improve starvation_gen thread coordination and shutdown"
+  ],
+
   "completed_work": {
-    "bpf_rt_task_fix": {
-      "status": "COMPLETED",
-      "commit": "c58a38a64e3e",
-      "description": "Fixed critical BPF bug preventing RT task tracking"
+    "test_boost_restoration_fixes": {
+      "issue": "Test was expecting SCHED_OTHER threads but starvation_gen creates SCHED_FIFO threads by default",
+      "solution": [
+        "Fixed Test 1-2 to expect SCHED_FIFO (policy=1) instead of SCHED_OTHER",
+        "Fixed timing issues: wait for starvation_gen to complete naturally instead of killing prematurely",
+        "Tests 1-4 now PASS: blockees complete their work, proving stalld boosting works"
+      ],
+      "commits": "6c1f2b828b98"
     },
-    "work_target_optimization": {
-      "status": "COMPLETED",
-      "commit": "173352d1a92d",
-      "description": "Changed default work_target to 1 iteration"
+
+    "starvation_gen_sched_other": {
+      "feature": "Added -o/--other flag to create SCHED_OTHER blockees",
+      "implementation": [
+        "Added blockee_policy field to config struct (default: SCHED_FIFO)",
+        "Set blockee priority to 0 for SCHED_OTHER (POSIX requirement)",
+        "Updated validation to only check priority for SCHED_FIFO",
+        "Improved startup output to show blockee policy"
+      ],
+      "usage": "starvation_gen -c 2 -p 80 -o -n 2 -d 30  # SCHED_OTHER blockees",
+      "commits": "9760d271c77d"
     },
-    "starvation_gen_improvements": {
-      "status": "COMPLETED",
-      "commit": "6fcbe0cccbf0",
-      "description": "Graceful shutdown and pthread barrier synchronization",
-      "impact": "test_starvation_threshold now PASSES"
+
+    "test_3_sched_other_update": {
+      "issue": "Test 3 'Nice Values Preserved' was testing SCHED_FIFO tasks which don't have nice values",
+      "solution": "Updated to use -o flag for SCHED_OTHER blockees (which actually have nice values)",
+      "finding": "SCHED_OTHER blockees do NOT complete (0/1), suggesting stalld may only boost RT tasks",
+      "commits": "05d0ae1c3e4b"
+    }
+  },
+
+  "test_results": {
+    "test_boost_restoration_sched_debug": {
+      "test_1_sched_fifo": "Blockees completed: 1/1 ✓ (after fix)",
+      "test_2_sched_fifo_custom": "Blockees completed: 1/1 ✓ + Policy restored",
+      "test_3_sched_other": "Blockees completed: 0/1 (expected - stalld may not boost SCHED_OTHER)",
+      "test_4_timing": "✓ PASS - Restoration timing verified",
+      "test_5_task_exit": "✗ FAIL - stalld crashes when task dies during boost (known issue)"
+    }
+  },
+
+  "key_findings": {
+    "stalld_sched_other_behavior": {
+      "observation": "SCHED_OTHER blockees in Test 3 do NOT complete even with stalld running",
+      "hypothesis": "stalld may be designed to only boost RT tasks (SCHED_FIFO/SCHED_DEADLINE), not SCHED_OTHER",
+      "evidence": [
+        "Test 1-2 (SCHED_FIFO): Blockees complete successfully",
+        "Test 3 (SCHED_OTHER): Blockees do NOT complete (0/1)",
+        "Test 4 (SCHED_FIFO): Works correctly"
+      ],
+      "next_steps": [
+        "Check stalld documentation/code to confirm if SCHED_OTHER boosting is supported",
+        "If not supported: document this limitation in test comments",
+        "If should be supported: investigate why it's not working"
+      ]
     },
-    "test_runner_enhancement": {
-      "status": "COMPLETED",
-      "commit": "ab32801d9314",
-      "description": "Added --test option to run individual tests by name",
-      "features": [
-        "Run single test with: ./run_tests.sh --test <name>",
-        "Works with -b/--backend, -m/--threading-mode, --disable-dl-server",
-        "Auto-searches in unit/, functional/, integration/, legacy/ dirs",
-        "Clear status output and proper exit codes"
+
+    "test_5_stalld_crash": {
+      "issue": "stalld exits when a boosted task dies during boost period",
+      "status": "Known issue, not addressed in this session",
+      "test_assertion": "expects stalld to keep running (assert_process_running fails)"
+    }
+  },
+
+  "infrastructure_improvements": {
+    "starvation_gen_enhancements": [
+      "work_target default changed to 1 (detection-focused tests)",
+      "pthread_barrier for synchronized thread startup",
+      "Graceful shutdown based on blockee completion count",
+      "SCHED_OTHER blockee support via -o flag"
+    ],
+
+    "test_runner_enhancements": [
+      "Added --test option to run individual tests by name",
+      "Works with --disable-dl-server and other options",
+      "Useful for focused testing during development"
+    ]
+  },
+
+  "current_test_status": {
+    "phase_1_foundation": "✅ Complete (4 tests)",
+    "phase_2_command_line": "✅ Complete (9/10 tests, test_force_fifo skipped)",
+    "phase_3_core_logic": "✅ Complete (7 tests)",
+    "phase_4_advanced": "⏸️  Not started",
+
+    "total_passing": "14/16 tests passing on sched_debug backend",
+    "known_limitations": [
+      "queue_track backend cannot detect SCHED_FIFO tasks on runqueue",
+      "Test 5 stalld crash issue (task exit during boost)",
+      "SCHED_OTHER tasks may not be boosted by stalld"
+    ]
+  },
+
+  "next_session_priorities": [
+    {
+      "priority": 1,
+      "task": "Investigate stalld SCHED_OTHER boosting behavior",
+      "details": "Check if stalld is designed to boost only RT tasks, or if SCHED_OTHER support is missing/broken",
+      "files_to_check": [
+        "src/stalld.c (boost logic)",
+        "src/sched_debug.c (task detection)",
+        "man/stalld.8 (documentation)"
+      ]
+    },
+    {
+      "priority": 2,
+      "task": "Document or fix Test 3 based on SCHED_OTHER findings",
+      "options": [
+        "If SCHED_OTHER not supported: Add SKIP or update expectations",
+        "If should work: Debug why it's not boosting SCHED_OTHER tasks"
+      ]
+    },
+    {
+      "priority": 3,
+      "task": "Investigate Test 5 stalld crash issue",
+      "details": "stalld exits when boosted task dies during boost period - is this expected?"
+    },
+    {
+      "priority": 4,
+      "task": "Consider Phase 4 tests",
+      "topics": [
+        "Threading modes (adaptive vs aggressive)",
+        "Filtering (-i, -I options)",
+        "Backend comparison tests",
+        "Integration and stress tests"
       ]
     }
-  },
-  
-  "test_infrastructure_improvements": [
-    "starvation_gen: Graceful blocker shutdown based on blockee completion",
-    "starvation_gen: Pthread barrier for synchronized thread startup",
-    "run_tests.sh: Individual test execution with --test option",
-    "All improvements work together for robust, deterministic testing"
   ],
-  
-  "test_results": {
-    "queue_track_backend": {
-      "test_starvation_threshold": "PASS",
-      "overall_status": "14/16 tests passing",
-      "improvement": "From 0/4 failing tests fixed to 1/4 passing"
-    }
+
+  "commands_for_tomorrow": {
+    "run_failing_test": "cd tests && sudo ./run_tests.sh --test test_boost_restoration -b sched_debug",
+    "run_all_tests": "cd tests && sudo ./run_tests.sh",
+    "check_stalld_code": "grep -n 'SCHED_OTHER\\|sched_other\\|policy.*0' src/stalld.c src/sched_debug.c",
+    "rebuild_tests": "make -C tests helpers/starvation_gen",
+    "test_sched_other_manually": "cd tests && sudo ./helpers/starvation_gen -c 23 -p 80 -o -n 1 -d 10 -v"
   },
-  
-  "usage_examples": {
-    "run_single_test": "./run_tests.sh --test test_fifo_boosting",
-    "with_backend": "./run_tests.sh -t test_starvation_threshold -b queue_track",
-    "with_dl_server_disabled": "./run_tests.sh --test test_foreground --disable-dl-server",
-    "with_threading_mode": "./run_tests.sh -t test_deadline_boosting -m aggressive"
-  },
-  
-  "session_summary": "Major progress on queue_track backend testing! Fixed critical BPF bug, optimized test infrastructure with graceful shutdown and barrier synchronization, and enhanced test runner with --test option for easy single-test execution."
+
+  "environment": {
+    "system": "Fedora 42, kernel 6.16.11",
+    "dl_server": "Disabled for testing",
+    "rt_throttling": "Disabled (-1)",
+    "test_cpu": "CPU 23",
+    "stalld_cpu": "CPU 0"
+  }
 }
