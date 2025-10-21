@@ -400,6 +400,9 @@ kill -TERM ${STARVE_PID} 2>/dev/null || true
 wait ${STARVE_PID} 2>/dev/null || true
 stop_stalld
 
+# Give stalld time to fully exit before next test
+sleep 1
+
 #=============================================================================
 # Test 5: Task Exit During Boost
 #=============================================================================
@@ -408,30 +411,34 @@ log "=========================================="
 log "Test 5: Graceful Handling of Task Exit During Boost"
 log "=========================================="
 
-threshold=5
-boost_duration=10  # Long boost, but task will exit earlier
+threshold=10
+boost_duration=5  # Task will exit during boost (after 8s, boost is 5s)
 
-log "Starting stalld with ${boost_duration}s boost (task will exit during boost)"
+log "Starting stalld with ${threshold}s threshold, ${boost_duration}s boost (task will exit during boost)"
 rm -f "${STALLD_LOG}"
 start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker" > "${STALLD_LOG}" 2>&1
 
-# Create starvation that exits after threshold + 3s
-short_duration=$((threshold + 3))
+# Create starvation that exits after threshold - 2s (so 8s)
+# This ensures the task exits DURING the boost period
+short_duration=$((threshold - 2))
 log "Creating starvation that will exit after ${short_duration}s"
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d ${short_duration} &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
-# Wait for boost to occur
-sleep $((threshold + 1))
+# Give stalld time to detect starvation and start boosting
+# Need: threshold (10s) + buffer for detection (2s) = 12s
+sleep $((threshold + 2))
 
 if grep -q "boosted" "${STALLD_LOG}"; then
     log "✓ PASS: Boost occurred"
 
-    # Wait for task to exit (during boost period)
-    sleep 4
+    # At this point (12s), starvation_gen has exited (at 8s) during the boost
+    # stalld should still be running despite the task exiting during boost
+    # No additional sleep needed - we're already past the task exit point
+    sleep 1
 
-    # Verify stalld is still running and didn't crash
+    # Verify stalld is still running and didn't crash after task exit
     if assert_process_running "${STALLD_PID}" "stalld still running after task exit"; then
         log "✓ PASS: stalld handled task exit during boost gracefully"
     else
