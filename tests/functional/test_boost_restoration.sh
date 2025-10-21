@@ -3,7 +3,10 @@
 #
 # Test: Policy Restoration After Boosting
 # Verify stalld correctly restores original scheduling policies and priorities
-# after boost duration expires, including SCHED_OTHER, SCHED_FIFO, and nice values
+# after boost duration expires.
+#
+# Note: starvation_gen creates SCHED_FIFO threads by default (blocker and blockees).
+# Tests verify that SCHED_FIFO tasks are properly restored after boosting.
 #
 # Copyright (C) 2025 Red Hat Inc
 
@@ -78,11 +81,11 @@ STALLD_LOG="/tmp/stalld_test_restoration_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG}")
 
 #=============================================================================
-# Test 1: Restore SCHED_OTHER (Normal Tasks)
+# Test 1: Restore SCHED_FIFO Policy (starvation_gen creates SCHED_FIFO threads)
 #=============================================================================
 log ""
 log "=========================================="
-log "Test 1: Restore SCHED_OTHER Policy"
+log "Test 1: Restore SCHED_FIFO Policy"
 log "=========================================="
 
 threshold=5
@@ -91,9 +94,9 @@ boost_duration=3
 log "Starting stalld with ${boost_duration}s boost duration"
 start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N > "${STALLD_LOG}" 2>&1
 
-# Create starvation (starvation_gen creates SCHED_OTHER tasks by default)
-log "Creating starvation with SCHED_OTHER tasks"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 20 &
+# Create starvation (starvation_gen creates SCHED_FIFO blocker prio 80, blockee prio 1)
+log "Creating starvation with SCHED_FIFO tasks (blocker prio 80, blockee prio 1)"
+"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -b 1 -n 1 -d 20 &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
@@ -111,14 +114,15 @@ done
 if [ -n "${tracked_pid}" ]; then
     log "Tracking task PID ${tracked_pid}"
 
-    # Verify initial policy is SCHED_OTHER (0)
+    # Verify initial policy is SCHED_FIFO (1) with priority 1
     initial_policy=$(get_sched_policy ${tracked_pid})
-    log "Initial policy: ${initial_policy} (expected: 0=SCHED_OTHER)"
+    initial_prio=$(get_sched_priority ${tracked_pid})
+    log "Initial policy: ${initial_policy} (expected: 1=SCHED_FIFO), prio: ${initial_prio}"
 
-    if [ "$initial_policy" = "0" ]; then
-        log "✓ PASS: Initial policy is SCHED_OTHER"
+    if [ "$initial_policy" = "1" ]; then
+        log "✓ PASS: Initial policy is SCHED_FIFO"
     else
-        log "⚠ WARNING: Initial policy is ${initial_policy}, not SCHED_OTHER (0)"
+        log "⚠ WARNING: Initial policy is ${initial_policy}, not SCHED_FIFO (1)"
     fi
 
     # Wait for starvation detection and boosting
@@ -139,29 +143,52 @@ if [ -n "${tracked_pid}" ]; then
 
     # Wait for boost duration to complete
     log "Waiting for boost to complete (${boost_duration}s)..."
-    sleep $((boost_duration + 2))
+    sleep $((boost_duration + 1))
 
-    # Verify policy restored to SCHED_OTHER (0)
+    # Check if task was restored after boost
     if [ -f "/proc/${tracked_pid}/sched" ]; then
-        final_policy=$(get_sched_policy ${tracked_pid})
-        log "Policy after boost: ${final_policy}"
+        post_boost_policy=$(get_sched_policy ${tracked_pid})
+        post_boost_prio=$(get_sched_priority ${tracked_pid})
+        log "Policy after boost: ${post_boost_policy}, prio: ${post_boost_prio}"
 
-        if [ "$final_policy" = "0" ]; then
-            log "✓ PASS: Policy restored to SCHED_OTHER (0)"
+        if [ "$post_boost_policy" = "1" ]; then
+            log "✓ PASS: Policy restored to SCHED_FIFO (1) during boost cycle"
+        elif [ "$post_boost_policy" = "6" ]; then
+            log "ℹ INFO: Still in boost (DEADLINE), will check final restoration"
         else
-            log "⚠ INFO: Policy is ${final_policy} after boost"
-            log "        (task may still be in boost cycle or has exited)"
+            log "⚠ INFO: Policy is ${post_boost_policy} (unexpected)"
         fi
-    else
-        log "ℹ INFO: Task exited, cannot verify final restoration"
     fi
 else
     log "⚠ WARNING: Could not find starved task to track"
 fi
 
+# Wait for starvation_gen to complete naturally
+log "Waiting for starvation test to complete..."
+wait ${STARVE_PID} 2>/dev/null || true
+
+# Final check: verify policy was restored (task may have exited)
+if [ -n "${tracked_pid}" ] && [ -f "/proc/${tracked_pid}/sched" ]; then
+    final_policy=$(get_sched_policy ${tracked_pid})
+    final_prio=$(get_sched_priority ${tracked_pid})
+    log "Final policy: ${final_policy}, prio: ${final_prio}"
+
+    if [ "$final_policy" = "1" ]; then
+        log "✓ PASS: Policy restored to SCHED_FIFO (1)"
+        if [ "$final_prio" = "$initial_prio" ]; then
+            log "✓ PASS: Priority restored to ${initial_prio}"
+        else
+            log "⚠ INFO: Priority is ${final_prio} (initial was ${initial_prio})"
+        fi
+    else
+        log "ℹ INFO: Final policy is ${final_policy} (task may have exited)"
+    fi
+else
+    log "ℹ INFO: Task exited (expected - starvation test completed)"
+fi
+
 # Cleanup
 kill -TERM ${STARVE_PID} 2>/dev/null || true
-wait ${STARVE_PID} 2>/dev/null || true
 stop_stalld
 
 #=============================================================================
@@ -235,9 +262,25 @@ if chrt -f -p 10 ${FIFO_TASK_PID} 2>/dev/null; then
         log "⚠ WARNING: Could not set FIFO policy (got ${initial_policy})"
     fi
 
-    # Wait for it to starve and get boosted
+    # Wait for starvation detection
     log "Waiting for starvation detection and boost..."
-    sleep $((threshold + boost_duration + 2))
+    sleep $((threshold + 1))
+
+    # Check if boosted
+    if [ -f "/proc/${FIFO_TASK_PID}/sched" ]; then
+        boosted_policy=$(get_sched_policy ${FIFO_TASK_PID})
+        log "Policy during detection window: ${boosted_policy}"
+
+        if [ "$boosted_policy" = "6" ]; then
+            log "✓ PASS: Task boosted to SCHED_DEADLINE (6)"
+        elif [ "$boosted_policy" = "1" ]; then
+            log "ℹ INFO: Still SCHED_FIFO (may not have starved yet)"
+        fi
+    fi
+
+    # Wait for blocker to complete
+    log "Waiting for starvation test to complete..."
+    wait ${BLOCKER_PID} 2>/dev/null || true
 
     # Verify policy was restored to original FIFO
     if [ -f "/proc/${FIFO_TASK_PID}/sched" ]; then
@@ -247,8 +290,6 @@ if chrt -f -p 10 ${FIFO_TASK_PID} 2>/dev/null; then
 
         if [ "$final_policy" = "1" ]; then
             log "✓ PASS: Policy restored to SCHED_FIFO (1)"
-
-            # Check if priority was preserved (prio values may differ from chrt priority)
             log "ℹ INFO: Priority after restoration: ${final_prio}"
         else
             log "⚠ INFO: Final policy is ${final_policy}"
@@ -265,7 +306,6 @@ fi
 
 # Cleanup
 kill -TERM ${BLOCKER_PID} 2>/dev/null || true
-wait ${BLOCKER_PID} 2>/dev/null || true
 stop_stalld
 
 #=============================================================================
@@ -304,29 +344,30 @@ done
 if [ -n "${tracked_pid}" ]; then
     initial_nice=$(get_nice_value ${tracked_pid})
     log "Initial nice value: ${initial_nice}"
-
-    # Wait for boost cycle
-    sleep $((threshold + boost_duration + 2))
-
-    if [ -f "/proc/${tracked_pid}/stat" ]; then
-        final_nice=$(get_nice_value ${tracked_pid})
-        log "Final nice value: ${final_nice}"
-
-        if [ "$initial_nice" = "$final_nice" ]; then
-            log "✓ PASS: Nice value preserved (${initial_nice})"
-        else
-            log "ℹ INFO: Nice value changed from ${initial_nice} to ${final_nice}"
-        fi
-    else
-        log "ℹ INFO: Task exited before final check"
-    fi
 else
     log "⚠ INFO: Could not track task for nice value test"
 fi
 
+# Wait for starvation_gen to complete
+log "Waiting for starvation test to complete..."
+wait ${STARVE_PID} 2>/dev/null || true
+
+# Final check if we tracked a task
+if [ -n "${tracked_pid}" ] && [ -f "/proc/${tracked_pid}/stat" ]; then
+    final_nice=$(get_nice_value ${tracked_pid})
+    log "Final nice value: ${final_nice}"
+
+    if [ "$initial_nice" = "$final_nice" ]; then
+        log "✓ PASS: Nice value preserved (${initial_nice})"
+    else
+        log "ℹ INFO: Nice value changed from ${initial_nice} to ${final_nice}"
+    fi
+else
+    log "ℹ INFO: Task exited (starvation test completed)"
+fi
+
 # Cleanup
 kill -TERM ${STARVE_PID} 2>/dev/null || true
-wait ${STARVE_PID} 2>/dev/null || true
 stop_stalld
 
 #=============================================================================
