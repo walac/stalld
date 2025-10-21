@@ -32,6 +32,21 @@ else
 	NC=''
 fi
 
+# Logging function that writes to both stdout and journal
+# This allows correlating test activities with stalld behavior in journalctl
+log() {
+	local timestamp="[$(date +'%H:%M:%S')]"
+	local message="$*"
+
+	# Echo to stdout with timestamp
+	echo "${timestamp} ${message}"
+
+	# Also send to journal with stalld tag for easy correlation
+	# Strip ANSI color codes before sending to journal
+	local clean_message=$(echo "${message}" | sed 's/\x1b\[[0-9;]*m//g')
+	logger -t stalld "[TEST] ${clean_message}"
+}
+
 # Parse common test options
 # Usage: parse_test_options "$@"
 # This function should be called at the beginning of each test script
@@ -67,15 +82,19 @@ parse_test_options() {
 start_test() {
 	TEST_NAME=$1
 	echo -e "${BLUE}=== Starting test: ${TEST_NAME} ===${NC}"
+	# Log test start to journal for correlation
+	logger -t stalld "[TEST] === Starting test: ${TEST_NAME} ==="
 }
 
 # End a test
 end_test() {
 	if [ ${TEST_FAILED} -eq 0 ]; then
 		echo -e "${GREEN}=== Test ${TEST_NAME}: PASSED ===${NC}"
+		logger -t stalld "[TEST] === Test ${TEST_NAME}: PASSED ==="
 		return 0
 	else
 		echo -e "${RED}=== Test ${TEST_NAME}: FAILED ===${NC}"
+		logger -t stalld "[TEST] === Test ${TEST_NAME}: FAILED ==="
 		return 1
 	fi
 }
