@@ -24,6 +24,7 @@ struct config {
 	int duration;
 	unsigned long work_target;
 	int verbose;
+	int blockee_policy;  /* SCHED_FIFO (default) or SCHED_OTHER */
 };
 
 static struct config cfg = {
@@ -33,7 +34,8 @@ static struct config cfg = {
 	.num_blockees = 1,
 	.duration = 30,
 	.work_target = 1,  /* Minimal work - tests focus on detection/boosting, not progress */
-	.verbose = 0
+	.verbose = 0,
+	.blockee_policy = SCHED_FIFO  /* Default: SCHED_FIFO blockees */
 };
 
 volatile int running = 0;  /* Number of blockees still running (initialized in main) */
@@ -113,14 +115,17 @@ void usage(void) {
 	printf("  -b, --blockee-priority N SCHED_FIFO priority for blockees (default: 1)\n");
 	printf("  -n, --num-blockees N     Number of blockee threads (default: 1)\n");
 	printf("  -d, --duration N         Duration in seconds (default: 30)\n");
-	printf("  -w, --work-target N      Work iterations for blockees to complete (default: 100000000)\n");
+	printf("  -w, --work-target N      Work iterations for blockees to complete (default: 1)\n");
+	printf("  -o, --other              Use SCHED_OTHER for blockees instead of SCHED_FIFO\n");
 	printf("  -v, --verbose            Verbose output\n");
 	printf("  -h, --help               Show this help\n");
 	printf("\nExamples:\n");
 	printf("  starvation_gen -c 2 -p 15 -n 3 -d 60 -v\n");
-	printf("    (Create starvation on CPU 2 with blocker at priority 15 and 3 blockees at priority 1)\n\n");
+	printf("    (Create RT starvation: blocker at priority 15, blockees at priority 1)\n\n");
 	printf("  starvation_gen -c 2 -p 10 -b 5 -n 2 -d 30\n");
 	printf("    (Test FIFO-on-FIFO starvation: blocker at priority 10 starves blockees at priority 5)\n\n");
+	printf("  starvation_gen -c 2 -p 80 -o -n 2 -d 30\n");
+	printf("    (Test SCHED_OTHER starvation: RT blocker starves SCHED_OTHER blockees)\n\n");
 	printf("  starvation_gen -c 2 -w 50000000 -v\n");
 	printf("    (Blockees will complete after 50M iterations if boosted by stalld)\n");
 }
@@ -147,6 +152,7 @@ int main(int argc, char **argv) {
 		{"num-blockees",     required_argument, 0, 'n'},
 		{"duration",         required_argument, 0, 'd'},
 		{"work-target",      required_argument, 0, 'w'},
+		{"other",            no_argument,       0, 'o'},
 		{"verbose",          no_argument,       0, 'v'},
 		{"help",             no_argument,       0, 'h'},
 		{0, 0, 0, 0}
@@ -155,7 +161,7 @@ int main(int argc, char **argv) {
 	/* Parse command line */
 	while (1) {
 		int option_index = 0;
-		int c = getopt_long(argc, argv, "c:p:b:n:d:w:vh", long_options, &option_index);
+		int c = getopt_long(argc, argv, "c:p:b:n:d:w:ovh", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -179,6 +185,9 @@ int main(int argc, char **argv) {
 		case 'w':
 			cfg.work_target = strtoul(optarg, NULL, 10);
 			break;
+		case 'o':
+			cfg.blockee_policy = SCHED_OTHER;
+			break;
 		case 'v':
 			cfg.verbose = 1;
 			break;
@@ -201,15 +210,18 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if (cfg.blockee_priority < 1 || cfg.blockee_priority > 99) {
-		fprintf(stderr, "Error: blockee priority must be 1-99\n");
-		exit(1);
-	}
+	/* For SCHED_FIFO blockees, validate priority */
+	if (cfg.blockee_policy == SCHED_FIFO) {
+		if (cfg.blockee_priority < 1 || cfg.blockee_priority > 99) {
+			fprintf(stderr, "Error: blockee priority must be 1-99 for SCHED_FIFO\n");
+			exit(1);
+		}
 
-	if (cfg.blockee_priority >= cfg.blocker_priority) {
-		fprintf(stderr, "Error: blockee priority (%d) must be less than blocker priority (%d)\n",
-			cfg.blockee_priority, cfg.blocker_priority);
-		exit(1);
+		if (cfg.blockee_priority >= cfg.blocker_priority) {
+			fprintf(stderr, "Error: blockee priority (%d) must be less than blocker priority (%d)\n",
+				cfg.blockee_priority, cfg.blocker_priority);
+			exit(1);
+		}
 	}
 
 	if (cfg.num_blockees < 1 || cfg.num_blockees > 10) {
@@ -289,15 +301,17 @@ int main(int argc, char **argv) {
 	 */
 	running = cfg.num_blockees;
 
-	/* Blockees should be SCHED_FIFO with lower priority than blocker
-	 * to create actual RT starvation that stalld can detect */
-	ret = pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+	/* Set blockee policy (SCHED_FIFO or SCHED_OTHER)
+	 * - SCHED_FIFO with lower priority than blocker creates RT starvation
+	 * - SCHED_OTHER tests normal task starvation by high-priority RT blocker */
+	ret = pthread_attr_setschedpolicy(&attr, cfg.blockee_policy);
 	if (ret != 0) {
 		fprintf(stderr, "pthread_attr_setschedpolicy (blockee) failed: %s\n", strerror(ret));
 		exit(1);
 	}
 
-	param.sched_priority = cfg.blockee_priority;
+	/* For SCHED_OTHER, priority must be 0 (nice value is separate) */
+	param.sched_priority = (cfg.blockee_policy == SCHED_OTHER) ? 0 : cfg.blockee_priority;
 	ret = pthread_attr_setschedparam(&attr, &param);
 	if (ret != 0) {
 		fprintf(stderr, "pthread_attr_setschedparam (blockee) failed: %s\n", strerror(ret));
@@ -316,8 +330,12 @@ int main(int argc, char **argv) {
 	/* Print configuration */
 	printf("Starvation generator started:\n");
 	printf("  CPU:              %d\n", cfg.cpu);
-	printf("  Blocker priority: %d\n", cfg.blocker_priority);
-	printf("  Blockee priority: %d\n", cfg.blockee_priority);
+	printf("  Blocker:          SCHED_FIFO priority %d\n", cfg.blocker_priority);
+	if (cfg.blockee_policy == SCHED_FIFO) {
+		printf("  Blockee policy:   SCHED_FIFO priority %d\n", cfg.blockee_priority);
+	} else {
+		printf("  Blockee policy:   SCHED_OTHER\n");
+	}
 	printf("  Blockee threads:  %d\n", cfg.num_blockees);
 	printf("  Work target:      %lu iterations\n", cfg.work_target);
 	printf("  Duration:         %d seconds\n", cfg.duration);
