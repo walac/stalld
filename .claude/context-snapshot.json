@@ -1,182 +1,205 @@
 {
-  "session_date": "2025-10-21",
+  "session_date": "2025-10-22",
   "branch": "tests-devel",
   "last_commits": [
+    "0cb5e0a8c0b3 - tests: Increase test01 timeout and document kworker competition",
     "fcb97c1f9373 - tests: Add journal logging for test activity correlation",
     "465fa5b4d2ae - tests: Fix Test 5 timing and parameter validation",
     "d94cff7cdfa9 - tests: Add kworker denylist to test_boost_restoration",
-    "7f5c3488d4b3 - context snapshot",
-    "c03510d23aa3 - tests: Update test_boost_restoration Test 3 to use SCHED_OTHER"
+    "7f5c3488d4b3 - context snapshot"
   ],
 
-  "current_investigation": {
-    "issue": "test01 (legacy starvation test) failing with timeout (exit code 137)",
-    "status": "ROOT CAUSE IDENTIFIED",
+  "current_status": {
+    "issue": "test01 (legacy starvation test) timeout issue",
+    "status": "RESOLVED",
+    "solution": "Increased timeout to 180s with comprehensive documentation"
+  },
 
-    "investigation_timeline": [
-      "User suspected journal logging changes broke test01",
-      "Temporarily disabled logger calls - test01 STILL failed (logging not the cause)",
-      "Re-enabled logger calls",
-      "Discovered kworker denylist was added during THIS session (not original)",
-      "Removed kworker denylist to restore original test01_wrapper.sh",
-      "Added debug logging to sched_debug.c parser to trace which tasks are parsed",
-      "Rebuilt stalld and ran test01_wrapper.sh with debug output"
-    ],
+  "investigation_summary": {
+    "original_problem": "test01 failing with exit code 137 (SIGKILL from timeout) after 60s",
+    "root_cause_identified": "Timing variability from competing kworker starvation on loaded systems",
 
-    "key_discovery": {
-      "finding": "test01 blockee IS being detected, parsed, and boosted correctly by stalld",
-      "evidence": [
-        "Parser debug showed: 'DEBUG: sched_debug parsed task: test01-51218 prio=120 ctxsw=3'",
-        "stalld detected starvation: 'test01-51218 starved on CPU 23 for 11 seconds'",
-        "stalld boosted blockee: 'boosted pid 51218 (test01) (cpu 23) using SCHED_DEADLINE'",
-        "test01 exited immediately after boost: 'restore_policy: failed ... No such process'",
-        "This proves stalld is working correctly and test01 completed successfully"
-      ]
-    },
+    "key_discoveries": {
+      "stalld_working_correctly": "stalld detects and boosts test01's blockee, but timing is unpredictable",
+      "kworker_filter_mystery_solved": "The '-i kworker' filter was NOT broken - it was eliminating the starvation scenario entirely",
 
-    "root_cause": {
-      "problem": "Timing variability due to competing kworker starvation",
-      "details": [
-        "Multiple kworkers are also starving on CPU 23 (kworker/23:1, kworker/23:1H, etc.)",
-        "stalld detects and boosts kworkers BEFORE test01's blockee",
-        "test01 blockee should be boosted at 5s threshold, but actually boosted at 11s",
-        "6-second delay is caused by kworkers consuming boost cycles",
-        "test01 completes successfully but total time exceeds 60s timeout",
-        "Exit code 137 = SIGKILL from timeout --kill-after (not test01 failure)"
-      ],
-      "timeline_from_debug_log": {
-        "initial_state": "rt: 1 - starving: 4 (only kworkers, test01 not started yet)",
-        "test01_starts": "rt: 2 - starving: 6 (both test01 threads + kworkers)",
-        "5s_mark": "kworker/23:1 boosted (should have been test01 blockee)",
-        "8s_mark": "test01 blocker (56855) boosted",
-        "11s_mark": "test01 blockee (51218) FINALLY boosted",
-        "completion": "test01 exits immediately (correct behavior)",
-        "timeout": "60s timeout expires, test01 killed with SIGKILL"
+      "priority_algorithm_behavior": {
+        "function": "update_cpu_starving_vector() in src/stalld.c:354-378",
+        "logic": "Selects task with earliest 'since' timestamp (longest starvation)",
+        "code": "if (cpu_info->since > task->since) { update to earlier task }",
+        "implication": "Pre-existing starving kworkers have earlier timestamps than test01's blockee",
+        "result": "Kworkers get boosted repeatedly while test01 waits its turn"
+      },
+
+      "filter_behavior_explained": {
+        "with_filter": [
+          "Kworkers are ignored by stalld (not boosted)",
+          "Without kworker competition, test01's blockee gets CPU naturally",
+          "test01 completes in <5s WITHOUT needing stalld's intervention",
+          "No starvation occurs, so no stalld logs (test01 never reaches 5s threshold)"
+        ],
+        "without_filter": [
+          "Kworkers and test01 both starve and compete for boosting",
+          "Priority algorithm favors kworkers (earlier timestamps)",
+          "Kworkers boosted repeatedly at 5s, 10s, 15s, 20s, 25s, 30s, 35s...",
+          "test01's blockee eventually boosted but total time exceeds timeout",
+          "Exit code 137 = SIGKILL from timeout, not test01 failure"
+        ]
       }
     },
 
-    "proposed_solution": {
-      "approach": "Add kworker denylist to test01_wrapper.sh",
-      "rationale": "Filtering kworkers eliminates timing variability, ensures test01 threads get priority",
-      "implementation": "start_stalld -f -v -t '${STARVATION_THRESHOLD}' -b ${backend} -i 'kworker'",
-      "current_status": "ATTEMPTED but test01 threads not appearing when filter is active",
-      "next_steps": [
-        "Investigate why test01 threads don't appear in stalld output when '-i kworker' is used",
-        "May need to check if ignore filter is too broad or has unintended side effects",
-        "Verify test01 threads are actually running and on the expected CPU",
-        "Consider alternative solutions if kworker filter doesn't work"
-      ]
+    "technical_deep_dive": {
+      "single_threaded_mode": {
+        "default": "config_single_threaded = 1 (src/stalld.c:117)",
+        "behavior": "One thread monitors all CPUs, uses cpu_starving_vector",
+        "limitation": "Can only track one starving task per CPU at a time",
+        "selection": "Always picks task with earliest starvation timestamp"
+      },
+
+      "observed_behavior": {
+        "log_evidence": "single_threaded_main: checking cpu 23 - rt: 1 - starving: 2",
+        "interpretation": "2 starving tasks (kworker + test01 blockee) but only 1 boosted",
+        "kworker_pid": "357 (kworker/23:1H)",
+        "boost_pattern": "Repeatedly boosted every 5s for 35+ seconds before cycle restarts",
+        "test01_blockee": "Second starving task, waiting for kworker to finish"
+      }
     }
   },
 
-  "technical_findings": {
-    "stalld_parser_correct": {
-      "issue_investigated": "Thought parser had bug with leading spaces",
-      "user_correction": "skipspaces() at line 406 moves ptr to first non-whitespace character",
-      "conclusion": "Parser logic at line 429 is CORRECT - checks first non-whitespace char, not first char"
+  "solution_implemented": {
+    "approach": "Option 2 - Increase timeout without kworker filter",
+    "rationale": [
+      "Actually tests stalld's starvation detection and boosting (unlike filter approach)",
+      "Accommodates timing variability on loaded systems",
+      "Aligns with user's expectation of loaded system testing",
+      "Sets foundation for future multi-blockee starvation tests"
+    ],
+
+    "changes": {
+      "file": "tests/legacy/test01_wrapper.sh",
+      "timeout_change": "60s → 180s",
+      "documentation_added": [
+        "Explanation of SCHED_FIFO blocker vs SCHED_OTHER blockee scenario",
+        "Description of kworker competition on loaded systems",
+        "Detailed explanation of priority algorithm (earliest timestamp wins)",
+        "Why pre-existing kworkers get boosted first",
+        "Future improvement suggestions (adaptive mode, kworker filter)"
+      ]
     },
 
-    "test01_thread_structure": {
-      "process_model": "test01 creates 2 threads (blocker + blockee) within same process",
-      "tid_vs_pid": "In /proc/sched_debug, each thread has unique TID shown as PID",
-      "observed_tids": [
-        "51218 = blockee (SCHED_OTHER prio 120, 3 context switches)",
-        "56855 = blocker (SCHED_FIFO prio 97, initially 0 context switches)",
-        "51217 = blocker after boost? (SCHED_FIFO prio 97, 19237 context switches - unclear)"
-      ],
-      "exit_behavior": "When blockee gets CPU time, sets blocked=0, blocker exits, process terminates"
+    "commit": "0cb5e0a8c0b3 - tests: Increase test01 timeout and document kworker competition"
+  },
+
+  "alternative_solutions_considered": {
+    "option_1_kworker_filter": {
+      "implementation": "start_stalld -i 'kworker'",
+      "pros": "Deterministic, fast, eliminates timing variability",
+      "cons": "Doesn't actually test stalld's boosting in many cases (test01 never starves)",
+      "status": "Rejected for now, documented as future improvement"
     },
 
-    "stalld_working_correctly": {
-      "sched_debug_backend": "✓ Detects test01 threads",
-      "starvation_detection": "✓ Identifies blockee starving for 11s",
-      "boosting": "✓ Applies SCHED_DEADLINE boost correctly",
-      "test01_completion": "✓ test01 exits as designed when blockee runs",
-      "issue": "Timing variability from kworker competition, not stalld malfunction"
+    "option_3_disable_idle_detection": {
+      "implementation": "start_stalld -N",
+      "purpose": "Force stalld to always parse run queues",
+      "status": "Not needed - parsing wasn't the issue"
+    },
+
+    "future_considerations": {
+      "adaptive_mode": "Use -M flag to spawn per-CPU threads for better precision",
+      "aggressive_mode": "Use -A flag for dedicated per-CPU threads",
+      "multi_blockee_test": "Create test with multiple blockees for more robust starvation scenarios"
     }
   },
 
   "files_modified": {
-    "src/sched_debug.c": {
-      "change": "Added debug logging at line 481-483 to trace parsed tasks",
-      "purpose": "Investigate which tasks are being added to starving vector",
-      "status": "DEBUG LOG REMOVED after investigation completed",
-      "current_state": "Clean (no debug logging)"
-    },
-
     "tests/legacy/test01_wrapper.sh": {
-      "change": "Added then removed kworker denylist at line 82",
-      "attempts": [
-        "Removed kworker denylist added in previous debugging attempt",
-        "Re-added '-i kworker' to filter competing kworkers",
-        "Removed again when test01 threads didn't appear with filter active"
-      ],
-      "current_state": "NO kworker filter (original state)",
-      "line_82": "start_stalld -f -v -t '${STARVATION_THRESHOLD}' -b ${backend}"
-    },
-
-    "tests/helpers/test_helpers.sh": {
-      "change": "Logger calls temporarily disabled, then re-enabled",
-      "conclusion": "Logger is NOT causing test01 failure",
-      "current_state": "Logger calls ENABLED and working correctly"
+      "status": "COMMITTED (0cb5e0a8c0b3)",
+      "changes": [
+        "TEST01_TIMEOUT: 60 → 180 seconds",
+        "Added comprehensive header documentation (lines 13-24)",
+        "Explained timing variability and priority algorithm",
+        "Added inline comment for timeout value (lines 35-39)"
+      ]
     }
   },
 
-  "test_results": {
-    "test01_status": "FAILING - timeout after 60s (exit code 137)",
-    "stalld_behavior": "CORRECT - detects and boosts test01 blockee",
-    "timing_issue": "Kworker competition delays test01 completion by 6+ seconds"
+  "test_status": {
+    "test01_wrapper": "Should now pass on loaded systems (180s timeout)",
+    "expected_behavior": {
+      "light_load": "test01 completes quickly (<30s), kworkers may or may not appear",
+      "heavy_load": "Kworkers boosted repeatedly, test01 eventually boosted, completes within 180s"
+    },
+    "validation_pending": "Need to run test on loaded system to verify 180s is sufficient"
+  },
+
+  "technical_knowledge_gained": {
+    "stalld_ignore_filter": {
+      "thread_regex": "Checked first via compiled_regex_thread[] (src/stalld.c:601-608)",
+      "process_regex": "Then checked via compiled_regex_process[] (src/stalld.c:625-632)",
+      "return_value": "Returns 0 when task SHOULD be ignored, -EINVAL when not ignored",
+      "effect": "Skips boosting but does NOT skip parsing or detection",
+      "log_message": "Logs 'Ignoring the thread X from consideration for boosting'"
+    },
+
+    "threading_modes": {
+      "single_threaded": "Default (config_single_threaded=1), uses cpu_starving_vector",
+      "adaptive": "Spawns per-CPU threads when needed (-M flag)",
+      "aggressive": "Dedicated per-CPU threads from start (-A flag)",
+      "power_mode": "Single-threaded alias (-O flag), only works with SCHED_DEADLINE"
+    },
+
+    "task_selection_algorithm": {
+      "location": "src/stalld.c:354-378 update_cpu_starving_vector()",
+      "key_logic": "cpu_info->since > task->since (earlier timestamp wins)",
+      "overload_detection": "Sets overloaded=1 when multiple tasks starving on same CPU",
+      "limitation": "Single-threaded mode can only boost one task per CPU per cycle"
+    }
   },
 
   "next_session_priorities": [
     {
       "priority": 1,
-      "task": "Fix test01 timing issue with kworker filter",
-      "actions": [
-        "Determine why test01 threads don't appear when '-i kworker' is used",
-        "Check if test01 is actually starting and creating threads",
-        "Verify test01 threads are on expected CPU (CPU 23)",
-        "Test ignore filter regex to ensure it only matches 'kworker*' not 'test01*'",
-        "Consider alternative: pin test01 to different CPU than kworkers",
-        "Consider alternative: increase test01 timeout to 120s",
-        "Consider alternative: reduce starvation threshold to 3s for faster boost"
-      ]
+      "task": "Verify test01_wrapper.sh passes on loaded system",
+      "details": "Run test on system with competing load to confirm 180s timeout is sufficient"
     },
     {
       "priority": 2,
-      "task": "Verify test01 binary is working correctly",
-      "details": "Run test01 manually with stalld (no wrapper) to confirm basic functionality"
+      "task": "Consider creating multi-blockee starvation test",
+      "rationale": "User mentioned may need this for loaded system testing",
+      "approach": "Create test with multiple SCHED_OTHER blockees competing, more robust than single-blockee"
     },
     {
       "priority": 3,
-      "task": "Document test01 timing sensitivity",
-      "details": "Add comments explaining why test01 needs kworker filtering or other timing mitigations"
+      "task": "Continue test suite development",
+      "details": "Resume Phase 4 (Advanced Features) tests or other pending work"
     }
   ],
 
-  "debugging_artifacts": {
-    "debug_logs": {
-      "/tmp/test01_debug.log": "Full test run with parser debug logging showing all parsed tasks",
-      "key_evidence": "test01-51218 parsed and boosted at 11s, then process exited (correct behavior)"
-    },
-    "manual_test01_run": "Started test01 manually on CPU 23 with -d flag, confirmed thread creation"
-  },
-
-  "commands_for_tomorrow": {
-    "kill_background_processes": "pkill -9 -f 'test01|run_tests.sh'",
-    "test_ignore_regex": "echo 'kworker/23:1' | grep -E 'kworker' && echo 'test01' | grep -E 'kworker'",
-    "run_test01_with_kworker_filter": "cd tests && sudo ./legacy/test01_wrapper.sh sched_debug 2>&1 | tee /tmp/test01_with_filter.log",
-    "check_test01_threads": "ps -eLf | grep test01 | grep -v grep",
-    "verify_cpu_affinity": "taskset -cp <test01_pid>",
-    "rebuild_stalld": "make clean && make"
-  },
-
   "environment": {
     "system": "Fedora 42, kernel 6.16.11",
-    "dl_server": "Disabled for testing",
+    "dl_server": "Directory exists, state managed by test_helpers.sh",
     "rt_throttling": "Disabled (-1)",
-    "test_cpu": "CPU 23",
-    "stalld_cpu": "CPU 0",
-    "competing_tasks": "kworkers: 46251, 425, 28166, 50096 on CPU 23"
+    "test_cpu": "CPU 23 (common test target)",
+    "observed_kworkers": "kworker/23:1H (PID 357) frequently starving on loaded system"
+  },
+
+  "lessons_learned": {
+    "debugging_approach": [
+      "Don't assume a feature is broken - verify behavior first",
+      "Test filters in isolation to understand their actual effect",
+      "Check both code logic AND runtime behavior before concluding root cause"
+    ],
+
+    "test_design": [
+      "Single-threaded starvation tests are sensitive to competing load",
+      "Timeout values must account for worst-case priority algorithm behavior",
+      "Documentation is critical for explaining non-obvious timing behavior"
+    ],
+
+    "stalld_internals": [
+      "Single-threaded mode has inherent limitations with multiple starving tasks",
+      "Priority algorithm is fair (earliest timestamp) but can delay newer tasks",
+      "Ignore filters affect boosting, not detection/parsing"
+    ]
   }
 }
