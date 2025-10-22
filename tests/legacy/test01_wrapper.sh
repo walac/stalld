@@ -10,6 +10,19 @@
 # - stalld lifecycle management
 # - Proper cleanup and exit codes
 #
+# Note on timing: test01 creates a starvation scenario where a SCHED_FIFO
+# blocker starves a SCHED_OTHER blockee. On loaded systems, competing kworker
+# threads may also starve and get boosted before test01's blockee.
+#
+# In single-threaded mode (default), stalld's cpu_starving_vector selects the
+# task with the earliest 'since' timestamp (longest starvation). Pre-existing
+# starving kworkers will have earlier timestamps than test01's blockee, causing
+# them to be boosted repeatedly while test01 waits. The 180s timeout accommodates
+# this timing variability while still catching genuine hangs.
+#
+# Future improvement: Consider using adaptive mode (-M) or adding a kworker filter
+# (-i kworker) for more deterministic test behavior.
+#
 # Copyright (C) 2025 Red Hat Inc
 
 set -e
@@ -26,7 +39,11 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 TEST_NAME="test01 (legacy starvation test)"
 STARVATION_THRESHOLD=5
 STALLD_STARTUP_WAIT=2
-TEST01_TIMEOUT=60  # Maximum time for test01 to run (seconds)
+TEST01_TIMEOUT=180  # Maximum time for test01 to run (seconds)
+                    # Increased to 180s to accommodate timing variability from
+                    # kworker competition on loaded systems. On heavily loaded
+                    # systems, competing kworkers may get boosted repeatedly
+                    # before test01's blockee gets its turn.
 
 if [[ "$1" == "" ]]; then
     backend="sched_debug"
