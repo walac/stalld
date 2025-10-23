@@ -1,205 +1,141 @@
 {
-  "session_date": "2025-10-22",
+  "session_date": "2025-10-23",
   "branch": "tests-devel",
   "last_commits": [
+    "fe9714465574 - tests: Add unified test environment management framework",
+    "962e39d620c9 - context snapshot",
     "0cb5e0a8c0b3 - tests: Increase test01 timeout and document kworker competition",
-    "fcb97c1f9373 - tests: Add journal logging for test activity correlation",
-    "465fa5b4d2ae - tests: Fix Test 5 timing and parameter validation",
-    "d94cff7cdfa9 - tests: Add kworker denylist to test_boost_restoration",
-    "7f5c3488d4b3 - context snapshot"
+    "14463d63b32c - context snapshot",
+    "fcb97c1f9373 - tests: Add journal logging for test activity correlation"
   ],
 
   "current_status": {
-    "issue": "test01 (legacy starvation test) timeout issue",
-    "status": "RESOLVED",
-    "solution": "Increased timeout to 180s with comprehensive documentation"
+    "test_framework": "Enhanced with DL-server and RT throttling management",
+    "test01_issue": "Resolved with 180s timeout",
+    "test_isolation": "Implemented - all tests now disable DL-server and RT throttling"
   },
 
-  "investigation_summary": {
-    "original_problem": "test01 failing with exit code 137 (SIGKILL from timeout) after 60s",
-    "root_cause_identified": "Timing variability from competing kworker starvation on loaded systems",
-
-    "key_discoveries": {
-      "stalld_working_correctly": "stalld detects and boosts test01's blockee, but timing is unpredictable",
-      "kworker_filter_mystery_solved": "The '-i kworker' filter was NOT broken - it was eliminating the starvation scenario entirely",
-
-      "priority_algorithm_behavior": {
-        "function": "update_cpu_starving_vector() in src/stalld.c:354-378",
-        "logic": "Selects task with earliest 'since' timestamp (longest starvation)",
-        "code": "if (cpu_info->since > task->since) { update to earlier task }",
-        "implication": "Pre-existing starving kworkers have earlier timestamps than test01's blockee",
-        "result": "Kworkers get boosted repeatedly while test01 waits its turn"
-      },
-
-      "filter_behavior_explained": {
-        "with_filter": [
-          "Kworkers are ignored by stalld (not boosted)",
-          "Without kworker competition, test01's blockee gets CPU naturally",
-          "test01 completes in <5s WITHOUT needing stalld's intervention",
-          "No starvation occurs, so no stalld logs (test01 never reaches 5s threshold)"
-        ],
-        "without_filter": [
-          "Kworkers and test01 both starve and compete for boosting",
-          "Priority algorithm favors kworkers (earlier timestamps)",
-          "Kworkers boosted repeatedly at 5s, 10s, 15s, 20s, 25s, 30s, 35s...",
-          "test01's blockee eventually boosted but total time exceeds timeout",
-          "Exit code 137 = SIGKILL from timeout, not test01 failure"
-        ]
-      }
-    },
-
-    "technical_deep_dive": {
-      "single_threaded_mode": {
-        "default": "config_single_threaded = 1 (src/stalld.c:117)",
-        "behavior": "One thread monitors all CPUs, uses cpu_starving_vector",
-        "limitation": "Can only track one starving task per CPU at a time",
-        "selection": "Always picks task with earliest starvation timestamp"
-      },
-
-      "observed_behavior": {
-        "log_evidence": "single_threaded_main: checking cpu 23 - rt: 1 - starving: 2",
-        "interpretation": "2 starving tasks (kworker + test01 blockee) but only 1 boosted",
-        "kworker_pid": "357 (kworker/23:1H)",
-        "boost_pattern": "Repeatedly boosted every 5s for 35+ seconds before cycle restarts",
-        "test01_blockee": "Second starving task, waiting for kworker to finish"
-      }
-    }
-  },
-
-  "solution_implemented": {
-    "approach": "Option 2 - Increase timeout without kworker filter",
-    "rationale": [
-      "Actually tests stalld's starvation detection and boosting (unlike filter approach)",
-      "Accommodates timing variability on loaded systems",
-      "Aligns with user's expectation of loaded system testing",
-      "Sets foundation for future multi-blockee starvation tests"
+  "recent_work": {
+    "session_focus": "Implement DL-server and RT throttling test isolation framework",
+    "completed_tasks": [
+      "Added setup_test_environment() function to test_helpers.sh",
+      "Implemented environment variable overrides (STALLD_TEST_KEEP_DL_SERVER, STALLD_TEST_KEEP_RT_THROTTLING)",
+      "Updated all 20 functional tests to use setup_test_environment()",
+      "Updated test01_wrapper.sh to use unified setup",
+      "Documented framework in tests/README.md"
     ],
+    "commit": "fe9714465574 - tests: Add unified test environment management framework"
+  },
 
-    "changes": {
-      "file": "tests/legacy/test01_wrapper.sh",
-      "timeout_change": "60s → 180s",
-      "documentation_added": [
-        "Explanation of SCHED_FIFO blocker vs SCHED_OTHER blockee scenario",
-        "Description of kworker competition on loaded systems",
-        "Detailed explanation of priority algorithm (earliest timestamp wins)",
-        "Why pre-existing kworkers get boosted first",
-        "Future improvement suggestions (adaptive mode, kworker filter)"
+  "test_isolation_framework": {
+    "motivation": "Prevent DL-server from interfering with stalld behavior testing",
+    "user_requirement": "Don't want to think stalld is working correctly when DL-server is actually fixing stalls",
+
+    "implementation": {
+      "function": "setup_test_environment()",
+      "location": "tests/helpers/test_helpers.sh",
+      "purpose": "Unified function to save/disable RT throttling and DL-server",
+      "usage": "Called in all tests after start_test() and before require_root()"
+    },
+
+    "environment_overrides": {
+      "STALLD_TEST_KEEP_DL_SERVER": "Set to 1 to skip DL-server disable (debugging)",
+      "STALLD_TEST_KEEP_RT_THROTTLING": "Set to 1 to skip RT throttling disable (debugging)",
+      "use_cases": [
+        "Debugging test behavior with DL-server enabled",
+        "Future tests for DL-server/stalld conflict detection"
       ]
     },
 
-    "commit": "0cb5e0a8c0b3 - tests: Increase test01 timeout and document kworker competition"
-  },
-
-  "alternative_solutions_considered": {
-    "option_1_kworker_filter": {
-      "implementation": "start_stalld -i 'kworker'",
-      "pros": "Deterministic, fast, eliminates timing variability",
-      "cons": "Doesn't actually test stalld's boosting in many cases (test01 never starves)",
-      "status": "Rejected for now, documented as future improvement"
+    "affected_functions": {
+      "save_dl_server": "Added STALLD_TEST_KEEP_DL_SERVER override check",
+      "disable_dl_server": "Added STALLD_TEST_KEEP_DL_SERVER override check",
+      "save_rt_throttling": "Added STALLD_TEST_KEEP_RT_THROTTLING override check",
+      "disable_rt_throttling": "Added STALLD_TEST_KEEP_RT_THROTTLING override check",
+      "setup_test_environment": "New unified function calling all four functions above"
     },
 
-    "option_3_disable_idle_detection": {
-      "implementation": "start_stalld -N",
-      "purpose": "Force stalld to always parse run queues",
-      "status": "Not needed - parsing wasn't the issue"
-    },
-
-    "future_considerations": {
-      "adaptive_mode": "Use -M flag to spawn per-CPU threads for better precision",
-      "aggressive_mode": "Use -A flag for dedicated per-CPU threads",
-      "multi_blockee_test": "Create test with multiple blockees for more robust starvation scenarios"
+    "files_modified": {
+      "test_helpers.sh": "Added environment variable docs, override checks, setup_test_environment()",
+      "test01_wrapper.sh": "Replaced manual calls with setup_test_environment()",
+      "functional_tests": "Added setup_test_environment() to all 20 tests",
+      "README.md": "Added Test Environment Management section with examples"
     }
   },
 
-  "files_modified": {
-    "tests/legacy/test01_wrapper.sh": {
-      "status": "COMMITTED (0cb5e0a8c0b3)",
-      "changes": [
-        "TEST01_TIMEOUT: 60 → 180 seconds",
-        "Added comprehensive header documentation (lines 13-24)",
-        "Explained timing variability and priority algorithm",
-        "Added inline comment for timeout value (lines 35-39)"
-      ]
+  "previous_session_summary": {
+    "date": "2025-10-22",
+    "issue": "test01 timeout due to kworker competition",
+    "solution": "Increased timeout to 180s and documented timing variability",
+    "key_findings": {
+      "kworker_filter_mystery": "'-i kworker' filter works correctly - eliminates starvation scenario entirely",
+      "priority_algorithm": "update_cpu_starving_vector() selects task with earliest timestamp",
+      "timing_issue": "Pre-existing kworkers have earlier timestamps, get boosted first"
     }
   },
 
-  "test_status": {
-    "test01_wrapper": "Should now pass on loaded systems (180s timeout)",
-    "expected_behavior": {
-      "light_load": "test01 completes quickly (<30s), kworkers may or may not appear",
-      "heavy_load": "Kworkers boosted repeatedly, test01 eventually boosted, completes within 180s"
-    },
-    "validation_pending": "Need to run test on loaded system to verify 180s is sufficient"
-  },
+  "test_suite_status": {
+    "total_tests": 21,
+    "test01_wrapper": "Fixed with 180s timeout",
+    "functional_tests": 20,
+    "all_use_setup_test_environment": true,
 
-  "technical_knowledge_gained": {
-    "stalld_ignore_filter": {
-      "thread_regex": "Checked first via compiled_regex_thread[] (src/stalld.c:601-608)",
-      "process_regex": "Then checked via compiled_regex_process[] (src/stalld.c:625-632)",
-      "return_value": "Returns 0 when task SHOULD be ignored, -EINVAL when not ignored",
-      "effect": "Skips boosting but does NOT skip parsing or detection",
-      "log_message": "Logs 'Ignoring the thread X from consideration for boosting'"
-    },
-
-    "threading_modes": {
-      "single_threaded": "Default (config_single_threaded=1), uses cpu_starving_vector",
-      "adaptive": "Spawns per-CPU threads when needed (-M flag)",
-      "aggressive": "Dedicated per-CPU threads from start (-A flag)",
-      "power_mode": "Single-threaded alias (-O flag), only works with SCHED_DEADLINE"
-    },
-
-    "task_selection_algorithm": {
-      "location": "src/stalld.c:354-378 update_cpu_starving_vector()",
-      "key_logic": "cpu_info->since > task->since (earlier timestamp wins)",
-      "overload_detection": "Sets overloaded=1 when multiple tasks starving on same CPU",
-      "limitation": "Single-threaded mode can only boost one task per CPU per cycle"
+    "test_isolation": {
+      "rt_throttling": "Disabled by all tests",
+      "dl_server": "Disabled by all tests",
+      "cleanup": "Automatic via trap handler in test_helpers.sh"
     }
   },
 
-  "next_session_priorities": [
-    {
-      "priority": 1,
-      "task": "Verify test01_wrapper.sh passes on loaded system",
-      "details": "Run test on system with competing load to confirm 180s timeout is sufficient"
+  "technical_knowledge": {
+    "dl_server": {
+      "location": "/sys/kernel/debug/sched/fair_server/",
+      "runtime_file": "cpu*/runtime",
+      "disable_method": "echo 0 > runtime",
+      "detection": "check_dl_server_dir_exists() in src/utils.c",
+      "kernel_requirement": "6.6+ for DL-server support"
     },
-    {
-      "priority": 2,
-      "task": "Consider creating multi-blockee starvation test",
-      "rationale": "User mentioned may need this for loaded system testing",
-      "approach": "Create test with multiple SCHED_OTHER blockees competing, more robust than single-blockee"
-    },
-    {
-      "priority": 3,
-      "task": "Continue test suite development",
-      "details": "Resume Phase 4 (Advanced Features) tests or other pending work"
-    }
-  ],
 
-  "environment": {
-    "system": "Fedora 42, kernel 6.16.11",
-    "dl_server": "Directory exists, state managed by test_helpers.sh",
-    "rt_throttling": "Disabled (-1)",
-    "test_cpu": "CPU 23 (common test target)",
-    "observed_kworkers": "kworker/23:1H (PID 357) frequently starving on loaded system"
+    "test_framework_architecture": {
+      "manual_approach": "Tests explicitly call setup_test_environment()",
+      "rationale": "User requested manual approach for clear intent",
+      "alternative_considered": "Automatic in start_test() - rejected for being too implicit"
+    },
+
+    "stalld_single_threaded_mode": {
+      "default": "config_single_threaded = 1",
+      "limitation": "Can only track one starving task per CPU",
+      "selection_logic": "Earliest timestamp wins",
+      "impact": "Causes timing variability on loaded systems"
+    }
+  },
+
+  "future_work": {
+    "priority_1": "Test the framework - run some tests to verify DL-server disable works",
+    "priority_2": "Write DL-server conflict tests (stalld + DL-server interaction)",
+    "priority_3": "Consider multi-blockee starvation test for loaded system robustness",
+    "priority_4": "Continue Phase 4 test development (Advanced Features)"
+  },
+
+  "documentation": {
+    "test_environment_management": "tests/README.md sections added",
+    "environment_variables": "Documented in test_helpers.sh header",
+    "test_template": "Updated in README.md to include setup_test_environment()",
+    "dl_server_conflict_tests": "Guidelines provided in README.md"
   },
 
   "lessons_learned": {
-    "debugging_approach": [
-      "Don't assume a feature is broken - verify behavior first",
-      "Test filters in isolation to understand their actual effect",
-      "Check both code logic AND runtime behavior before concluding root cause"
-    ],
+    "test_isolation_critical": "DL-server can mask stalld failures - must disable for testing",
+    "manual_vs_automatic": "Explicit calls better than hidden behavior for test framework",
+    "environment_overrides": "Override variables provide flexibility for debugging and special cases",
+    "batch_updates": "sed can efficiently update multiple test files at once"
+  },
 
-    "test_design": [
-      "Single-threaded starvation tests are sensitive to competing load",
-      "Timeout values must account for worst-case priority algorithm behavior",
-      "Documentation is critical for explaining non-obvious timing behavior"
-    ],
-
-    "stalld_internals": [
-      "Single-threaded mode has inherent limitations with multiple starving tasks",
-      "Priority algorithm is fair (earliest timestamp) but can delay newer tasks",
-      "Ignore filters affect boosting, not detection/parsing"
-    ]
+  "environment": {
+    "system": "Fedora 42, kernel 6.16.11",
+    "dl_server": "Present (kernel 6.6+), now disabled by default in tests",
+    "rt_throttling": "Disabled (-1) by all tests",
+    "test_backend": "Both sched_debug and queue_track supported",
+    "branch": "tests-devel (test development branch)"
   }
 }
