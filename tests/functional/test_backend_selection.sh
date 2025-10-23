@@ -13,6 +13,9 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 
 start_test "Backend Selection"
 
+# Setup test environment
+setup_test_environment
+
 require_root
 
 # Test 1: Start stalld with sched_debug backend

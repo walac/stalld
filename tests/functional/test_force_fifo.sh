@@ -20,6 +20,9 @@ log() {
 
 start_test "Force FIFO Option (-F)"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

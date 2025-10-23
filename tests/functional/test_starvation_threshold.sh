@@ -24,6 +24,9 @@ log() {
 
 start_test "Starvation Threshold Option (-t)"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

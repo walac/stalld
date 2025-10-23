@@ -20,6 +20,9 @@ log() {
 
 start_test "Boost Runtime Option (-r)"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

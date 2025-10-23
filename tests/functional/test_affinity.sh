@@ -42,6 +42,9 @@ check_affinity() {
 
 start_test "CPU Affinity Option (-a)"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

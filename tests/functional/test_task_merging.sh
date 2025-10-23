@@ -30,6 +30,9 @@ get_ctxt_switches() {
 
 start_test "Task Merging Logic"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

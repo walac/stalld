@@ -15,6 +15,9 @@ parse_test_options "$@" || exit $?
 
 start_test "CPU Selection (-c option)"
 
+# Setup test environment
+setup_test_environment
+
 require_root
 check_rt_throttling
 

@@ -59,6 +59,9 @@ get_ctxt_switches() {
 
 start_test "FIFO-on-FIFO Priority Starvation Detection"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

@@ -50,6 +50,9 @@ get_nice_value() {
 
 start_test "Policy Restoration After Boosting"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

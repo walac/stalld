@@ -68,6 +68,9 @@ wait_for_policy_change() {
 
 start_test "SCHED_DEADLINE Boosting Mechanism"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

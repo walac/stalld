@@ -17,6 +17,9 @@ log() {
 
 start_test "Boost Period Option (-p)"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

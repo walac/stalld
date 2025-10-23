@@ -5,6 +5,12 @@
 #
 # Copyright (C) 2025 Red Hat Inc
 
+# Environment variables for test behavior:
+#   STALLD_TEST_KEEP_DL_SERVER=1     - Skip DL-server disable (for debugging)
+#   STALLD_TEST_KEEP_RT_THROTTLING=1 - Skip RT throttling disable (for debugging)
+#   STALLD_TEST_BACKEND              - Backend to use (set by parse_test_options)
+#   STALLD_TEST_THREADING_MODE       - Threading mode (set by parse_test_options)
+
 # Test result tracking
 TEST_NAME=""
 TEST_PASSED=0
@@ -462,6 +468,12 @@ SAVED_RT_RUNTIME=""
 
 # Save current RT throttling state
 save_rt_throttling() {
+	# Check override - skip if user wants to keep RT throttling enabled
+	if [ "${STALLD_TEST_KEEP_RT_THROTTLING}" = "1" ]; then
+		echo "Skipping RT throttling save (STALLD_TEST_KEEP_RT_THROTTLING=1)"
+		return 0
+	fi
+
 	if [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
 		SAVED_RT_RUNTIME=$(cat /proc/sys/kernel/sched_rt_runtime_us)
 		echo "Saved RT throttling state: ${SAVED_RT_RUNTIME}"
@@ -476,6 +488,12 @@ declare -A SAVED_DL_SERVER_RUNTIME
 
 # Save current DL-server state for all CPUs
 save_dl_server() {
+	# Check override - skip if user wants to keep DL-server enabled
+	if [ "${STALLD_TEST_KEEP_DL_SERVER}" = "1" ]; then
+		echo "Skipping DL-server save (STALLD_TEST_KEEP_DL_SERVER=1)"
+		return 0
+	fi
+
 	local dl_server_dir="/sys/kernel/debug/sched/fair_server"
 
 	if [ ! -d "${dl_server_dir}" ]; then
@@ -548,6 +566,12 @@ restore_dl_server() {
 
 # Disable DL-server for all CPUs (set runtime to 0)
 disable_dl_server() {
+	# Check override - skip if user wants to keep DL-server enabled
+	if [ "${STALLD_TEST_KEEP_DL_SERVER}" = "1" ]; then
+		echo "Skipping DL-server disable (STALLD_TEST_KEEP_DL_SERVER=1)"
+		return 0
+	fi
+
 	local dl_server_dir="/sys/kernel/debug/sched/fair_server"
 
 	if [ ! -d "${dl_server_dir}" ]; then
@@ -582,6 +606,21 @@ disable_dl_server() {
 	fi
 }
 
+# Unified test environment setup
+# Manages both DL-server and RT throttling in one call
+# This is the recommended way to set up test isolation
+setup_test_environment() {
+	echo "Setting up test environment..."
+
+	# Save and disable RT throttling
+	save_rt_throttling
+	disable_rt_throttling
+
+	# Save and disable DL-server (if present)
+	save_dl_server
+	disable_dl_server
+}
+
 # Restore RT throttling state
 restore_rt_throttling() {
 	if [ -n "${SAVED_RT_RUNTIME}" ] && [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
@@ -597,6 +636,12 @@ restore_rt_throttling() {
 
 # Disable RT throttling (for tests that require it)
 disable_rt_throttling() {
+	# Check override - skip if user wants to keep RT throttling enabled
+	if [ "${STALLD_TEST_KEEP_RT_THROTTLING}" = "1" ]; then
+		echo "Skipping RT throttling disable (STALLD_TEST_KEEP_RT_THROTTLING=1)"
+		return 0
+	fi
+
 	if [ -f /proc/sys/kernel/sched_rt_runtime_us ]; then
 		echo -1 > /proc/sys/kernel/sched_rt_runtime_us 2>/dev/null
 		if [ $? -eq 0 ]; then
@@ -741,4 +786,5 @@ export -f detect_default_backend is_backend_available get_available_backends sta
 export -f require_root check_rt_throttling
 export -f save_rt_throttling restore_rt_throttling disable_rt_throttling
 export -f save_dl_server restore_dl_server disable_dl_server
+export -f setup_test_environment
 export -f get_num_cpus get_online_cpus pick_test_cpu

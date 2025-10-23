@@ -76,23 +76,8 @@ main() {
 
 	echo "Legacy test01 wrapper starting..."
 
-	# Save and disable RT throttling
-	echo "Saving RT throttling state..."
-	save_rt_throttling
-
-	echo "Disabling RT throttling..."
-	disable_rt_throttling
-
- 	# Check for DL-server and disable if present
-	if [ -d "/sys/kernel/debug/sched/fair_server" ]; then
-		echo "DL-server detected, saving state..."
-		save_dl_server
-
-		echo "Disabling DL-server..."
-		disable_dl_server
-	else
-		echo "DL-server not present (kernel < 6.6 or not enabled)"
-	fi
+	# Setup test environment (disables RT throttling and DL-server)
+	setup_test_environment
 
 	# Start stalld in foreground with verbose logging and short threshold
 	echo "Starting stalld with threshold=${STARVATION_THRESHOLD}s..."

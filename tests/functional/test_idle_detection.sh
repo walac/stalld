@@ -40,6 +40,9 @@ is_cpu_idle() {
 
 start_test "Idle CPU Detection"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

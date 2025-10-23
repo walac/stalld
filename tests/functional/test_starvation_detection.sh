@@ -62,6 +62,9 @@ get_starved_pid() {
 
 start_test "Starvation Detection Logic"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

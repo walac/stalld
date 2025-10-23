@@ -15,6 +15,9 @@ parse_test_options "$@" || exit $?
 
 start_test "Foreground Mode"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

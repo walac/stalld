@@ -19,6 +19,54 @@ This test suite validates all aspects of stalld functionality:
 - RT throttling disabled: `echo -1 > /proc/sys/kernel/sched_rt_runtime_us`
 - stalld built: run `make` in project root
 
+### Test Environment Management
+
+All tests should manage DL-server and RT throttling state to ensure proper test isolation. The test framework provides the `setup_test_environment()` function for this purpose:
+
+```bash
+start_test "My Test"
+
+# Setup test environment (disables RT throttling and DL-server)
+setup_test_environment
+
+require_root
+# ... test code ...
+end_test
+```
+
+The framework automatically restores state on cleanup (normal exit or interrupt).
+
+#### Environment Variable Overrides
+
+For debugging and special testing scenarios, you can skip the automatic disable:
+
+- `STALLD_TEST_KEEP_DL_SERVER=1` - Skip DL-server disable (keep DL-server enabled)
+- `STALLD_TEST_KEEP_RT_THROTTLING=1` - Skip RT throttling disable (keep throttling enabled)
+
+Example usage:
+```bash
+# Keep DL-server enabled for debugging
+STALLD_TEST_KEEP_DL_SERVER=1 ./functional/test_starvation_detection.sh
+
+# Keep both enabled
+STALLD_TEST_KEEP_DL_SERVER=1 STALLD_TEST_KEEP_RT_THROTTLING=1 ./functional/test_log_only.sh
+```
+
+#### Writing DL-server Conflict Tests
+
+To test stalld and DL-server interaction (future tests), skip the environment setup to leave DL-server enabled:
+
+```bash
+start_test "DL-server Conflict Test"
+
+# Do NOT call setup_test_environment()
+# DL-server remains enabled for this test
+
+require_root
+# ... test stalld behavior with DL-server active ...
+end_test
+```
+
 ### Running Tests
 
 ```bash
@@ -88,6 +136,9 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 parse_test_options "$@" || exit $?
 
 start_test "Your Test Name"
+
+# Setup test environment (disable RT throttling and DL-server)
+setup_test_environment
 
 # Require root if needed
 require_root

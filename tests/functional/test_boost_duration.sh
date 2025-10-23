@@ -20,6 +20,9 @@ log() {
 
 start_test "Boost Duration Option (-d)"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 

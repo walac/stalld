@@ -31,6 +31,9 @@ count_detected_tasks() {
 
 start_test "Runqueue Parsing - Backend Task Extraction"
 
+# Setup test environment
+setup_test_environment
+
 # Require root for this test
 require_root
 
