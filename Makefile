@@ -154,9 +154,9 @@ bpf/vmlinux.h:
 # The .bpf.c needs to be transformed into the .bpf.o.
 # The .bpf.o is then required to build the .skel.h.
 bpf/stalld.bpf.o: bpf/vmlinux.h bpf/stalld.bpf.c
-	@$(CLANG) -g -O2 -target bpf $(CLANGARCH) -DDEBUG_STALLD=$(DEBUG) -D__TARGET_ARCH_$(ARCH) \
+	$(CLANG) -g -O2 -target bpf $(CLANGARCH) -DDEBUG_STALLD=$(DEBUG) -D__TARGET_ARCH_$(ARCH) \
 		$(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
-	@$(LLVM_STRIP) -g $@ # strip useless DWARF info
+	$(LLVM_STRIP) -g $@ # strip useless DWARF info
 
 # This is the second step: The .bpf.o object is translated into
 # a bytecode that is embedded into the .skel.h header.
