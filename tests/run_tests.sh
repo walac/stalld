@@ -29,7 +29,7 @@ SAVED_RT_RUNTIME=""
 declare -A SAVED_DL_SERVER_RUNTIME
 
 # Configuration flags
-DISABLE_DL_SERVER=0
+DISABLE_DL_SERVER=1
 
 # Test categories
 declare -a UNIT_TESTS

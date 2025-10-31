@@ -66,24 +66,27 @@ log "Test 1: Custom threshold of 5 seconds"
 log "=========================================="
 
 threshold=5
-log "Starting stalld with ${threshold}s threshold"
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
 
-# Create starvation that will last 10 seconds
+# Create starvation BEFORE starting stalld (avoid detecting kworker tasks)
 starvation_duration=10
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 "${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
+# Give starvation generator time to start and create actual starvation
+sleep 2
+
+log "Starting stalld with ${threshold}s threshold"
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
+
 # Wait for threshold + buffer time
 wait_time=$((threshold + 3))
 log "Waiting ${wait_time}s for detection (threshold: ${threshold}s)"
 sleep ${wait_time}
 
-# Check if starvation was detected (excluding pre-existing kworker tasks)
-# Look for any starved task that's not a kworker
-if grep -E "starved on CPU" "${STALLD_LOG}" | grep -v "kworker"; then
+# Check if starvation was detected - specifically look for starvation_gen tasks
+if grep -qE "starvation_gen.*starved on CPU ${TEST_CPU}|starved on CPU ${TEST_CPU}.*starvation_gen" "${STALLD_LOG}"; then
     log "✓ PASS: Starvation detected after ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected after ${threshold}s threshold"
@@ -107,17 +110,22 @@ log "Test 2: No detection before threshold"
 log "=========================================="
 
 threshold=10
-log "Starting stalld with ${threshold}s threshold"
 STALLD_LOG2="/tmp/stalld_test_threshold_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG2}" 2>&1
 
+# Create starvation BEFORE starting stalld (avoid detecting kworker tasks)
 # Create starvation that will last 6 seconds (less than threshold)
 starvation_duration=6
 log "Creating short starvation (${starvation_duration}s) with threshold of ${threshold}s"
 "${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
+
+# Give starvation generator time to start and create actual starvation
+sleep 2
+
+log "Starting stalld with ${threshold}s threshold"
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG2}" 2>&1
 
 # Wait for starvation duration + small buffer
 sleep 8
@@ -128,14 +136,13 @@ wait "${STARVE_PID}" 2>/dev/null || true
 # Give stalld time to process and log (if it were to detect)
 sleep 2
 
-# Check that starvation was NOT detected for non-kworker tasks
-# (kworker tasks may pre-exist and be detected, that's OK)
-if ! grep -E "starved on CPU" "${STALLD_LOG2}" | grep -v "kworker"; then
+# Check that starvation_gen was NOT detected (duration less than threshold)
+if ! grep -qE "starvation_gen.*starved on CPU ${TEST_CPU}|starved on CPU ${TEST_CPU}.*starvation_gen" "${STALLD_LOG2}"; then
     log "✓ PASS: No starvation detected for duration less than threshold"
 else
     log "✗ FAIL: Starvation detected before threshold"
-    log "Found non-kworker starved task in logs:"
-    grep -E "starved on CPU" "${STALLD_LOG2}" | grep -v "kworker"
+    log "Found starvation_gen task in logs:"
+    grep -E "starvation_gen.*starved on CPU|starved on CPU.*starvation_gen" "${STALLD_LOG2}"
     TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
@@ -154,11 +161,10 @@ log "Test 3: Shorter threshold (3 seconds)"
 log "=========================================="
 
 threshold=3
-log "Starting stalld with ${threshold}s threshold"
 STALLD_LOG3="/tmp/stalld_test_threshold_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
 
+# Create starvation BEFORE starting stalld (avoid detecting kworker tasks)
 # Create starvation for 8 seconds
 starvation_duration=8
 log "Creating starvation for ${starvation_duration}s with threshold of ${threshold}s"
@@ -166,12 +172,18 @@ log "Creating starvation for ${starvation_duration}s with threshold of ${thresho
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
+# Give starvation generator time to start and create actual starvation
+sleep 2
+
+log "Starting stalld with ${threshold}s threshold"
+start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
+
 # Wait for threshold + buffer
 wait_time=$((threshold + 3))
 sleep ${wait_time}
 
-# Check if starvation was detected (excluding pre-existing kworker tasks)
-if grep -E "starved on CPU" "${STALLD_LOG3}" | grep -v "kworker"; then
+# Check if starvation_gen was detected
+if grep -qE "starvation_gen.*starved on CPU ${TEST_CPU}|starved on CPU ${TEST_CPU}.*starvation_gen" "${STALLD_LOG3}"; then
     log "✓ PASS: Starvation detected with ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected with ${threshold}s threshold"

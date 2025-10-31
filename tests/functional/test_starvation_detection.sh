@@ -114,7 +114,7 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 sleep 2
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for detection (threshold + small buffer)
 wait_time=$((threshold + 2))
@@ -122,7 +122,7 @@ log "Waiting ${wait_time}s for starvation detection..."
 sleep ${wait_time}
 
 # Verify starvation was detected
-if grep -q "starved on CPU" "${STALLD_LOG}"; then
+if grep -qE "starvation_gen.*starved on CPU|starved on CPU.*starvation_gen" "${STALLD_LOG}"; then
     log "✓ PASS: Starvation detected"
 
     # Verify correct CPU is logged
@@ -173,7 +173,7 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 sleep 2
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for detection
 sleep $((threshold + 2))
@@ -237,7 +237,7 @@ sleep 2
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 log "Will monitor for multiple detection cycles to verify timestamp preservation"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU}
 
 # Wait for multiple detection cycles
 log "Waiting for multiple detection cycles..."
@@ -299,7 +299,21 @@ else
         CPU1=0
     fi
 
+    # Pick stalld CPU that avoids both test CPUs
+    STALLD_CPU_MULTI=${STALLD_CPU}
+    if [ ${STALLD_CPU} -eq ${CPU0} ] || [ ${STALLD_CPU} -eq ${CPU1} ]; then
+        # Find a CPU that's not CPU0 or CPU1
+        for cpu in $(get_online_cpus); do
+            if [ $cpu -ne ${CPU0} ] && [ $cpu -ne ${CPU1} ]; then
+                STALLD_CPU_MULTI=$cpu
+                break
+            fi
+        done
+        log "Adjusted stalld CPU from ${STALLD_CPU} to ${STALLD_CPU_MULTI} to avoid test CPUs"
+    fi
+
     log "Testing starvation detection on CPU ${CPU0} and CPU ${CPU1}"
+    log "Stalld will run on CPU ${STALLD_CPU_MULTI}"
 
     rm -f "${STALLD_LOG}"
     threshold=5
@@ -319,20 +333,20 @@ else
     # Give starvation generators time to start
     sleep 2
 
-    start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU}
+    start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU_MULTI}
 
     # Wait for detection
     sleep $((threshold + 2))
 
-    # Check both CPUs detected
-    if grep -q "starved on CPU ${CPU0}" "${STALLD_LOG}"; then
+    # Check both CPUs detected - specifically look for starvation_gen tasks
+    if grep -qE "starvation_gen.*starved on CPU ${CPU0}|starved on CPU ${CPU0}.*starvation_gen" "${STALLD_LOG}"; then
         log "✓ PASS: Starvation detected on CPU ${CPU0}"
     else
         log "✗ FAIL: Starvation not detected on CPU ${CPU0}"
         TEST_FAILED=$((TEST_FAILED + 1))
     fi
 
-    if grep -q "starved on CPU ${CPU1}" "${STALLD_LOG}"; then
+    if grep -qE "starvation_gen.*starved on CPU ${CPU1}|starved on CPU ${CPU1}.*starvation_gen" "${STALLD_LOG}"; then
         log "✓ PASS: Starvation detected on CPU ${CPU1}"
     else
         log "✗ FAIL: Starvation not detected on CPU ${CPU1}"

@@ -87,16 +87,19 @@ log "Test 1: FIFO Boost with -F Flag"
 log "=========================================="
 
 threshold=5
-log "Starting stalld with -F flag to force SCHED_FIFO boosting"
-# Note: -F requires non-single-threaded mode (aggressive mode)
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
-
-# Create starvation
+# Create starvation FIRST (before stalld starts)
 starvation_duration=$((threshold + 8))
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
+
+# Give starvation generator time to start and create actual starvation
+sleep 2
+
+log "Starting stalld with -F flag to force SCHED_FIFO boosting"
+# Note: -F requires non-single-threaded mode (aggressive mode)
+start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Wait for detection and boosting
 wait_time=$((threshold + 2))
@@ -104,7 +107,7 @@ log "Waiting ${wait_time}s for starvation detection and boosting..."
 sleep ${wait_time}
 
 # Verify FIFO boosting occurred
-if grep -q "boosted" "${STALLD_LOG}"; then
+if grep -qiE "boosted.*(SCHED_FIFO|FIFO)|FIFO.*boost" "${STALLD_LOG}"; then
     log "✓ PASS: Boosting occurred with -F flag"
 
     # Verify SCHED_FIFO was used
@@ -135,23 +138,24 @@ log "Test 2: FIFO Priority Verification"
 log "=========================================="
 
 threshold=5
-log "Starting stalld with -F flag (FIFO boosting)"
-
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
-# Create starvation
+# Create starvation FIRST
 log "Creating starvation on CPU ${TEST_CPU}"
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 15 &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
-# Wait for boosting
-sleep $((threshold + 2))
-
-# Try to find the boosted task PID
+# Give starvation generator time to start and get child PIDs while they exist
+sleep 2
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
 log "Starvation generator children PIDs: ${STARVE_CHILDREN}"
+
+log "Starting stalld with -F flag (FIFO boosting)"
+start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+
+# Wait for boosting
+sleep $((threshold + 2))
 
 fifo_task_found=0
 for child_pid in ${STARVE_CHILDREN}; do
@@ -207,15 +211,19 @@ log "  Runtime: ${boost_runtime}ns (20µs)"
 log "  Expected cycles: ~5"
 
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
-    -d ${boost_duration} -p ${boost_period} -r ${boost_runtime} \
-    > "${STALLD_LOG}" 2>&1
 
-# Create starvation
+# Create starvation FIRST
 log "Creating starvation on CPU ${TEST_CPU}"
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 20 &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
+
+# Give starvation generator time to start
+sleep 2
+
+start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
+    -d ${boost_duration} -p ${boost_period} -r ${boost_runtime} \
+    > "${STALLD_LOG}" 2>&1
 
 # Wait for boosting to complete
 log "Waiting for FIFO emulation cycles to complete..."
@@ -255,13 +263,12 @@ log "Running with SCHED_DEADLINE boosting..."
 STALLD_LOG_DEADLINE="/tmp/stalld_test_deadline_compare_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG_DEADLINE}")
 
-start_stalld -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_DEADLINE}" 2>&1
-
+# Create starvation FIRST
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d 15 &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
-# Find a starved task
+# Find a starved task and capture context switches immediately
 sleep 2
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
 deadline_tracked_pid=""
@@ -276,6 +283,9 @@ ctxt_before_deadline=0
 if [ -n "${deadline_tracked_pid}" ]; then
     ctxt_before_deadline=$(get_ctxt_switches ${deadline_tracked_pid})
 fi
+
+# NOW start stalld
+start_stalld -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_DEADLINE}" 2>&1
 
 # Wait for detection, boost, and some progress
 sleep $((threshold + boost_duration))
@@ -301,13 +311,12 @@ log "Running with SCHED_FIFO boosting..."
 STALLD_LOG_FIFO="/tmp/stalld_test_fifo_compare_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
 
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_FIFO}" 2>&1
-
+# Create starvation FIRST
 "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d 15 &
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
-# Find a starved task
+# Find a starved task and capture context switches immediately
 sleep 2
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
 fifo_tracked_pid=""
@@ -322,6 +331,9 @@ ctxt_before_fifo=0
 if [ -n "${fifo_tracked_pid}" ]; then
     ctxt_before_fifo=$(get_ctxt_switches ${fifo_tracked_pid})
 fi
+
+# NOW start stalld
+start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_FIFO}" 2>&1
 
 # Wait for detection, boost, and some progress
 sleep $((threshold + boost_duration))

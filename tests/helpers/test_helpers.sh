@@ -222,8 +222,11 @@ assert_process_not_running() {
 start_stalld() {
 	local args="$@"
 
-	# Find stalld binary
-	local stalld_bin="../stalld"
+	# Find stalld binary - use TEST_ROOT if available, otherwise fall back to relative path
+	local stalld_bin="${TEST_ROOT}/../stalld"
+	if [ -z "${TEST_ROOT}" ]; then
+		stalld_bin="../stalld"
+	fi
 	if [ ! -x "${stalld_bin}" ]; then
 		echo -e "${RED}ERROR: stalld binary not found at ${stalld_bin}${NC}"
 		return 1
