@@ -50,6 +50,16 @@ struct {
 #define log_task_error(p) log_task_prefix("error: ", p)
 
 /*
+ * BPF CO-RE compatibility: In older kernels (e.g., RHEL 8.x with 4.18),
+ * thread_info lacks the cpu field. We define it here to enable
+ * bpf_core_field_exists() checks, allowing runtime detection of whether
+ * this field is available on the target kernel.
+ */
+struct thread_info___legacy {
+	int cpu;
+};
+
+/*
  * BPF CO-RE "weak" or "candidate" definition.
  *
  * This struct provides a definition for fields that may not exist in the
@@ -105,10 +115,11 @@ static inline bool task_is_rt(const struct task_struct *p)
 static inline int task_cpu(const struct task_struct *p)
 {
 	const struct task_struct___legacy *lp = (const void *) p;
+	const struct thread_info___legacy *lt = (const void *) &p->thread_info;
 
 	return bpf_core_field_exists(lp->cpu)
 		? BPF_CORE_READ(lp, cpu)
-		: BPF_CORE_READ(p, thread_info.cpu);
+		: BPF_CORE_READ(lt, cpu);
 }
 
 /**
