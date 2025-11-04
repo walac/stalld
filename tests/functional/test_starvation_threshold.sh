@@ -78,7 +78,8 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 sleep 2
 
 log "Starting stalld with ${threshold}s threshold"
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
+# Use -i to ignore kernel workers that may starve before our test tasks
+start_stalld -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
 
 # Wait for threshold + granularity + buffer time
 # With -g 1, stalld checks every 1 second. In worst case, it checks just before
@@ -179,7 +180,8 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 sleep 2
 
 log "Starting stalld with ${threshold}s threshold"
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
+# Use -i to ignore kernel workers that may starve before our test tasks
+start_stalld -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
 
 # Wait for threshold + granularity + buffer
 wait_time=$((threshold + 1 + 3))

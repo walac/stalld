@@ -256,6 +256,9 @@ log "Second detection cycle should have occurred"
 sleep $((1 + 2))
 log "Third detection cycle should have occurred"
 
+# Allow time for stalld output to flush to log file
+sleep 1
+
 # Check if we see accumulating starvation time in logs
 # Task merging means the timestamp is preserved, so duration increases
 if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}" | wc -l | grep -q "[2-9]"; then
