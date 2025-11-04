@@ -85,7 +85,8 @@ log "Idle CPUs should be skipped to reduce overhead"
 
 threshold=5
 log "Starting stalld with verbose logging"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+# Use -g 1 for 1-second granularity
+start_stalld -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Let stalld run while CPU is idle (no load)
 log "CPU ${TEST_CPU} should be idle (no load created)"
@@ -153,7 +154,7 @@ log "=========================================="
 threshold=5
 rm -f "${STALLD_LOG}"
 log "Starting stalld"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Initially idle
 log "CPU ${TEST_CPU} initially idle"
@@ -165,9 +166,10 @@ log "Creating load on CPU ${TEST_CPU} to make it busy"
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
-# Wait for stalld to detect the busy CPU and starvation
+# Wait for stalld to detect the busy CPU and starvation (threshold + granularity + buffer)
 log "Waiting for stalld to detect busy CPU and starvation..."
-sleep $((threshold + 2))
+wait_time=$((threshold + 1 + 3))
+sleep ${wait_time}
 
 # Verify stalld detected starvation (meaning it resumed monitoring)
 if grep -q "starved" "${STALLD_LOG}"; then
@@ -228,7 +230,7 @@ else
 
     threshold=5
     rm -f "${STALLD_LOG}"
-    start_stalld -f -v -l -t $threshold -c ${CPU0},${CPU1} > "${STALLD_LOG}" 2>&1
+    start_stalld -f -v -g 1 -l -t $threshold -c ${CPU0},${CPU1} > "${STALLD_LOG}" 2>&1
 
     # Create load only on CPU1, leave CPU0 idle
     log "Creating load on CPU ${CPU1} only"
@@ -236,8 +238,9 @@ else
     STARVE_PID=$!
     CLEANUP_PIDS+=("${STARVE_PID}")
 
-    # Wait for detection
-    sleep $((threshold + 2))
+    # Wait for detection (threshold + granularity + buffer)
+    wait_time=$((threshold + 1 + 3))
+    sleep ${wait_time}
 
     # Check which CPU had starvation detected
     cpu0_detections=$(grep -c "starved on CPU ${CPU0}" "${STALLD_LOG}")

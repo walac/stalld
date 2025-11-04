@@ -99,11 +99,12 @@ sleep 2
 
 log "Starting stalld with -F flag to force SCHED_FIFO boosting"
 # Note: -F requires non-single-threaded mode (aggressive mode)
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+# Use -g 1 for 1-second granularity to ensure timely detection
+start_stalld -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
-# Wait for detection and boosting
-wait_time=$((threshold + 2))
-log "Waiting ${wait_time}s for starvation detection and boosting..."
+# Wait for detection and boosting (threshold + granularity + buffer)
+wait_time=$((threshold + 1 + 3))
+log "Waiting ${wait_time}s for starvation detection and boosting (threshold: ${threshold}s, granularity: 1s)..."
 sleep ${wait_time}
 
 # Verify FIFO boosting occurred
@@ -152,10 +153,12 @@ STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
 log "Starvation generator children PIDs: ${STARVE_CHILDREN}"
 
 log "Starting stalld with -F flag (FIFO boosting)"
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
-# Wait for boosting
-sleep $((threshold + 2))
+# Wait for boosting (threshold + granularity + buffer)
+wait_time=$((threshold + 1 + 3))
+log "Waiting ${wait_time}s for detection..."
+sleep ${wait_time}
 
 fifo_task_found=0
 for child_pid in ${STARVE_CHILDREN}; do
@@ -221,13 +224,13 @@ CLEANUP_PIDS+=("${STARVE_PID}")
 # Give starvation generator time to start
 sleep 2
 
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
+start_stalld -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
     -d ${boost_duration} -p ${boost_period} -r ${boost_runtime} \
     > "${STALLD_LOG}" 2>&1
 
-# Wait for boosting to complete
+# Wait for boosting to complete (threshold + granularity + boost_duration + buffer)
 log "Waiting for FIFO emulation cycles to complete..."
-sleep $((threshold + boost_duration + 2))
+sleep $((threshold + 1 + boost_duration + 2))
 
 # Count boost events (FIFO emulation creates multiple boosts)
 boost_count=$(grep -c "boosted.*SCHED_FIFO" "${STALLD_LOG}")
@@ -285,10 +288,10 @@ if [ -n "${deadline_tracked_pid}" ]; then
 fi
 
 # NOW start stalld
-start_stalld -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_DEADLINE}" 2>&1
+start_stalld -f -v -g 1 -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_DEADLINE}" 2>&1
 
-# Wait for detection, boost, and some progress
-sleep $((threshold + boost_duration))
+# Wait for detection, boost, and some progress (threshold + granularity + boost_duration)
+sleep $((threshold + 1 + boost_duration))
 
 ctxt_after_deadline=0
 if [ -n "${deadline_tracked_pid}" ] && [ -f "/proc/${deadline_tracked_pid}/status" ]; then
@@ -333,10 +336,10 @@ if [ -n "${fifo_tracked_pid}" ]; then
 fi
 
 # NOW start stalld
-start_stalld -f -v -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_FIFO}" 2>&1
+start_stalld -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG_FIFO}" 2>&1
 
-# Wait for detection, boost, and some progress
-sleep $((threshold + boost_duration))
+# Wait for detection, boost, and some progress (threshold + granularity + boost_duration)
+sleep $((threshold + 1 + boost_duration))
 
 ctxt_after_fifo=0
 if [ -n "${fifo_tracked_pid}" ] && [ -f "/proc/${fifo_tracked_pid}/status" ]; then

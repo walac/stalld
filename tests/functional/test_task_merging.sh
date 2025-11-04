@@ -78,7 +78,8 @@ log "Task merging: same PID + same ctxsw = preserved timestamp"
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (log-only, verbose)"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+# Use -g 1 for 1-second granularity
+start_stalld -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Create long starvation to span multiple monitoring cycles
 starvation_duration=18
@@ -87,9 +88,10 @@ log "Creating starvation for ${starvation_duration}s (multiple detection cycles)
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
-# Wait for first detection
+# Wait for first detection (threshold + granularity + buffer)
 log "Waiting for first detection cycle..."
-sleep $((threshold + 1))
+wait_time=$((threshold + 1 + 3))
+sleep ${wait_time}
 
 # Extract first starvation duration
 if grep -q "starved.*for [0-9]" "${STALLD_LOG}"; then
@@ -158,7 +160,7 @@ log "Merging occurs when: PID matches AND context switches unchanged"
 
 threshold=5
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
 # Create starvation
 log "Creating starvation"
@@ -166,8 +168,9 @@ log "Creating starvation"
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
-# Wait for detection
-sleep $((threshold + 2))
+# Wait for detection (threshold + granularity + buffer)
+wait_time=$((threshold + 1 + 3))
+sleep ${wait_time}
 
 # Find the starved task PID
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
@@ -233,7 +236,7 @@ log "When context switches change, timestamp should reset"
 
 threshold=5
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d 2 > "${STALLD_LOG}" 2>&1
+start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d 2 > "${STALLD_LOG}" 2>&1
 
 # Create starvation that will get boosted (allowing progress)
 log "Creating starvation that will be boosted"
@@ -241,8 +244,9 @@ log "Creating starvation that will be boosted"
 STARVE_PID=$!
 CLEANUP_PIDS+=("${STARVE_PID}")
 
-# Wait for first detection and boost
-sleep $((threshold + 1))
+# Wait for first detection and boost (threshold + granularity + buffer)
+wait_time=$((threshold + 1 + 3))
+sleep ${wait_time}
 
 # Find tracked task
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
@@ -302,7 +306,7 @@ else
     log "Testing task merging on CPU ${CPU0} and CPU ${CPU1} independently"
 
     rm -f "${STALLD_LOG}"
-    start_stalld -f -v -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+    start_stalld -f -v -g 1 -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
 
     # Create starvation on both CPUs
     log "Creating starvation on CPU ${CPU0}"
@@ -315,8 +319,9 @@ else
     STARVE_PID1=$!
     CLEANUP_PIDS+=("${STARVE_PID1}")
 
-    # Wait for multiple detection cycles
-    sleep $((threshold + 1))
+    # Wait for multiple detection cycles (threshold + granularity + buffer, then more)
+    wait_time=$((threshold + 1 + 3))
+    sleep ${wait_time}
     sleep 4
 
     # Check CPU0 starvation accumulation

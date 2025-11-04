@@ -94,7 +94,8 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
 
     threshold=5
     log "Starting stalld with eBPF backend (queue_track)"
-    start_stalld -f -v -l -b queue_track -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_BPF}" 2>&1
+    # Use -g 1 for 1-second granularity
+    start_stalld -f -v -g 1 -l -b queue_track -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_BPF}" 2>&1
 
     # Create starvation to generate task data
     starvation_duration=$((threshold + 5))
@@ -103,8 +104,9 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
     STARVE_PID=$!
     CLEANUP_PIDS+=("${STARVE_PID}")
 
-    # Wait for detection
-    sleep $((threshold + 2))
+    # Wait for detection (threshold + granularity + buffer)
+    wait_time=$((threshold + 1 + 3))
+    sleep ${wait_time}
 
     # Verify eBPF backend detected starvation
     if grep -q "starved on CPU" "${STALLD_LOG_BPF}"; then
@@ -154,7 +156,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
     threshold=5
     log "Starting stalld with sched_debug backend"
-    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
+    start_stalld -f -v -g 1 -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
 
     # Create starvation
     starvation_duration=$((threshold + 5))
@@ -163,8 +165,9 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     STARVE_PID=$!
     CLEANUP_PIDS+=("${STARVE_PID}")
 
-    # Wait for detection
-    sleep $((threshold + 2))
+    # Wait for detection (threshold + granularity + buffer)
+    wait_time=$((threshold + 1 + 3))
+    sleep ${wait_time}
 
     # Verify sched_debug backend detected starvation
     if grep -q "starved on CPU" "${STALLD_LOG_SCHED}"; then
@@ -226,13 +229,14 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     log ""
     log "Running with eBPF backend..."
     rm -f "${STALLD_LOG_BPF}"
-    start_stalld -f -v -l -b queue_track -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_BPF}" 2>&1
+    start_stalld -f -v -g 1 -l -b queue_track -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_BPF}" 2>&1
 
     "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
     STARVE_PID=$!
     CLEANUP_PIDS+=("${STARVE_PID}")
 
-    sleep $((threshold + 2))
+    wait_time=$((threshold + 1 + 3))
+    sleep ${wait_time}
     bpf_detections=$(count_detected_tasks "${STALLD_LOG_BPF}")
     log "eBPF backend detected: ${bpf_detections} starvation events"
 
@@ -247,13 +251,14 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     log ""
     log "Running with sched_debug backend..."
     rm -f "${STALLD_LOG_SCHED}"
-    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
+    start_stalld -f -v -g 1 -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
 
     "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
     STARVE_PID=$!
     CLEANUP_PIDS+=("${STARVE_PID}")
 
-    sleep $((threshold + 2))
+    wait_time=$((threshold + 1 + 3))
+    sleep ${wait_time}
     sched_detections=$(count_detected_tasks "${STALLD_LOG_SCHED}")
     log "sched_debug backend detected: ${sched_detections} starvation events"
 
@@ -313,7 +318,7 @@ if [ -n "$test_backend" ]; then
     log "Testing task field extraction with ${test_backend} backend"
 
     rm -f "${log_file}"
-    start_stalld -f -v -l -b ${test_backend} -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${log_file}" 2>&1
+    start_stalld -f -v -g 1 -l -b ${test_backend} -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${log_file}" 2>&1
 
     # Create starvation with known parameters
     log "Creating starvation with known task name (starvation_gen)"
@@ -321,8 +326,9 @@ if [ -n "$test_backend" ]; then
     STARVE_PID=$!
     CLEANUP_PIDS+=("${STARVE_PID}")
 
-    # Wait for detection
-    sleep $((threshold + 2))
+    # Wait for detection (threshold + granularity + buffer)
+    wait_time=$((threshold + 1 + 3))
+    sleep ${wait_time}
 
     # Verify fields are present
     log ""
@@ -377,14 +383,15 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
     threshold=5
     rm -f "${STALLD_LOG_SCHED}"
-    start_stalld -f -v -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
+    start_stalld -f -v -g 1 -l -b sched_debug -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG_SCHED}" 2>&1
 
     # Create brief starvation just to initialize the backend
     "${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 8 &
     STARVE_PID=$!
     CLEANUP_PIDS+=("${STARVE_PID}")
 
-    sleep $((threshold + 2))
+    wait_time=$((threshold + 1 + 3))
+    sleep ${wait_time}
 
     # Check for format detection messages
     if grep -q "detect_task_format" "${STALLD_LOG_SCHED}"; then
