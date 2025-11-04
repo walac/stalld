@@ -256,8 +256,8 @@ log "Second detection cycle should have occurred"
 sleep $((1 + 2))
 log "Third detection cycle should have occurred"
 
-# Allow time for stalld output to flush to log file
-sleep 1
+# Stop stalld to flush output buffers before checking log
+stop_stalld
 
 # Check if we see accumulating starvation time in logs
 # Task merging means the timestamp is preserved, so duration increases
@@ -286,10 +286,9 @@ else
     TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
-# Cleanup
+# Cleanup starvation generator
 kill -TERM ${STARVE_PID} 2>/dev/null
 wait ${STARVE_PID} 2>/dev/null
-stop_stalld
 
 #=============================================================================
 # Test 4: Multiple CPUs Detection
