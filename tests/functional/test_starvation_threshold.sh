@@ -80,9 +80,12 @@ sleep 2
 log "Starting stalld with ${threshold}s threshold"
 start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
 
-# Wait for threshold + buffer time
-wait_time=$((threshold + 3))
-log "Waiting ${wait_time}s for detection (threshold: ${threshold}s)"
+# Wait for threshold + granularity + buffer time
+# With -g 1, stalld checks every 1 second. In worst case, it checks just before
+# threshold is reached, then waits another granularity period.
+# So we need: threshold + granularity + buffer for processing
+wait_time=$((threshold + 1 + 3))
+log "Waiting ${wait_time}s for detection (threshold: ${threshold}s, granularity: 1s)"
 sleep ${wait_time}
 
 # Check if starvation was detected - specifically look for starvation_gen tasks
@@ -178,8 +181,9 @@ sleep 2
 log "Starting stalld with ${threshold}s threshold"
 start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
 
-# Wait for threshold + buffer
-wait_time=$((threshold + 3))
+# Wait for threshold + granularity + buffer
+wait_time=$((threshold + 1 + 3))
+log "Waiting ${wait_time}s for detection (threshold: ${threshold}s, granularity: 1s)"
 sleep ${wait_time}
 
 # Check if starvation_gen was detected

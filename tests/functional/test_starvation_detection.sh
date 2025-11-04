@@ -116,9 +116,12 @@ sleep 2
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
-# Wait for detection (threshold + small buffer)
-wait_time=$((threshold + 2))
-log "Waiting ${wait_time}s for starvation detection..."
+# Wait for detection (threshold + granularity + buffer)
+# With -g 1, stalld checks every 1 second. In worst case, it checks just before
+# threshold is reached, then waits another granularity period.
+# So we need: threshold + granularity + buffer for processing
+wait_time=$((threshold + 1 + 3))
+log "Waiting ${wait_time}s for starvation detection (threshold: ${threshold}s, granularity: 1s)..."
 sleep ${wait_time}
 
 # Verify starvation was detected
@@ -175,8 +178,10 @@ sleep 2
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
-# Wait for detection
-sleep $((threshold + 2))
+# Wait for detection (threshold + granularity + buffer)
+wait_time=$((threshold + 1 + 3))
+log "Waiting ${wait_time}s for detection..."
+sleep ${wait_time}
 
 # Try to find the starved task PID from starvation_gen children
 # The blockee thread is what gets starved
@@ -240,12 +245,15 @@ log "Will monitor for multiple detection cycles to verify timestamp preservation
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU}
 
 # Wait for multiple detection cycles
-log "Waiting for multiple detection cycles..."
-sleep $((threshold + 2))
+# First detection: threshold + granularity + buffer
+log "Waiting for first detection cycle..."
+sleep $((threshold + 1 + 3))
 log "First detection cycle should have occurred"
-sleep 3
+# Second detection: wait for another granularity period + buffer
+sleep $((1 + 2))
 log "Second detection cycle should have occurred"
-sleep 3
+# Third detection: wait for another granularity period + buffer
+sleep $((1 + 2))
 log "Third detection cycle should have occurred"
 
 # Check if we see accumulating starvation time in logs
@@ -335,8 +343,10 @@ else
 
     start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU_MULTI}
 
-    # Wait for detection
-    sleep $((threshold + 2))
+    # Wait for detection (threshold + granularity + buffer)
+    wait_time=$((threshold + 1 + 3))
+    log "Waiting ${wait_time}s for detection..."
+    sleep ${wait_time}
 
     # Check both CPUs detected - specifically look for starvation_gen tasks
     if grep -qE "starvation_gen.*starved on CPU ${CPU0}|starved on CPU ${CPU0}.*starvation_gen" "${STALLD_LOG}"; then
