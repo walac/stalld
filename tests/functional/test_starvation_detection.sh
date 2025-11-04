@@ -261,8 +261,9 @@ stop_stalld
 
 # Check if we see accumulating starvation time in logs
 # Task merging means the timestamp is preserved, so duration increases
-if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}" | wc -l | grep -q "[2-9]"; then
-    log "✓ PASS: Multiple starvation reports found"
+report_count=$(grep -cE "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}")
+if [ "${report_count}" -ge 2 ]; then
+    log "✓ PASS: Multiple starvation reports found (${report_count} reports)"
 
     # Extract starvation durations from log
     durations=$(grep -oE "starved on CPU ${TEST_CPU} for [0-9]+" "${STALLD_LOG}" | grep -oE "[0-9]+$")
@@ -280,7 +281,7 @@ if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}" | wc 
         TEST_FAILED=$((TEST_FAILED + 1))
     fi
 else
-    log "✗ FAIL: Not enough starvation reports to verify task merging"
+    log "✗ FAIL: Not enough starvation reports to verify task merging (found ${report_count}, need >= 2)"
     log "Log contents:"
     cat "${STALLD_LOG}"
     TEST_FAILED=$((TEST_FAILED + 1))
