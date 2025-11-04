@@ -10,11 +10,6 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
-
 start_test "Boost Period Option (-p)"
 
 # Setup test environment

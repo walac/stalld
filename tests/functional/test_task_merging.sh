@@ -11,22 +11,8 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
-
-# Helper to get context switch count
-get_ctxt_switches() {
-    local pid=$1
-    if [ -f "/proc/${pid}/status" ]; then
-        local vol=$(grep voluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
-        local nonvol=$(grep nonvoluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
-        echo $((vol + nonvol))
-    else
-        echo "0"
-    fi
-}
+# Parse command-line options
+parse_test_options "$@" || exit $?
 
 start_test "Task Merging Logic"
 

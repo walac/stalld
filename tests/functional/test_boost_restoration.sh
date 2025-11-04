@@ -17,37 +17,6 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-# Helper to get scheduling policy
-get_sched_policy() {
-    local pid=$1
-    if [ -f "/proc/${pid}/sched" ]; then
-        awk '/^policy/ {print $3}' /proc/${pid}/sched 2>/dev/null
-    else
-        echo "-1"
-    fi
-}
-
-# Helper to get scheduling priority
-get_sched_priority() {
-    local pid=$1
-    if [ -f "/proc/${pid}/sched" ]; then
-        awk '/^prio/ {print $3}' /proc/${pid}/sched 2>/dev/null
-    else
-        echo "-1"
-    fi
-}
-
-# Helper to get nice value
-get_nice_value() {
-    local pid=$1
-    if [ -f "/proc/${pid}/stat" ]; then
-        # Nice is field 19 in /proc/pid/stat
-        awk '{print $19}' /proc/${pid}/stat 2>/dev/null
-    else
-        echo "99"
-    fi
-}
-
 start_test "Policy Restoration After Boosting"
 
 # Setup test environment

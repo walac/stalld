@@ -11,12 +11,10 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
+# Parse command-line options
+parse_test_options "$@" || exit $?
 
-# Helper to get CPU idle time from /proc/stat
+# Helper to get CPU idle time from /proc/stat (test-specific)
 get_cpu_idle_time() {
     local cpu_id=$1
     # Field 4 is idle time in /proc/stat (0-indexed from cpu name)

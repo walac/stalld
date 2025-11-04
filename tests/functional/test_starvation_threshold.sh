@@ -17,11 +17,6 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
-
 start_test "Starvation Threshold Option (-t)"
 
 # Setup test environment

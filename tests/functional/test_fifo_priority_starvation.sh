@@ -18,45 +18,6 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
-
-# Helper to start stalld with output redirected to a file
-start_stalld_with_log() {
-    local log_file="$1"
-    shift
-    local args="$@"
-
-    # Build stalld command with backend option if specified
-    # Also add -g 1 for 1-second granularity to ensure timely detection
-    local stalld_args="-g 1 $args"
-    if [ -n "${STALLD_TEST_BACKEND}" ]; then
-        stalld_args="-b ${STALLD_TEST_BACKEND} ${stalld_args}"
-        echo "Using backend: ${STALLD_TEST_BACKEND}"
-    fi
-
-    # Start stalld with output redirected
-    ${TEST_ROOT}/../stalld ${stalld_args} > "${log_file}" 2>&1 &
-    STALLD_PID=$!
-    CLEANUP_PIDS+=("${STALLD_PID}")
-    sleep 1
-}
-
-# Helper to get context switch count for a PID
-get_ctxt_switches() {
-    local pid=$1
-    if [ -f "/proc/${pid}/status" ]; then
-        # Sum voluntary and nonvoluntary context switches
-        local vol=$(grep voluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
-        local nonvol=$(grep nonvoluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
-        echo $((vol + nonvol))
-    else
-        echo "0"
-    fi
-}
-
 start_test "FIFO-on-FIFO Priority Starvation Detection"
 
 # Setup test environment

@@ -13,12 +13,7 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
-
-# Helper function to check CPU affinity
+# Helper function to check CPU affinity (test-specific)
 check_affinity() {
     local pid=$1
 

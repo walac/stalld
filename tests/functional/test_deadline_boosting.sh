@@ -11,60 +11,8 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
-
-# Helper to get scheduling policy (0=OTHER, 1=FIFO, 2=RR, 6=DEADLINE)
-get_sched_policy() {
-    local pid=$1
-    if [ -f "/proc/${pid}/sched" ]; then
-        awk '/^policy/ {print $3}' /proc/${pid}/sched 2>/dev/null
-    else
-        echo "-1"
-    fi
-}
-
-# Helper to get scheduling priority
-get_sched_priority() {
-    local pid=$1
-    if [ -f "/proc/${pid}/sched" ]; then
-        awk '/^prio/ {print $3}' /proc/${pid}/sched 2>/dev/null
-    else
-        echo "-1"
-    fi
-}
-
-# Helper to get context switch count
-get_ctxt_switches() {
-    local pid=$1
-    if [ -f "/proc/${pid}/status" ]; then
-        local vol=$(grep voluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
-        local nonvol=$(grep nonvoluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
-        echo $((vol + nonvol))
-    else
-        echo "0"
-    fi
-}
-
-# Helper to wait for policy change
-wait_for_policy_change() {
-    local pid=$1
-    local expected_policy=$2
-    local timeout=${3:-10}
-    local elapsed=0
-
-    while [ $elapsed -lt $timeout ]; do
-        local current_policy=$(get_sched_policy $pid)
-        if [ "$current_policy" = "$expected_policy" ]; then
-            return 0
-        fi
-        sleep 1
-        elapsed=$((elapsed + 1))
-    done
-    return 1
-}
+# Parse command-line options
+parse_test_options "$@" || exit $?
 
 start_test "SCHED_DEADLINE Boosting Mechanism"
 

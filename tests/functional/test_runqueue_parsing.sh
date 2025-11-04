@@ -10,12 +10,10 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
+# Parse command-line options
+parse_test_options "$@" || exit $?
 
-# Helper to check if a backend is available
+# Helper to check if a backend is available (test-specific)
 backend_available() {
     local backend=$1
     ./stalld -b "$backend" -h >/dev/null 2>&1

@@ -11,42 +11,8 @@
 TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${TEST_ROOT}/helpers/test_helpers.sh"
 
-# Helper function for logging test steps
-log() {
-    echo "[$(date +'%H:%M:%S')] $*"
-}
-
-# Helper to get scheduling policy
-get_sched_policy() {
-    local pid=$1
-    if [ -f "/proc/${pid}/sched" ]; then
-        awk '/^policy/ {print $3}' /proc/${pid}/sched 2>/dev/null
-    else
-        echo "-1"
-    fi
-}
-
-# Helper to get scheduling priority
-get_sched_priority() {
-    local pid=$1
-    if [ -f "/proc/${pid}/sched" ]; then
-        awk '/^prio/ {print $3}' /proc/${pid}/sched 2>/dev/null
-    else
-        echo "-1"
-    fi
-}
-
-# Helper to get context switch count
-get_ctxt_switches() {
-    local pid=$1
-    if [ -f "/proc/${pid}/status" ]; then
-        local vol=$(grep voluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
-        local nonvol=$(grep nonvoluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
-        echo $((vol + nonvol))
-    else
-        echo "0"
-    fi
-}
+# Parse command-line options
+parse_test_options "$@" || exit $?
 
 start_test "SCHED_FIFO Boosting Mechanism"
 

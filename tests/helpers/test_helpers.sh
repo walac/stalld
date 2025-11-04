@@ -776,6 +776,150 @@ start_stalld_with_backend() {
 	return $?
 }
 
+#
+# Consolidated helper functions (previously duplicated across tests)
+#
+
+# Logging with timestamp (used by many functional tests)
+log() {
+	echo "[$(date +'%H:%M:%S')] $*"
+}
+
+# Get scheduling policy (0=OTHER, 1=FIFO, 2=RR, 6=DEADLINE)
+get_sched_policy() {
+	local pid=$1
+	if [ -f "/proc/${pid}/sched" ]; then
+		awk '/^policy/ {print $3}' /proc/${pid}/sched 2>/dev/null
+	else
+		echo "-1"
+	fi
+}
+
+# Get scheduling priority
+get_sched_priority() {
+	local pid=$1
+	if [ -f "/proc/${pid}/sched" ]; then
+		awk '/^prio/ {print $3}' /proc/${pid}/sched 2>/dev/null
+	else
+		echo "-1"
+	fi
+}
+
+# Get nice value (field 19 in /proc/pid/stat)
+get_nice_value() {
+	local pid=$1
+	if [ -f "/proc/${pid}/stat" ]; then
+		awk '{print $19}' /proc/${pid}/stat 2>/dev/null
+	else
+		echo "99"
+	fi
+}
+
+# Get total context switch count (voluntary + nonvoluntary)
+get_ctxt_switches() {
+	local pid=$1
+	if [ -f "/proc/${pid}/status" ]; then
+		local vol=$(grep voluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
+		local nonvol=$(grep nonvoluntary_ctxt_switches /proc/${pid}/status | awk '{print $2}')
+		echo $((vol + nonvol))
+	else
+		echo "0"
+	fi
+}
+
+# Start stalld with output redirected to a log file
+# Usage: start_stalld_with_log <log_file> [stalld_args...]
+start_stalld_with_log() {
+	local log_file="$1"
+	shift
+	local args="$@"
+
+	# Build stalld command with backend option if specified
+	# Also add -g 1 for 1-second granularity to ensure timely detection
+	local stalld_args="-g 1 $args"
+	if [ -n "${STALLD_TEST_BACKEND}" ]; then
+		stalld_args="-b ${STALLD_TEST_BACKEND} ${stalld_args}"
+		echo "Using backend: ${STALLD_TEST_BACKEND}"
+	fi
+
+	# Start stalld with output redirected
+	${TEST_ROOT}/../stalld ${stalld_args} > "${log_file}" 2>&1 &
+	STALLD_PID=$!
+	CLEANUP_PIDS+=("${STALLD_PID}")
+	sleep 1
+}
+
+# Wait for scheduling policy to change to expected value
+# Usage: wait_for_policy_change <pid> <expected_policy> [timeout]
+wait_for_policy_change() {
+	local pid=$1
+	local expected_policy=$2
+	local timeout=${3:-10}
+	local elapsed=0
+
+	while [ $elapsed -lt $timeout ]; do
+		local current_policy=$(get_sched_policy $pid)
+		if [ "$current_policy" = "$expected_policy" ]; then
+			return 0
+		fi
+		sleep 1
+		elapsed=$((elapsed + 1))
+	done
+	return 1
+}
+
+#
+# Test template functions
+#
+
+# Calculate wait time for starvation detection
+# Formula: threshold + granularity + processing_buffer
+# Usage: wait_time=$(calculate_detection_timeout <threshold>)
+calculate_detection_timeout() {
+	local threshold=$1
+	# Default: granularity=1s, processing_buffer=3s
+	# Will use timeout constants once Part 2 is implemented
+	echo $((threshold + 1 + 3))
+}
+
+# Standard test initialization for functional tests
+# Performs: start_test, setup_test_environment, require_root,
+#           RT throttling check, CPU selection, path setup
+# Usage: init_functional_test "test_name" "log_suffix"
+init_functional_test() {
+	local test_name=$1
+	local log_suffix=${2:-"test"}
+
+	start_test "${test_name}"
+	setup_test_environment
+	require_root
+
+	# Check RT throttling
+	if ! check_rt_throttling; then
+		echo -e "${YELLOW}SKIP: RT throttling must be disabled for this test${NC}"
+		exit 77
+	fi
+
+	# Pick a CPU for testing
+	TEST_CPU=$(pick_test_cpu)
+	log "Using CPU ${TEST_CPU} for testing"
+
+	# Pick a different CPU for stalld to avoid interference
+	STALLD_CPU=0
+	if [ ${TEST_CPU} -eq 0 ]; then
+		STALLD_CPU=1
+	fi
+	log "Stalld will run on CPU ${STALLD_CPU}"
+
+	# Setup paths
+	STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
+	STALLD_LOG="/tmp/stalld_${log_suffix}_$$.log"
+	CLEANUP_FILES+=("${STALLD_LOG}")
+
+	# Export variables for use in test
+	export TEST_CPU STALLD_CPU STARVE_GEN STALLD_LOG
+}
+
 # Export functions for use in tests
 export -f start_test end_test
 export -f assert_equals assert_contains assert_not_contains
@@ -791,3 +935,6 @@ export -f save_rt_throttling restore_rt_throttling disable_rt_throttling
 export -f save_dl_server restore_dl_server disable_dl_server
 export -f setup_test_environment
 export -f get_num_cpus get_online_cpus pick_test_cpu
+export -f log get_sched_policy get_sched_priority get_nice_value get_ctxt_switches
+export -f start_stalld_with_log wait_for_policy_change
+export -f calculate_detection_timeout init_functional_test
