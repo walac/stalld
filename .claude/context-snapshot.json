@@ -1,141 +1,245 @@
 {
-  "session_date": "2025-10-23",
+  "session_date": "2025-11-03 Evening Session",
   "branch": "tests-devel",
   "last_commits": [
-    "fe9714465574 - tests: Add unified test environment management framework",
-    "962e39d620c9 - context snapshot",
-    "0cb5e0a8c0b3 - tests: Increase test01 timeout and document kworker competition",
-    "14463d63b32c - context snapshot",
-    "fcb97c1f9373 - tests: Add journal logging for test activity correlation"
+    "79a532380d92 - tests: Fix output buffering in test_starvation_detection Test 3",
+    "70c1a3a22eea - tests: Fix output buffering and kernel worker interference",
+    "51e7f5ba2694 - tests: Fix timing race conditions in 4 remaining functional tests",
+    "2bb7736b6727 - tests: Fix timing race conditions in test_deadline_boosting",
+    "0e23df4ab94c - tests: Fix timing race conditions in starvation detection tests"
   ],
 
   "current_status": {
-    "test_framework": "Enhanced with DL-server and RT throttling management",
-    "test01_issue": "Resolved with 180s timeout",
-    "test_isolation": "Implemented - all tests now disable DL-server and RT throttling"
+    "test_timing_fixes": "✅ COMPLETE - all 29 timing points fixed across 7 tests",
+    "test_starvation_threshold": "✅ PASSING on both backends",
+    "test_starvation_detection_sched_debug": "✅ PASSING (all 6 tests)",
+    "test_starvation_detection_queue_track": "❌ FAILING - 2 tests (Test 3 & Test 4)"
   },
 
-  "recent_work": {
-    "session_focus": "Implement DL-server and RT throttling test isolation framework",
-    "completed_tasks": [
-      "Added setup_test_environment() function to test_helpers.sh",
-      "Implemented environment variable overrides (STALLD_TEST_KEEP_DL_SERVER, STALLD_TEST_KEEP_RT_THROTTLING)",
-      "Updated all 20 functional tests to use setup_test_environment()",
-      "Updated test01_wrapper.sh to use unified setup",
-      "Documented framework in tests/README.md"
+  "todays_work_summary": {
+    "session_start": "User reported test_deadline_boosting hung on RHEL-10 VM",
+    "session_progression": [
+      "Fixed timing in test_deadline_boosting.sh (5 instances)",
+      "Fixed timing in 4 more tests (18 total timing points)",
+      "User reported 3 failures: test_starvation_detection (both backends), test_starvation_threshold (sched_debug)",
+      "Fixed kernel worker interference in test_starvation_threshold",
+      "Fixed output buffering in test_starvation_detection (sched_debug passes, queue_track still fails)"
     ],
-    "commit": "fe9714465574 - tests: Add unified test environment management framework"
+    "commits_created": 5,
+    "lines_changed": "~150 lines across 7 test files"
   },
 
-  "test_isolation_framework": {
-    "motivation": "Prevent DL-server from interfering with stalld behavior testing",
-    "user_requirement": "Don't want to think stalld is working correctly when DL-server is actually fixing stalls",
-
-    "implementation": {
-      "function": "setup_test_environment()",
-      "location": "tests/helpers/test_helpers.sh",
-      "purpose": "Unified function to save/disable RT throttling and DL-server",
-      "usage": "Called in all tests after start_test() and before require_root()"
+  "completed_fixes": {
+    "timing_race_conditions": {
+      "total_tests_fixed": 7,
+      "total_timing_points_fixed": 29,
+      "formula_applied": "wait_time = threshold + granularity + buffer (threshold + 1 + 3)",
+      "rationale": "Account for worst-case: stalld checks just before threshold, waits full granularity period",
+      "tests": {
+        "test_starvation_detection.sh": "4 timing points",
+        "test_starvation_threshold.sh": "2 timing points",
+        "test_deadline_boosting.sh": "5 timing points",
+        "test_fifo_boosting.sh": "5 timing points",
+        "test_idle_detection.sh": "3 timing points",
+        "test_task_merging.sh": "4 timing points",
+        "test_runqueue_parsing.sh": "6 timing points"
+      },
+      "all_tests_now_use_g1": "All timing-sensitive tests now use -g 1 for predictable behavior"
     },
 
-    "environment_overrides": {
-      "STALLD_TEST_KEEP_DL_SERVER": "Set to 1 to skip DL-server disable (debugging)",
-      "STALLD_TEST_KEEP_RT_THROTTLING": "Set to 1 to skip RT throttling disable (debugging)",
-      "use_cases": [
-        "Debugging test behavior with DL-server enabled",
-        "Future tests for DL-server/stalld conflict detection"
+    "kernel_worker_interference": {
+      "test": "test_starvation_threshold.sh (Tests 1 & 3)",
+      "backend": "sched_debug only",
+      "problem": "Kernel workers (ksoftirqd, kworker) starve before test tasks, get detected first",
+      "solution": "Added -i 'ksoftirqd,kworker' flag to ignore kernel workers",
+      "result": "✅ Test now PASSING on sched_debug",
+      "commit": "70c1a3a22eea"
+    },
+
+    "output_buffering_partial": {
+      "test": "test_starvation_detection.sh Test 3",
+      "problem": "Test checked log while stalld running, output buffered",
+      "solution": "Moved stop_stalld() BEFORE log check to force buffer flush",
+      "result": "✅ Works for sched_debug, ❌ Still fails for queue_track",
+      "commit": "79a532380d92"
+    }
+  },
+
+  "remaining_failures": {
+    "failure_1_queue_track_test3": {
+      "test": "test_starvation_detection.sh Test 3 - Task Merging",
+      "backend": "queue_track only",
+      "symptom": "Reports 'Not enough starvation reports to verify task merging'",
+      "evidence": {
+        "test_line_101": "✗ FAIL: Not enough starvation reports",
+        "log_lines_379_443": "Log dump shows 10+ starvation reports for PID 21943",
+        "sample_reports": [
+          "stalld: starvation_gen-21943 starved on CPU 3 for 3 seconds",
+          "stalld: starvation_gen-21943 starved on CPU 3 for 4 seconds",
+          "...",
+          "stalld: starvation_gen-21943 starved on CPU 3 for 12 seconds"
+        ]
+      },
+      "mystery": "stop_stalld() called before check, but test still can't read the reports",
+      "hypothesis": [
+        "stop_stalld() may not wait long enough for queue_track to flush BPF buffers",
+        "queue_track uses BPF perf buffers that need explicit flush",
+        "Additional buffering layer in BPF/libbpf that doesn't flush on process exit",
+        "Timing race: check happens before buffers fully flushed to file"
       ]
     },
 
-    "affected_functions": {
-      "save_dl_server": "Added STALLD_TEST_KEEP_DL_SERVER override check",
-      "disable_dl_server": "Added STALLD_TEST_KEEP_DL_SERVER override check",
-      "save_rt_throttling": "Added STALLD_TEST_KEEP_RT_THROTTLING override check",
-      "disable_rt_throttling": "Added STALLD_TEST_KEEP_RT_THROTTLING override check",
-      "setup_test_environment": "New unified function calling all four functions above"
+    "failure_2_queue_track_test4": {
+      "test": "test_starvation_detection.sh Test 4 - Multiple CPUs",
+      "backend": "queue_track only",
+      "symptom": "Starvation detected on CPU 3 but NOT on CPU 0",
+      "evidence": {
+        "line_473": "✓ PASS: Starvation detected on CPU 3",
+        "line_474": "✗ FAIL: Starvation not detected on CPU 0"
+      },
+      "observation": "This test passed previously, may be new regression or timing flake",
+      "possible_causes": [
+        "CPU 0 timing issue (stalld affinity adjusted to avoid CPU 0/3)",
+        "BPF map initialization issue for CPU 0",
+        "Race condition in multi-CPU test setup",
+        "Related to Test 3 buffering issue?"
+      ]
+    }
+  },
+
+  "debugging_leads_for_tomorrow": {
+    "priority_1_test3_buffering": {
+      "action": "Investigate stop_stalld() implementation",
+      "steps": [
+        "1. Read stop_stalld() in tests/helpers/test_helpers.sh",
+        "2. Check if it waits for process termination correctly",
+        "3. Verify timeout and polling mechanism",
+        "4. Try adding explicit sleep after stop_stalld() for queue_track",
+        "5. Research BPF perf buffer flushing requirements"
+      ],
+      "quick_test": "Add 'sleep 2' after stop_stalld() in Test 3 and re-run queue_track",
+      "log_to_examine": "tests/results/queue_track_test_starvation_detection.log lines 74-150"
     },
 
-    "files_modified": {
-      "test_helpers.sh": "Added environment variable docs, override checks, setup_test_environment()",
-      "test01_wrapper.sh": "Replaced manual calls with setup_test_environment()",
-      "functional_tests": "Added setup_test_environment() to all 20 tests",
-      "README.md": "Added Test Environment Management section with examples"
-    }
-  },
-
-  "previous_session_summary": {
-    "date": "2025-10-22",
-    "issue": "test01 timeout due to kworker competition",
-    "solution": "Increased timeout to 180s and documented timing variability",
-    "key_findings": {
-      "kworker_filter_mystery": "'-i kworker' filter works correctly - eliminates starvation scenario entirely",
-      "priority_algorithm": "update_cpu_starving_vector() selects task with earliest timestamp",
-      "timing_issue": "Pre-existing kworkers have earlier timestamps, get boosted first"
-    }
-  },
-
-  "test_suite_status": {
-    "total_tests": 21,
-    "test01_wrapper": "Fixed with 180s timeout",
-    "functional_tests": 20,
-    "all_use_setup_test_environment": true,
-
-    "test_isolation": {
-      "rt_throttling": "Disabled by all tests",
-      "dl_server": "Disabled by all tests",
-      "cleanup": "Automatic via trap handler in test_helpers.sh"
-    }
-  },
-
-  "technical_knowledge": {
-    "dl_server": {
-      "location": "/sys/kernel/debug/sched/fair_server/",
-      "runtime_file": "cpu*/runtime",
-      "disable_method": "echo 0 > runtime",
-      "detection": "check_dl_server_dir_exists() in src/utils.c",
-      "kernel_requirement": "6.6+ for DL-server support"
+    "priority_2_test4_cpu0": {
+      "action": "Investigate CPU 0 detection failure",
+      "steps": [
+        "1. Read Test 4 implementation in test_starvation_detection.sh",
+        "2. Check CPU affinity setup (stalld CPU adjusted to avoid test CPUs)",
+        "3. Verify both starvation generators start successfully",
+        "4. Check timing - may need longer wait for CPU 0",
+        "5. Compare with sched_debug Test 4 (which passes)"
+      ],
+      "quick_test": "Increase wait time in Test 4 from 9s to 15s",
+      "log_to_examine": "tests/results/queue_track_test_starvation_detection.log lines 447-493"
     },
 
-    "test_framework_architecture": {
-      "manual_approach": "Tests explicitly call setup_test_environment()",
-      "rationale": "User requested manual approach for clear intent",
-      "alternative_considered": "Automatic in start_test() - rejected for being too implicit"
-    },
-
-    "stalld_single_threaded_mode": {
-      "default": "config_single_threaded = 1",
-      "limitation": "Can only track one starving task per CPU",
-      "selection_logic": "Earliest timestamp wins",
-      "impact": "Causes timing variability on loaded systems"
+    "research_needed": {
+      "topic": "BPF/libbpf output buffering",
+      "questions": [
+        "Does BPF perf buffer require explicit flush?",
+        "How does queue_track output differ from sched_debug?",
+        "Is there a BPF-specific sync/flush mechanism needed?",
+        "Why does process exit flush work for sched_debug but not queue_track?"
+      ]
     }
   },
 
-  "future_work": {
-    "priority_1": "Test the framework - run some tests to verify DL-server disable works",
-    "priority_2": "Write DL-server conflict tests (stalld + DL-server interaction)",
-    "priority_3": "Consider multi-blockee starvation test for loaded system robustness",
-    "priority_4": "Continue Phase 4 test development (Advanced Features)"
+  "test_results_rhel10": {
+    "test_starvation_threshold": {
+      "sched_debug": "✅ PASS (all 4 tests)",
+      "queue_track": "✅ PASS (all 4 tests)"
+    },
+    "test_starvation_detection": {
+      "sched_debug": "✅ PASS (all 6 tests)",
+      "queue_track": "❌ FAIL (2 of 6 tests fail: Test 3 & Test 4)"
+    },
+    "other_tests": "Not run in latest iteration (focus was on these two tests)"
   },
 
-  "documentation": {
-    "test_environment_management": "tests/README.md sections added",
-    "environment_variables": "Documented in test_helpers.sh header",
-    "test_template": "Updated in README.md to include setup_test_environment()",
-    "dl_server_conflict_tests": "Guidelines provided in README.md"
+  "technical_insights": {
+    "output_buffering_when_redirected": {
+      "mechanism": "Output redirected to file (> log 2>&1) is fully buffered",
+      "buffer_flushes": ["Buffer fills up", "Explicit fflush() call", "Process exits"],
+      "our_solution": "Stop stalld to trigger process exit flush",
+      "works_for": "sched_debug backend ✅",
+      "fails_for": "queue_track backend ❌",
+      "implication": "queue_track has additional buffering layer we haven't accounted for"
+    },
+
+    "queue_track_architecture": {
+      "uses": "BPF tracepoints + perf buffers",
+      "output_path": "BPF → perf buffers → userspace → stdout/stderr → file",
+      "more_layers": "BPF has additional buffering compared to sched_debug's direct file parsing",
+      "potential_issue": "Perf buffers may not flush immediately on process exit"
+    },
+
+    "timing_formula_complete": {
+      "formula": "wait_time = threshold + granularity + buffer",
+      "breakdown": {
+        "threshold": "Time task must be starved (e.g., 5s)",
+        "granularity": "Check frequency with -g flag (using 1s)",
+        "buffer": "Processing time (3s for parsing, detection, logging)"
+      },
+      "worst_case": "stalld checks just before threshold, must wait full granularity for next check",
+      "example": "threshold=5s, granularity=1s → minimum wait 9s (5+1+3)"
+    },
+
+    "kernel_worker_behavior": {
+      "problem": "ksoftirqd and kworker on test CPU starve alongside test tasks",
+      "why_first": "Kernel workers exist before test starts, have earlier timestamps",
+      "solution": "Ignore them with -i 'ksoftirqd,kworker'",
+      "backend_specific": "Only affects sched_debug (queue_track has FIFO limitation)"
+    }
   },
 
-  "lessons_learned": {
-    "test_isolation_critical": "DL-server can mask stalld failures - must disable for testing",
-    "manual_vs_automatic": "Explicit calls better than hidden behavior for test framework",
-    "environment_overrides": "Override variables provide flexibility for debugging and special cases",
-    "batch_updates": "sed can efficiently update multiple test files at once"
+  "code_locations": {
+    "tests_needing_debug": {
+      "test_starvation_detection.sh": {
+        "test3_line_230": "Test 3: Task Merging - Timestamp Preservation",
+        "test3_line_260": "stop_stalld() called here before checking log",
+        "test4_line_294": "Test 4: Multiple CPUs Detection"
+      }
+    },
+    "helper_functions": {
+      "stop_stalld": "tests/helpers/test_helpers.sh (need to read implementation)",
+      "setup_test_environment": "tests/helpers/test_helpers.sh (working correctly)"
+    },
+    "test_logs": {
+      "queue_track_failures": "tests/results/queue_track_test_starvation_detection.log",
+      "sched_debug_passing": "tests/results/sched_debug_test_starvation_detection.log"
+    }
+  },
+
+  "next_session_quick_start": {
+    "first_task": "Read stop_stalld() implementation",
+    "command": "Read tests/helpers/test_helpers.sh, find stop_stalld function",
+    "then": "Try adding sleep 2 after stop_stalld() in Test 3",
+    "test": "Run only test_starvation_detection.sh with queue_track backend",
+    "if_that_works": "Understand WHY it works and implement proper fix"
   },
 
   "environment": {
-    "system": "Fedora 42, kernel 6.16.11",
-    "dl_server": "Present (kernel 6.6+), now disabled by default in tests",
-    "rt_throttling": "Disabled (-1) by all tests",
-    "test_backend": "Both sched_debug and queue_track supported",
-    "branch": "tests-devel (test development branch)"
+    "development": "Fedora 42, kernel 6.16.11",
+    "testing": "RHEL-10 VM (where failures occur)",
+    "test_backend": "Tests run with both sched_debug and queue_track",
+    "dl_server": "Disabled by setup_test_environment()",
+    "rt_throttling": "Disabled by setup_test_environment()",
+    "branch": "tests-devel"
+  },
+
+  "summary_for_user": {
+    "tests_fixed_today": "✅ test_starvation_threshold (both backends), test_starvation_detection (sched_debug)",
+    "tests_still_failing": "❌ test_starvation_detection Test 3 & Test 4 (queue_track only)",
+    "progress": "From 3 failures down to 2 failures, both in same test/backend combination",
+    "root_cause": "Queue_track backend has different buffering behavior than sched_debug",
+    "next_steps": "Debug stop_stalld() and BPF buffer flushing for queue_track"
+  },
+
+  "lessons_learned_today": {
+    "lesson_1": "Same fix doesn't always work for both backends - they have different architectures",
+    "lesson_2": "BPF-based backends may need special handling for output flushing",
+    "lesson_3": "Process exit flush works for direct file I/O but not necessarily for BPF perf buffers",
+    "lesson_4": "Always test fixes on BOTH backends before considering them complete"
   }
 }
