@@ -358,6 +358,7 @@ This document tracks the comprehensive test suite implementation for stalld.
 - [ ] Automated test runs on pull requests
 - [ ] Test coverage reporting
 - [ ] Performance regression testing
+- [ ] Add architecture-specific output directories for test results (e.g., results/x86_64/, results/aarch64/)
 
 ### Phase 6.2: Documentation
 - [ ] Polish README.md with complete examples
