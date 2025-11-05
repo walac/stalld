@@ -232,6 +232,25 @@ start_stalld() {
 		return 1
 	fi
 
+	# Parse arguments to find pidfile if specified
+	# Also detect if running in foreground mode
+	# Use simple pattern matching instead of loop to avoid infinite loop bugs
+	local pidfile=""
+	local foreground_mode=0
+
+	if [[ "$args" =~ --pidfile=([^\ ]+) ]]; then
+		pidfile="${BASH_REMATCH[1]}"
+	elif [[ "$args" =~ --pidfile[[:space:]]+([^\ ]+) ]]; then
+		pidfile="${BASH_REMATCH[1]}"
+	elif [[ "$args" =~ -P[[:space:]]+([^\ ]+) ]]; then
+		pidfile="${BASH_REMATCH[1]}"
+	fi
+
+	# Check for foreground mode flags
+	if [[ "$args" =~ -f([[:space:]]|$) ]] || [[ "$args" =~ --foreground([[:space:]]|$) ]] || [[ "$args" =~ -v([[:space:]]|$) ]]; then
+		foreground_mode=1
+	fi
+
 	# Add backend option if STALLD_TEST_BACKEND is set
 	if [ -n "${STALLD_TEST_BACKEND}" ]; then
 		args="-b ${STALLD_TEST_BACKEND} ${args}"
@@ -262,22 +281,100 @@ start_stalld() {
 	${stalld_bin} ${args} &
 	local shell_pid=$!
 
-	# Wait for stalld to start
-	sleep 1
+	# Strategy for finding the daemon PID depends on whether pidfile is specified
+	if [ -n "$pidfile" ]; then
+		# Wait for pidfile to be created (up to 15 seconds)
+		# BPF initialization can take 10+ seconds on some architectures
+		local timeout=15
+		local elapsed=0
+		while [ ! -f "$pidfile" ] && [ $elapsed -lt $timeout ]; do
+			sleep 0.5
+			elapsed=$((elapsed + 1))
+		done
 
-	# Get the actual stalld PID (not the shell wrapper)
-	# Look for stalld process that was started recently
-	STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
+		if [ -f "$pidfile" ]; then
+			STALLD_PID=$(cat "$pidfile" 2>/dev/null)
+			if [ -z "${STALLD_PID}" ]; then
+				echo -e "${RED}ERROR: pidfile exists but is empty${NC}"
+				return 1
+			fi
+		else
+			echo -e "${RED}ERROR: pidfile was not created within ${timeout} seconds${NC}"
+			return 1
+		fi
+	else
+		# No pidfile - use pgrep with retries
+		# Strategy depends on foreground vs daemon mode
+		local max_attempts=10
+		local attempt=0
+		STALLD_PID=""
 
-	# If pgrep didn't find it, fall back to the shell PID
-	# (might be the case if stalld was exec'd or if pgrep isn't available)
-	if [ -z "${STALLD_PID}" ]; then
-		STALLD_PID=${shell_pid}
+		if [ $foreground_mode -eq 1 ]; then
+			# Foreground mode: stalld doesn't daemonize, just find any stalld process
+			sleep 1
+			STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
+
+			# If pgrep didn't find it, fall back to the shell PID
+			if [ -z "${STALLD_PID}" ]; then
+				if kill -0 ${shell_pid} 2>/dev/null; then
+					STALLD_PID=${shell_pid}
+				fi
+			fi
+		else
+			# Daemon mode: parent forks, child becomes daemon (ppid=1), parent exits
+			# We need to wait for and find the DAEMON child, not the exiting parent
+			while [ $attempt -lt $max_attempts ]; do
+				sleep 0.5
+
+				# Get all stalld processes
+				local pids=$(pgrep -x stalld 2>/dev/null)
+
+				for pid in $pids; do
+					if kill -0 $pid 2>/dev/null; then
+						# Check parent PID - daemon should have ppid=1 (init) or ppid=2 (kthreadd)
+						local ppid=$(ps -o ppid= -p $pid 2>/dev/null | tr -d ' ')
+
+						# For daemonized processes, wait for ppid=1 or 2
+						if [ "$ppid" = "1" ] || [ "$ppid" = "2" ]; then
+							STALLD_PID=$pid
+							# Wait a bit to ensure daemon is stable
+							sleep 0.5
+							# Verify it's still running
+							if kill -0 $pid 2>/dev/null; then
+								break 2  # Break out of both loops
+							else
+								# Daemon died, keep looking
+								STALLD_PID=""
+							fi
+						fi
+					fi
+				done
+
+				# If we found a daemonized process, we're done
+				if [ -n "${STALLD_PID}" ]; then
+					break
+				fi
+
+				attempt=$((attempt + 1))
+			done
+
+			# Last resort: use the shell PID if nothing else worked
+			if [ -z "${STALLD_PID}" ]; then
+				if kill -0 ${shell_pid} 2>/dev/null; then
+					STALLD_PID=${shell_pid}
+				fi
+			fi
+		fi
 	fi
 
-	# Verify it's running
+	# Verify we found a PID and it's running
+	if [ -z "${STALLD_PID}" ]; then
+		echo -e "${RED}ERROR: Could not determine stalld PID${NC}"
+		return 1
+	fi
+
 	if ! kill -0 ${STALLD_PID} 2>/dev/null; then
-		echo -e "${RED}ERROR: stalld failed to start${NC}"
+		echo -e "${RED}ERROR: stalld PID ${STALLD_PID} is not running${NC}"
 		return 1
 	fi
 
