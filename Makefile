@@ -14,11 +14,6 @@ GCC_VER=$(shell gcc --version | grep ^gcc | cut -f 3 -d ' ' | cut -f 1 -d '.')
 endif
 $(info GCC_VER=$(GCC_VER))
 
-# Does the current GCC compiler have fcf-protection and c99+ as default?
-MIN_GCC_VER := 8
-IS_MINVER := $(intcmp $(GCC_VER), $(MIN_GCC_VER), false, true, true)
-$(info IS_MINVER=$(IS_MINVER))
-
 USE_BPF := 1
 MTUNE	:= -mtune=generic
 M64	:= -m64
