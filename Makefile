@@ -60,7 +60,13 @@ FOPTS	:=	-flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong \
 		-fasynchronous-unwind-tables -fstack-clash-protection -fno-omit-frame-pointer \
 		$(strip $(FCF_PROTECTION)) -fpie
 
-MOPTS   :=  	$(strip $(MTUNE)) $(strip $(M64)) -mno-omit-leaf-frame-pointer
+# Test if compiler supports -mno-omit-leaf-frame-pointer
+OMIT_LEAF_FP := $(shell echo 'int main(void){return 0;}' | \
+		$(CC) -x c -mno-omit-leaf-frame-pointer - \
+		-o /dev/null 2>/dev/null && \
+		echo '-mno-omit-leaf-frame-pointer')
+
+MOPTS   :=  	$(strip $(MTUNE)) $(strip $(M64)) $(strip $(OMIT_LEAF_FP))
 
 WOPTS	:= 	-Wall -Werror=format-security
 
