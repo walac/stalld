@@ -121,6 +121,10 @@ VMLINUX_BTF_PATHS	:= /sys/kernel/btf/vmlinux /boot/vmlinux-$(KERNEL_REL)
 VMLINUX_BTF_PATH	:= $(or $(VMLINUX_BTF),$(firstword                            \
                                           $(wildcard $(VMLINUX_BTF_PATHS))))
 
+$(info KERNEL=$(KERNEL_REL))
+$(info $(shell $(CLANG) --version | head -1))
+$(info $(shell $(BPFTOOL) --version))
+
 ifeq ($(ARCH),x86_64)
 CLANGARCH="-D__x86_64__"
 endif
