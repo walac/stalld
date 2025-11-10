@@ -183,7 +183,7 @@ static: $(OBJ)
 	$(CC) -o stalld-static $(LDFLAGS) --static $(OBJ) $(LIBS)
 
 tests:
-	make -C tests VERSION=$(VERSION) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
+	make -C tests VERSION=$(VERSION) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" test
 
 .PHONY: install
 install: stalld
