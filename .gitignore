@@ -18,3 +18,5 @@ node_modules/
 patches/
 tests/legacy/test01
 *.patch
+.serena
+CLAUDE.md
