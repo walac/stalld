@@ -20,17 +20,14 @@ IS_MINVER := $(intcmp $(GCC_VER), $(MIN_GCC_VER), false, true, true)
 $(info IS_MINVER=$(IS_MINVER))
 
 USE_BPF := 1
-FCF_PROTECTION := -fcf-protection
 MTUNE	:= -mtune=generic
 M64	:= -m64
 
 ifeq ($(ARCH),aarch64)
-FCF_PROTECTION := "-fcf-protection=none"
 M64	:=
 endif
 ifeq ($(ARCH),i686)
 USE_BPF := 0
-FCF_PROTECTION := "-fcf-protection=branch"
 endif
 ifeq ($(ARCH),s390x)
 MTUNE := -mtune=z13
@@ -43,22 +40,22 @@ ifeq ($(ARCH),powerpc)
 USE_BPF := 0
 MTUNE := -mtune=powerpc
 endif
-ifeq ($(strip $(IS_MINVER)), false)
-FCF_PROTECTION := 
-endif
-
-
-$(info USE_BPF=$(USE_BPF))
-$(info FCF_PROTECTION=$(FCF_PROTECTION))
-$(info MTUNE=$(MTUNE))
 
 DEBUG	?=	0
 
 INSTALL	=	install
 CC	:=	gcc
+
+# Test if compiler supports -fcf-protection
+FCF_PROTECTION := $(shell echo 'int main(void){return 0;}' | \
+		$(CC) -x c -fcf-protection - \
+		-o /dev/null 2>/dev/null && \
+		echo '-fcf-protection')
+
 FOPTS	:=	-flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong \
 		-fasynchronous-unwind-tables -fstack-clash-protection -fno-omit-frame-pointer \
 		$(strip $(FCF_PROTECTION)) -fpie
+
 
 # Test if compiler supports -mno-omit-leaf-frame-pointer
 OMIT_LEAF_FP := $(shell echo 'int main(void){return 0;}' | \
@@ -73,6 +70,10 @@ WOPTS	:= 	-Wall -Werror=format-security
 DEFS	:=	-DUSE_BPF=$(USE_BPF) -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS -DDEBUG_STALLD=$(DEBUG) -std=c99
 
 CFLAGS	:=      -DVERSION=\"$(VERSION)\" $(FOPTS) $(MOPTS) $(WOPTS) $(DEFS)
+
+$(info USE_BPF=$(USE_BPF))
+$(info FCF_PROTECTION=$(FCF_PROTECTION))
+$(info MTUNE=$(MTUNE))
 
 ifeq ($(DEBUG),0)
 CFLAGS	+=	-g -O2
