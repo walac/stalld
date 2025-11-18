@@ -624,7 +624,7 @@ Follow test_boost_period.sh and test_starvation_threshold.sh rewrites:
 
 ### 2025-10-13 - Critical Segfault Fix and Backend Limitation Documentation
 - **Fixed critical segfault in adaptive/aggressive modes**
-  - **Root cause**: `merge_taks_info()` unconditionally called `update_cpu_starving_vector()` at line 389
+  - **Root cause**: `merge_tasks_info()` unconditionally called `update_cpu_starving_vector()` at line 389
   - **Problem**: `cpu_starving_vector` only allocated in `single_threaded_main()` (line 1007)
   - **Impact**: Adaptive/aggressive modes crashed when parsing tasks (any backend)
   - **Fix**: Added `if (config_single_threaded)` guards before both `update_cpu_starving_vector()` calls

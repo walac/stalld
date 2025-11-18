@@ -594,7 +594,7 @@ static int sched_debug_parse(struct cpu_info *cpu_info, char *buffer, size_t buf
 
 	cpu_info->nr_waiting_tasks = fill_waiting_task(cpu_buffer, cpu_info);
 	if (old_tasks) {
-		merge_taks_info(cpu_info->id, old_tasks, nr_old_tasks, cpu_info->starving, cpu_info->nr_waiting_tasks);
+		merge_tasks_info(cpu_info->id, old_tasks, nr_old_tasks, cpu_info->starving, cpu_info->nr_waiting_tasks);
 		free(old_tasks);
 	}
 

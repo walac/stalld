@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Test: Task Merging Logic
-# Verify stalld's merge_taks_info() correctly preserves starvation timestamps
+# Verify stalld's merge_tasks_info() correctly preserves starvation timestamps
 # for tasks that make no progress (same PID + same context switches)
 #
 # Copyright (C) 2025 Red Hat Inc
@@ -362,7 +362,7 @@ log ""
 log "=========================================="
 log "Test Summary"
 log "=========================================="
-log "Task merging function: merge_taks_info() in stalld.c:370-397"
+log "Task merging function: merge_tasks_info() in stalld.c:370-397"
 log "Merge logic: if (PID == PID && ctxsw == ctxsw) preserve timestamp"
 log ""
 log "Total failures: ${TEST_FAILED}"

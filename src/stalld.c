@@ -377,7 +377,7 @@ void update_cpu_starving_vector(int cpu, const struct task_info *task)
 	}
 }
 
-void merge_taks_info(int cpu, struct task_info *old_tasks, int nr_old, struct task_info *new_tasks, int nr_new)
+void merge_tasks_info(int cpu, struct task_info *old_tasks, int nr_old, struct task_info *new_tasks, int nr_new)
 {
 	static const struct task_info notask = {};
 

@@ -73,7 +73,7 @@ stalld/
 - Entry point: `main()` at line 1121
 - Boosting logic: `boost_with_deadline()`, `boost_with_fifo()` (lines 438-563)
 - Threading modes: `single_threaded_main()`, `conservative_main()`, `aggressive_main()`
-- Task merging: `merge_taks_info()` preserves starvation timestamps (lines 370-397)
+- Task merging: `merge_tasks_info()` preserves starvation timestamps (lines 370-397)
 
 **src/utils.c** - Utilities
 - Command-line parsing: `parse_args()`
@@ -311,7 +311,7 @@ Tests use `parse_test_options()` from `test_helpers.sh` to handle backend and th
 
 **Known Issues:**
 - **queue_track backend limitation**: BPF backend cannot detect SCHED_FIFO tasks waiting on runqueue due to `task_running()` check in `stalld.bpf.c:273` only tracking `__state == TASK_RUNNING`. Tests using `starvation_gen` (SCHED_FIFO workloads) pass on sched_debug but fail on queue_track.
-- **Segfault fix**: Fixed critical bug in `merge_taks_info()` that caused crashes in adaptive/aggressive modes (commit 7af4f55a5765)
+- **Segfault fix**: Fixed critical bug in `merge_tasks_info()` that caused crashes in adaptive/aggressive modes (commit 7af4f55a5765)
 
 🔄 **Phase 4 Planned** (Advanced Features):
 - Threading modes (adaptive vs aggressive)
@@ -521,7 +521,7 @@ Check: `/proc/sys/kernel/sched_rt_runtime_us` should be `-1`.
 ## Important Code Patterns
 
 ### Task Merging (src/stalld.c:370-397)
-When re-parsing tasks, `merge_taks_info()` preserves starvation timestamps for tasks that haven't made progress (same PID, same context switch count).
+When re-parsing tasks, `merge_tasks_info()` preserves starvation timestamps for tasks that haven't made progress (same PID, same context switch count).
 
 ### Denylist/Ignore Feature
 - `-i` flag: Ignore threads/processes matching regex patterns
