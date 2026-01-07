@@ -121,7 +121,7 @@ struct stalld_backend {
 #elif __arm__
 # define __NR_sched_setattr 380
 # define __NR_sched_getattr 381
-#elif __aarch64__ || __loongarch64
+#elif __aarch64__ || __loongarch64 || __riscv
 # define __NR_sched_setattr 274
 # define __NR_sched_getattr 275
 #elif __powerpc__

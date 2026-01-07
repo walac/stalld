@@ -35,6 +35,11 @@ ifeq ($(ARCH),powerpc)
 USE_BPF := 0
 MTUNE := -mtune=powerpc
 endif
+ifeq ($(ARCH),riscv64)
+FCF_PROTECTION := "-fcf-protection=none"
+M64	:=
+MTUNE := -mtune=generic-ooo
+endif
 
 DEBUG	?=	0
 
@@ -140,10 +145,14 @@ endif
 ifeq ($(ARCH),s390x)
 CLANGARCH=-D__s390x__
 endif
+ifeq ($(ARCH),riscv64)
+CLANGARCH="-D__riscv"
+CLANGFLAGS="-D__riscv_xlen=64"
+endif
 
 .PHONY:	all tests
 
-all:	stalld tests
+all:	stalld
 
 ifeq ($(USE_BPF),1)
 # This is a dependency for eBPF, it collects kernel code information into
@@ -160,7 +169,7 @@ bpf/vmlinux.h:
 # The .bpf.c needs to be transformed into the .bpf.o.
 # The .bpf.o is then required to build the .skel.h.
 bpf/stalld.bpf.o: bpf/vmlinux.h bpf/stalld.bpf.c
-	$(CLANG) -g -O2 -target bpf $(CLANGARCH) -DDEBUG_STALLD=$(DEBUG) -D__TARGET_ARCH_$(ARCH) \
+	$(CLANG) -g -O2 -target bpf $(CLANGARCH) $(CLANGFLAGS) -DDEBUG_STALLD=$(DEBUG) -D__TARGET_ARCH_$(ARCH) \
 		$(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
 	$(LLVM_STRIP) -g $@ # strip useless DWARF info
 
