@@ -1,0 +1,71 @@
+  Subject: [ANNOUNCE] stalld v1.25.1 released
+
+  Hi all,
+
+  I'm pleased to announce the release of stalld v1.25.1, now available
+  at kernel.org, GitLab, and GitHub.
+  
+  Overview
+
+  This release contains critical bug fixes for BPF compilation on
+  older kernels and comprehensive test suite improvements.
+  
+  On the subject of the test suite, you'll notice that I made pretty
+  heavy use of Anthropic's Claude Sonnet 4.5 to generate the
+  scripts. I would really appreciate some other folks Looking at the
+  test runner (tests/run_tests.sh), the helper functions
+  (tests/helpers/test_helpers.sh) and the individual test scripts. To
+  be clear, I didn't just tell Claude to generate them and then check
+  them in and say "Good to go!". I spent around three weeks getting
+  things going. That said, I'd love to get into a good
+  argument^wdiscussion on the way the tests work and whether they're
+  worth running.
+
+  Key Fixes
+
+  BPF CO-RE Compatibility (Wander Lairson Costa)
+  - Fixed build failures on RHEL 8.x and older kernels (4.18) where
+    thread_info struct lacks the cpu field 
+  - Introduced BPF CO-RE compatibility checks allowing single binary
+    to work across kernel versions 
+  - Made BPF compilation verbose for easier debugging (Derek Barbosa)
+
+  Test Infrastructure
+
+  This release includes extensive test infrastructure (97 commits):
+  - 21 comprehensive tests covering all stalld functionality
+  - Matrix testing across backends (sched_debug, queue_track) and
+    threading modes 
+  - Automated test discovery and helper library
+  - Configurable starvation generator for controlled testing
+
+  Test Validation
+
+  Full test suite executed on x86_64 and aarch64 architectures :
+  - x86_64 (Fedora 42, VM): sched_debug backend 100% pass rate (19/19 tests)
+  - aarch64 (RHEL 10, bare metal): sched_debug backend 100% pass rate (19/19 tests)
+
+  Minor test timing issues observed with queue_track backend in VM
+   environments (2-4% failure rate) attributed to virtualization
+   and/or architectural timing artifacts. Core functionality verified
+   across both platforms. 
+
+  Download
+
+  - https://git.kernel.org/pub/scm/utils/stalld/stalld.git
+  - https://gitlab.com/rt-linux-tools/stalld
+  - https://github.com/clrkwllms/stalld
+
+  git tag: v1.25.1
+
+  Contributors
+
+  - Wander Lairson Costa
+  - Clark Williams
+  - Derek Barbosa
+
+  Full release notes: doc/RELEASE_NOTES_v1.25.1.md
+
+  Best regards,
+  Clark Williams
+

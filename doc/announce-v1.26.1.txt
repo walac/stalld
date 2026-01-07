@@ -1,0 +1,59 @@
+Subject: [ANNOUNCE] stalld v1.26.1 released
+
+Hi all,
+
+I'm pleased to announce the release of stalld v1.26.1, now available
+at kernel.org, GitLab, and GitHub.
+
+Overview
+
+This release focuses on build system improvements, adding RISC-V
+64-bit architecture support and enhancing cross-platform compatibility
+through better compiler flag detection.
+
+New Architecture Support
+
+RISC-V 64-bit (riscv64)
+- stalld can now be built for RISC-V 64-bit systems
+- Adds to existing support for x86_64, aarch64, s390x, i686, and
+  powerpc/ppc64le
+
+Build System Improvements (Wander Lairson Costa)
+
+Compiler Flag Detection
+- Added feature detection for -mno-omit-leaf-frame-pointer, fixing
+  builds on s390x and older compilers
+- Improved -fcf-protection detection using direct compiler testing
+  instead of GCC version checks
+- Removed redundant GCC version check, simplifying the Makefile
+
+Build Process
+- BPF tool versions (kernel, clang, bpftool) now printed during build
+  for easier debugging of compilation issues
+- Explicit 'test' target in tests directory for clearer build process
+
+Bug Fixes
+
+- Fixed typo: renamed 'merge_taks_info' to 'merge_tasks_info'
+- Updated .gitignore to exclude development tool metadata
+
+Download
+
+- https://git.kernel.org/pub/scm/utils/stalld/stalld.git
+- https://gitlab.com/rt-linux-tools/stalld
+- https://github.com/clrkwllms/stalld
+
+git tag: v1.26.1
+
+Contributors
+
+- David Abdurachmanov
+- luffyluo
+- Wander Lairson Costa
+- Clark Williams
+
+Full release notes: doc/RELEASE_NOTES_v1.26.1.md
+
+Best regards,
+Clark Williams
+
