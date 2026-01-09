@@ -52,7 +52,7 @@ FCF_PROTECTION := $(shell echo 'int main(void){return 0;}' | \
 		-o /dev/null 2>/dev/null && \
 		echo '-fcf-protection')
 
-FOPTS	:=	-flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong \
+FOPTS	:=	-fexceptions -fstack-protector-strong \
 		-fasynchronous-unwind-tables -fstack-clash-protection -fno-omit-frame-pointer \
 		$(strip $(FCF_PROTECTION)) -fpie
 
