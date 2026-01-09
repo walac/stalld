@@ -102,9 +102,9 @@ ifeq ($(USE_BPF),1)
 DIRS	+=	bpf
 endif
 FILES	:=	Makefile README.md gpl-2.0.txt scripts/throttlectl.sh
-CEXT	:=	bz2
+CEXT	:=	gz
 TARBALL	:=	$(NAME)-$(VERSION).tar.$(CEXT)
-TAROPTS	:=	-cvjf $(TARBALL)
+TAROPTS	:=	-cvzf $(TARBALL)
 BINDIR	:=	/usr/bin
 DATADIR	:=	/usr/share
 SYSCONFDIR :=	/etc
