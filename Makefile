@@ -16,11 +16,7 @@ $(info GCC_VER=$(GCC_VER))
 
 USE_BPF := 1
 MTUNE	:= -mtune=generic
-M64	:= -m64
 
-ifeq ($(ARCH),aarch64)
-M64	:=
-endif
 ifeq ($(ARCH),i686)
 USE_BPF := 0
 endif
@@ -37,7 +33,6 @@ MTUNE := -mtune=powerpc
 endif
 ifeq ($(ARCH),riscv64)
 FCF_PROTECTION := "-fcf-protection=none"
-M64	:=
 MTUNE := -mtune=generic-ooo
 endif
 
@@ -63,7 +58,7 @@ OMIT_LEAF_FP := $(shell echo 'int main(void){return 0;}' | \
 		-o /dev/null 2>/dev/null && \
 		echo '-mno-omit-leaf-frame-pointer')
 
-MOPTS   :=  	$(strip $(MTUNE)) $(strip $(M64)) $(strip $(OMIT_LEAF_FP))
+MOPTS   :=  	$(strip $(MTUNE)) $(strip $(OMIT_LEAF_FP))
 
 WOPTS	:= 	-Wall -Werror=format-security
 
