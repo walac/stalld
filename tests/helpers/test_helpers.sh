@@ -321,48 +321,29 @@ start_stalld() {
 				fi
 			fi
 		else
-			# Daemon mode: parent forks, child becomes daemon (ppid=1), parent exits
-			# We need to wait for and find the DAEMON child, not the exiting parent
+			# Daemon mode: stalld double-forks, so the shell_pid will exit
+			# and the daemon will be re-parented. Wait for the shell process
+			# to exit, then find the newest stalld process.
 			while [ $attempt -lt $max_attempts ]; do
 				sleep 0.5
 
-				# Get all stalld processes
-				local pids=$(pgrep -x stalld 2>/dev/null)
-
-				for pid in $pids; do
-					if kill -0 $pid 2>/dev/null; then
-						# Check parent PID - daemon should have ppid=1 (init) or ppid=2 (kthreadd)
-						local ppid=$(ps -o ppid= -p $pid 2>/dev/null | tr -d ' ')
-
-						# For daemonized processes, wait for ppid=1 or 2
-						if [ "$ppid" = "1" ] || [ "$ppid" = "2" ]; then
-							STALLD_PID=$pid
-							# Wait a bit to ensure daemon is stable
-							sleep 0.5
-							# Verify it's still running
-							if kill -0 $pid 2>/dev/null; then
-								break 2  # Break out of both loops
-							else
-								# Daemon died, keep looking
-								STALLD_PID=""
-							fi
-						fi
+				# Check if shell_pid has exited (daemonization complete)
+				if ! kill -0 ${shell_pid} 2>/dev/null; then
+					# Shell process exited, daemon should be running
+					# Use pgrep -n to find the newest stalld process
+					STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
+					if [ -n "${STALLD_PID}" ] && kill -0 ${STALLD_PID} 2>/dev/null; then
+						break
 					fi
-				done
-
-				# If we found a daemonized process, we're done
-				if [ -n "${STALLD_PID}" ]; then
-					break
 				fi
 
 				attempt=$((attempt + 1))
 			done
 
-			# Last resort: use the shell PID if nothing else worked
+			# If we still don't have a PID, try one more time
 			if [ -z "${STALLD_PID}" ]; then
-				if kill -0 ${shell_pid} 2>/dev/null; then
-					STALLD_PID=${shell_pid}
-				fi
+				sleep 1
+				STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
 			fi
 		fi
 	fi
