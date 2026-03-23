@@ -891,11 +891,6 @@ start_stalld_with_backend() {
 # Consolidated helper functions (previously duplicated across tests)
 #
 
-# Logging with timestamp (used by many functional tests)
-log() {
-	echo "[$(date +'%H:%M:%S')] $*"
-}
-
 # Get scheduling policy (0=OTHER, 1=FIFO, 2=RR, 6=DEADLINE)
 get_sched_policy() {
 	local pid=$1
