@@ -21,6 +21,12 @@ setup_test_environment
 # Require root for this test
 require_root
 
+# Filter stdin for stalld daemon messages, excluding the test
+# framework's own log entries tagged with [TEST].
+has_stalld_log() {
+	grep -F "stalld" | grep -Fqv "[TEST]"
+}
+
 # Test 1: Verbose mode (-v) logs to stdout/stderr
 echo "Test 1: Verbose mode (-v) logs to stdout"
 
@@ -74,7 +80,7 @@ if command -v dmesg >/dev/null 2>&1; then
 		# Note: This might not work in all environments
 		if [ ${DMESG_AFTER} -gt ${DMESG_BEFORE} ]; then
 			# Check if recent dmesg contains stalld messages
-			if dmesg | tail -10 | grep -q "stalld"; then
+			if dmesg | tail -10 | has_stalld_log; then
 				assert_equals "1" "1" "stalld messages in kernel log"
 			else
 				echo -e "  ${YELLOW}SKIP${NC}: cannot verify kernel log messages"
@@ -113,7 +119,7 @@ if [ -n "${SYSLOG_FILE}" ]; then
 
 		if [ ${SYSLOG_AFTER} -gt ${SYSLOG_BEFORE} ]; then
 			# Check for stalld messages in recent syslog
-			if tail -20 "${SYSLOG_FILE}" | grep -q "stalld"; then
+			if tail -20 "${SYSLOG_FILE}" | has_stalld_log; then
 				assert_equals "1" "1" "stalld messages in syslog"
 			else
 				echo -e "  ${YELLOW}SKIP${NC}: no stalld messages found in syslog"
@@ -133,9 +139,9 @@ elif command -v journalctl >/dev/null 2>&1; then
 
 	if assert_process_running "${STALLD_PID}" "stalld with -s should be running"; then
 		# Check journalctl for stalld messages
-		if journalctl -u stalld --since "1 minute ago" 2>/dev/null | grep -q "stalld"; then
+		if journalctl -u stalld --since "1 minute ago" 2>/dev/null | has_stalld_log; then
 			assert_equals "1" "1" "stalld messages in journalctl"
-		elif journalctl --since "1 minute ago" 2>/dev/null | grep -q "stalld"; then
+		elif journalctl --since "1 minute ago" 2>/dev/null | has_stalld_log; then
 			assert_equals "1" "1" "stalld messages in system journal"
 		else
 			echo -e "  ${YELLOW}SKIP${NC}: no stalld messages in journal (may take time to appear)"
