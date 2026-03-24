@@ -365,24 +365,33 @@ start_stalld() {
 }
 
 # Stop stalld
+# Sends SIGTERM and polls for graceful exit, then escalates to
+# SIGKILL if needed. Guarantees the process is dead before
+# returning so callers do not need post-stop sleeps.
 stop_stalld() {
 	if [ -n "${STALLD_PID}" ]; then
 		if kill -0 ${STALLD_PID} 2>/dev/null; then
-			# Try graceful shutdown first
+			# Try graceful shutdown first (SIGTERM)
 			kill ${STALLD_PID} 2>/dev/null || true
-			# Give it a moment to exit gracefully
-			sleep 0.2
-			# Force kill if still running
-			if kill -0 ${STALLD_PID} 2>/dev/null; then
-				kill -9 ${STALLD_PID} 2>/dev/null || true
-			fi
-			# Poll for process termination (don't use wait - might not be a child)
-			local timeout=10
+
+			# Poll for graceful exit (up to 5 seconds)
+			local timeout=5
 			local elapsed=0
 			while kill -0 ${STALLD_PID} 2>/dev/null && [ ${elapsed} -lt ${timeout} ]; do
-				sleep 0.1
+				sleep 1
 				elapsed=$((elapsed + 1))
 			done
+
+			# Escalate to SIGKILL if still running
+			if kill -0 ${STALLD_PID} 2>/dev/null; then
+				kill -9 ${STALLD_PID} 2>/dev/null || true
+				# Poll for forced termination (up to 5 seconds)
+				elapsed=0
+				while kill -0 ${STALLD_PID} 2>/dev/null && [ ${elapsed} -lt ${timeout} ]; do
+					sleep 1
+					elapsed=$((elapsed + 1))
+				done
+			fi
 		fi
 		STALLD_PID=""
 	fi
