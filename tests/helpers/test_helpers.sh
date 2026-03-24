@@ -1045,6 +1045,62 @@ init_functional_test() {
 	export TEST_CPU STALLD_CPU STARVE_GEN STALLD_LOG
 }
 
+# Start starvation_gen in background with readiness detection
+# Launches starvation_gen, redirects its stdout to a log file, and polls
+# for the "ready" message that starvation_gen prints after all threads
+# have passed the pthread barrier and are actively running/starving.
+#
+# Usage: start_starvation_gen [starvation_gen_args...]
+# Sets: STARVE_PID, STARVE_LOG
+# Example: start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 15
+start_starvation_gen() {
+	local starve_bin="${TEST_ROOT}/helpers/starvation_gen"
+	if [ ! -x "${starve_bin}" ]; then
+		echo -e "${RED}ERROR: starvation_gen not found at ${starve_bin}${NC}"
+		return 1
+	fi
+
+	STARVE_LOG="/tmp/stalld_starvgen_$$.log"
+	CLEANUP_FILES+=("${STARVE_LOG}")
+
+	"${starve_bin}" "$@" > "${STARVE_LOG}" 2>&1 &
+	STARVE_PID=$!
+	CLEANUP_PIDS+=("${STARVE_PID}")
+
+	# Poll for "ready" message with timeout
+	# starvation_gen prints "ready" after all threads pass the barrier.
+	# Brief initial sleep covers the fast path, then 1-second polling
+	# for slow/loaded systems.
+	sleep 0.01
+
+	local timeout=10
+	local elapsed=0
+	while [ $elapsed -lt $timeout ]; do
+		if ! kill -0 ${STARVE_PID} 2>/dev/null; then
+			echo -e "${RED}ERROR: starvation_gen exited prematurely${NC}"
+			echo "  Log contents:"
+			cat "${STARVE_LOG}"
+			return 1
+		fi
+		if grep -q "Press Ctrl+C to stop early" "${STARVE_LOG}" 2>/dev/null; then
+			echo "starvation_gen ready (PID ${STARVE_PID})"
+			return 0
+		fi
+		sleep 1
+		elapsed=$((elapsed + 1))
+	done
+
+	echo -e "${RED}ERROR: starvation_gen did not become ready within ${timeout}s${NC}"
+	echo "  Log contents:"
+	cat "${STARVE_LOG}"
+	kill ${STARVE_PID} 2>/dev/null
+	sleep 1
+	if kill -0 ${STARVE_PID} 2>/dev/null; then
+		kill -9 ${STARVE_PID} 2>/dev/null
+	fi
+	return 1
+}
+
 # Export functions for use in tests
 export -f start_test end_test
 export -f assert_equals assert_contains assert_not_contains
@@ -1061,5 +1117,5 @@ export -f save_dl_server restore_dl_server disable_dl_server
 export -f setup_test_environment
 export -f get_num_cpus get_online_cpus pick_test_cpu
 export -f log get_sched_policy get_sched_priority get_nice_value get_ctxt_switches
-export -f start_stalld_with_log wait_for_policy_change
+export -f start_stalld_with_log start_starvation_gen wait_for_policy_change
 export -f calculate_detection_timeout init_functional_test
