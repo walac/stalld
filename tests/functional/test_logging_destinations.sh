@@ -28,12 +28,15 @@ LOG_FILE="/tmp/stalld_test_verbose_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
 
 # Start stalld directly (not using start_stalld helper) to capture output
-../stalld -f -v -l -t 5 > "${LOG_FILE}" 2>&1 &
-sleep 2
-STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
-if [ -n "${STALLD_PID}" ]; then
-	CLEANUP_PIDS+=("${STALLD_PID}")
+# Add backend flag if specified via test runner
+BACKEND_FLAG=""
+if [ -n "${STALLD_TEST_BACKEND}" ]; then
+	BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
 fi
+"${TEST_ROOT}/../stalld" -f -v ${BACKEND_FLAG} -l -t 5 > "${LOG_FILE}" 2>&1 &
+STALLD_PID=$!
+CLEANUP_PIDS+=("${STALLD_PID}")
+sleep 2
 
 if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 	# Check that output was written to our log file
@@ -51,7 +54,6 @@ if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 fi
 
 stop_stalld
-rm -f "${LOG_FILE}"
 
 # Test 2: Kernel message log (-k)
 echo ""
@@ -153,12 +155,10 @@ LOG_FILE="/tmp/stalld_test_combined_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
 
 # Start stalld directly (not using start_stalld helper) to capture output
-../stalld -f -v -k -s -l -t 5 > "${LOG_FILE}" 2>&1 &
+"${TEST_ROOT}/../stalld" -f -v -k -s ${BACKEND_FLAG} -l -t 5 > "${LOG_FILE}" 2>&1 &
+STALLD_PID=$!
+CLEANUP_PIDS+=("${STALLD_PID}")
 sleep 2
-STALLD_PID=$(pgrep -n -x stalld 2>/dev/null)
-if [ -n "${STALLD_PID}" ]; then
-	CLEANUP_PIDS+=("${STALLD_PID}")
-fi
 
 if assert_process_running "${STALLD_PID}" "stalld with combined logging should be running"; then
 	# Verify verbose output
