@@ -948,11 +948,37 @@ start_stalld_with_log() {
 		echo "Using backend: ${STALLD_TEST_BACKEND}"
 	fi
 
-	# Start stalld with output redirected
-	${TEST_ROOT}/../stalld ${stalld_args} > "${log_file}" 2>&1 &
+	# Start stalld with line-buffered output so tail -f can detect
+	# readiness immediately instead of waiting for the buffer to fill.
+	stdbuf -oL ${TEST_ROOT}/../stalld ${stalld_args} > "${log_file}" 2>&1 &
 	STALLD_PID=$!
 	CLEANUP_PIDS+=("${STALLD_PID}")
+
+	# Poll for stalld to start writing to the log file rather than
+	# using a fixed sleep. Brief initial sleep covers the fast path,
+	# then 1-second polling for slow systems (e.g. BPF init).
+	sleep 0.01
+	local timeout=15
+	local elapsed=0
+	while [ $elapsed -lt $timeout ]; do
+		if ! kill -0 ${STALLD_PID} 2>/dev/null; then
+			echo -e "${RED}ERROR: stalld exited during startup${NC}"
+			return 1
+		fi
+		if [ -s "${log_file}" ]; then
+			return 0
+		fi
+		sleep 1
+		elapsed=$((elapsed + 1))
+	done
+
+	echo -e "${RED}ERROR: stalld did not produce output within ${timeout}s${NC}"
+	kill ${STALLD_PID} 2>/dev/null
 	sleep 1
+	if kill -0 ${STALLD_PID} 2>/dev/null; then
+		kill -9 ${STALLD_PID} 2>/dev/null
+	fi
+	return 1
 }
 
 # Wait for scheduling policy to change to expected value
