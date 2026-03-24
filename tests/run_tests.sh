@@ -464,8 +464,10 @@ run_unit_test() {
 		test_log="${RESULTS_DIR}/${backend_mode//:/_}_${test_name}.log"
 	fi
 
+	local start_time=$SECONDS
 	if "${test_path}" > "${test_log}" 2>&1; then
-		echo -e "${GREEN}PASS${NC}" | tee -a "${LOG_FILE}"
+		local elapsed=$((SECONDS - start_time))
+		echo -e "${GREEN}PASS${NC} (${elapsed}s)" | tee -a "${LOG_FILE}"
 		PASSED_TESTS=$((PASSED_TESTS + 1))
 		if [ -n "${backend}" ]; then
 			BACKEND_PASSED["${backend}"]=$((BACKEND_PASSED["${backend}"] + 1))
@@ -474,7 +476,8 @@ run_unit_test() {
 			MODE_PASSED["${mode}"]=$((MODE_PASSED["${mode}"] + 1))
 		fi
 	else
-		echo -e "${RED}FAIL${NC}" | tee -a "${LOG_FILE}"
+		local elapsed=$((SECONDS - start_time))
+		echo -e "${RED}FAIL${NC} (${elapsed}s)" | tee -a "${LOG_FILE}"
 		echo "  See ${test_log} for details" | tee -a "${LOG_FILE}"
 		FAILED_TESTS=$((FAILED_TESTS + 1))
 		if [ -n "${backend}" ]; then
@@ -601,8 +604,10 @@ run_shell_test() {
 		test_log="${RESULTS_DIR}/${backend_mode//:/_}_${test_name}.log"
 	fi
 
+	local start_time=$SECONDS
 	if bash "${test_path}" > "${test_log}" 2>&1; then
-		echo -e "${GREEN}PASS${NC}" | tee -a "${LOG_FILE}"
+		local elapsed=$((SECONDS - start_time))
+		echo -e "${GREEN}PASS${NC} (${elapsed}s)" | tee -a "${LOG_FILE}"
 		PASSED_TESTS=$((PASSED_TESTS + 1))
 		if [ -n "${backend}" ]; then
 			BACKEND_PASSED["${backend}"]=$((BACKEND_PASSED["${backend}"] + 1))
@@ -612,9 +617,10 @@ run_shell_test() {
 		fi
 	else
 		local exit_code=$?
+		local elapsed=$((SECONDS - start_time))
 		if [ ${exit_code} -eq 77 ]; then
 			# Exit code 77 = SKIP (autotools convention)
-			echo -e "${YELLOW}SKIP${NC}" | tee -a "${LOG_FILE}"
+			echo -e "${YELLOW}SKIP${NC} (${elapsed}s)" | tee -a "${LOG_FILE}"
 			SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
 			if [ -n "${backend}" ]; then
 				BACKEND_SKIPPED["${backend}"]=$((BACKEND_SKIPPED["${backend}"] + 1))
@@ -623,7 +629,7 @@ run_shell_test() {
 				MODE_SKIPPED["${mode}"]=$((MODE_SKIPPED["${mode}"] + 1))
 			fi
 		else
-			echo -e "${RED}FAIL${NC}" | tee -a "${LOG_FILE}"
+			echo -e "${RED}FAIL${NC} (${elapsed}s)" | tee -a "${LOG_FILE}"
 			echo "  See ${test_log} for details" | tee -a "${LOG_FILE}"
 			FAILED_TESTS=$((FAILED_TESTS + 1))
 			if [ -n "${backend}" ]; then
@@ -644,6 +650,7 @@ print_summary() {
 	echo -e "  ${GREEN}Passed:  ${PASSED_TESTS}${NC}" | tee -a "${LOG_FILE}"
 	echo -e "  ${RED}Failed:  ${FAILED_TESTS}${NC}" | tee -a "${LOG_FILE}"
 	echo -e "  ${YELLOW}Skipped: ${SKIPPED_TESTS}${NC}" | tee -a "${LOG_FILE}"
+	echo "  Time:    $((SECONDS - SUITE_START_TIME))s" | tee -a "${LOG_FILE}"
 
 	# Print per-backend statistics if matrix testing enabled
 	if [ ${BACKEND_MATRIX} -eq 1 ] && [ ${#BACKEND_TOTAL[@]} -gt 0 ]; then
@@ -866,6 +873,8 @@ run_specific_test() {
 
 # Main execution
 main() {
+	SUITE_START_TIME=$SECONDS
+
 	# Export BACKEND and THREADING_MODE for use by test scripts
 	export STALLD_TEST_BACKEND="${BACKEND}"
 	export STALLD_TEST_THREADING_MODE="${THREADING_MODE}"
