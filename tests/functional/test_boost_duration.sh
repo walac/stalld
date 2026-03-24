@@ -84,7 +84,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null || true
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 2: Short duration (1 second)
@@ -123,7 +122,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null || true
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 3: Long duration (10 seconds)
@@ -163,7 +161,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null || true
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 4: Verify task policy is restored after boost duration
@@ -201,7 +198,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null || true
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 5: Invalid duration values

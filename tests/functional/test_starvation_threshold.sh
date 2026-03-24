@@ -98,7 +98,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 2: Verify no detection before threshold
@@ -149,7 +148,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 3: Shorter threshold (3 seconds)
@@ -197,7 +195,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 4: Invalid threshold values

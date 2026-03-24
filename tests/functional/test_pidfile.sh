@@ -68,7 +68,6 @@ if [ $default_found -eq 0 ]; then
 fi
 
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 2: Custom pidfile location
@@ -112,7 +111,6 @@ fi
 log ""
 log "Test 3: Verify pidfile removed on clean shutdown"
 stop_stalld
-sleep 1
 
 if [ ! -f "${custom_pidfile}" ]; then
     log "✓ PASS: Pidfile removed on clean shutdown"
@@ -156,7 +154,6 @@ else
 fi
 
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 5: Test with foreground mode
@@ -192,7 +189,6 @@ else
 fi
 
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 6: Invalid pidfile path (permission denied)
@@ -278,7 +274,6 @@ else
 fi
 
 stop_stalld
-sleep 1
 
 log ""
 log "All pidfile tests completed"

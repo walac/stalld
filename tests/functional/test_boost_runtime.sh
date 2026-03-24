@@ -84,7 +84,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null || true
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 2: Custom runtime (10,000 ns = 10 microseconds, less than default)
@@ -123,7 +122,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null || true
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 3: Larger runtime (100,000 ns = 100 microseconds)
@@ -162,7 +160,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null || true
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 4: Runtime < period (valid configuration)
@@ -203,7 +200,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null || true
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 5: Runtime > period (should error or be rejected)

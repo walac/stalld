@@ -85,7 +85,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 2: Force FIFO mode (-F)
@@ -134,7 +133,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 3: Verify FIFO priority setting
@@ -175,7 +173,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 4: Verify FIFO emulation behavior (sleep runtime, restore, sleep remainder)
@@ -223,7 +220,6 @@ fi
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 5: Single-threaded mode with FIFO (should fail/exit)
@@ -285,7 +281,6 @@ log "ℹ INFO: SCHED_DEADLINE boosts: $deadline_boosts"
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 # Run with FIFO
 STALLD_LOG_FIFO="/tmp/stalld_test_force_fifo_comparison_$$.log"
@@ -304,7 +299,6 @@ log "ℹ INFO: SCHED_FIFO boosts: $fifo_boosts"
 kill -TERM "${STARVE_PID}" 2>/dev/null
 wait "${STARVE_PID}" 2>/dev/null || true
 stop_stalld
-sleep 1
 
 log "ℹ INFO: Comparison complete (DEADLINE: $deadline_boosts, FIFO: $fifo_boosts)"
 

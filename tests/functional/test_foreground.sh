@@ -45,7 +45,6 @@ if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 fi
 
 stop_stalld
-sleep 1
 
 # Test 2: With -f flag, stalld should stay in foreground
 echo ""

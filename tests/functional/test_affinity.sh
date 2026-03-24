@@ -89,7 +89,6 @@ else
 fi
 
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 2: Single CPU affinity
@@ -115,7 +114,6 @@ else
 fi
 
 stop_stalld
-sleep 1
 
 #=============================================================================
 # Test 3: Multi-CPU affinity (CPU list)
@@ -143,7 +141,6 @@ if [ "$num_cpus" -ge 4 ]; then
     fi
 
     stop_stalld
-    sleep 1
 else
     log "⊘ SKIP: Test 3 requires at least 4 CPUs"
 fi
@@ -173,7 +170,6 @@ if [ "$num_cpus" -ge 4 ]; then
     fi
 
     stop_stalld
-    sleep 1
 else
     log "⊘ SKIP: Test 4 requires at least 4 CPUs"
 fi
@@ -210,7 +206,6 @@ if [ "$num_cpus" -ge 2 ]; then
     fi
 
     stop_stalld
-    sleep 1
 else
     log "⊘ SKIP: Test 5 requires at least 2 CPUs"
 fi
@@ -247,7 +242,6 @@ if [ "$num_cpus" -ge 2 ]; then
     fi
 
     stop_stalld
-    sleep 1
 else
     log "⊘ SKIP: Test 6 requires at least 2 CPUs"
 fi
@@ -318,7 +312,6 @@ else
 fi
 
 stop_stalld
-sleep 1
 
 log ""
 log "All affinity tests completed"
