@@ -816,7 +816,7 @@ pick_test_cpu() {
 
 # Detect which backend stalld was compiled with (default)
 detect_default_backend() {
-	local stalld_bin="../stalld"
+	local stalld_bin="${TEST_ROOT}/../stalld"
 	if [ ! -x "${stalld_bin}" ]; then
 		echo "unknown"
 		return 1
@@ -839,7 +839,7 @@ detect_default_backend() {
 # Check if a specific backend is available
 is_backend_available() {
 	local backend=$1
-	local stalld_bin="../stalld"
+	local stalld_bin="${TEST_ROOT}/../stalld"
 
 	if [ ! -x "${stalld_bin}" ]; then
 		return 1
