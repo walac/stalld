@@ -501,10 +501,8 @@ trap cleanup EXIT
 trap handle_signal INT TERM
 
 # Wait for a specific message to appear in a log file.
-# Uses tail -f piped through grep for instant detection -- returns
-# immediately when the pattern appears instead of sleeping between
-# polling intervals. Replays existing file content so messages
-# written before this function is called are also matched.
+# Returns immediately when the pattern is found, or returns 1
+# after the timeout expires.
 #
 # Usage: wait_for_log_message <pattern> <timeout> <log_file>
 wait_for_log_message() {
@@ -525,6 +523,15 @@ wait_for_log_message() {
 	grep -m1 -q "${pattern}" \
 		< <(timeout "${timeout}" tail -f -n +1 "${log_file}" 2>/dev/null)
 	return $?
+}
+
+# Wait for stalld to complete initialization.
+#
+# Usage: wait_for_stalld_ready <log_file> [timeout]
+wait_for_stalld_ready() {
+	local log_file=$1
+	local timeout=${2:-15}
+	wait_for_log_message "checking cpu\|waiting tasks" "${timeout}" "${log_file}"
 }
 
 # Get thread scheduling policy
@@ -958,31 +965,11 @@ start_stalld_with_log() {
 	STALLD_PID=$!
 	CLEANUP_PIDS+=("${STALLD_PID}")
 
-	# Poll for stalld to start writing to the log file rather than
-	# using a fixed sleep. Brief initial sleep covers the fast path,
-	# then 1-second polling for slow systems (e.g. BPF init).
-	sleep 0.01
-	local timeout=15
-	local elapsed=0
-	while [ $elapsed -lt $timeout ]; do
-		if ! kill -0 ${STALLD_PID} 2>/dev/null; then
-			echo -e "${RED}ERROR: stalld exited during startup${NC}"
-			return 1
-		fi
-		if [ -s "${log_file}" ]; then
-			return 0
-		fi
-		sleep 1
-		elapsed=$((elapsed + 1))
-	done
-
-	echo -e "${RED}ERROR: stalld did not produce output within ${timeout}s${NC}"
-	kill ${STALLD_PID} 2>/dev/null
-	sleep 1
-	if kill -0 ${STALLD_PID} 2>/dev/null; then
-		kill -9 ${STALLD_PID} 2>/dev/null
+	if ! wait_for_stalld_ready "${log_file}" 15; then
+		echo -e "${RED}ERROR: stalld did not initialize within 15s${NC}"
+		stop_stalld
+		return 1
 	fi
-	return 1
 }
 
 # Wait for scheduling policy to change to expected value
@@ -1062,7 +1049,7 @@ export -f assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running
 export -f start_stalld stop_stalld kill_existing_stalld cleanup
-export -f wait_for_log_message
+export -f wait_for_log_message wait_for_stalld_ready
 export -f get_thread_policy get_thread_priority
 export -f create_cpu_load
 export -f detect_default_backend is_backend_available get_available_backends start_stalld_with_backend
