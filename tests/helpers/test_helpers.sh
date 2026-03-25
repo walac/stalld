@@ -500,36 +500,31 @@ handle_signal() {
 trap cleanup EXIT
 trap handle_signal INT TERM
 
-# Parse stalld log for specific message
+# Wait for a specific message to appear in a log file.
+# Uses tail -f piped through grep for instant detection -- returns
+# immediately when the pattern appears instead of sleeping between
+# polling intervals. Replays existing file content so messages
+# written before this function is called are also matched.
+#
+# Usage: wait_for_log_message <pattern> <timeout> <log_file>
 wait_for_log_message() {
 	local pattern=$1
 	local timeout=${2:-10}
-	local log_file=${3:-/var/log/syslog}
+	local log_file=$3
 
-	# If log_file doesn't exist, try journalctl
-	if [ ! -f "${log_file}" ]; then
-		# Using journalctl instead
-		local elapsed=0
-		while [ ${elapsed} -lt ${timeout} ]; do
-			if journalctl -u stalld --since "1 minute ago" 2>/dev/null | grep -q "${pattern}"; then
-				return 0
-			fi
-			sleep 1
-			elapsed=$((elapsed + 1))
-		done
+	if [ -z "${log_file}" ]; then
+		echo -e "${RED}ERROR: wait_for_log_message requires a log file${NC}"
 		return 1
 	fi
 
-	local elapsed=0
-	while [ ${elapsed} -lt ${timeout} ]; do
-		if grep -q "${pattern}" "${log_file}"; then
-			return 0
-		fi
-		sleep 1
-		elapsed=$((elapsed + 1))
-	done
-
-	return 1
+	# Process substitution runs tail in the background so bash
+	# only waits for grep to finish. A pipeline (tail | grep)
+	# would block until timeout kills tail even after grep has
+	# matched, because tail -f is blocked on inotify and never
+	# receives SIGPIPE.
+	grep -m1 -q "${pattern}" \
+		< <(timeout "${timeout}" tail -f -n +1 "${log_file}" 2>/dev/null)
+	return $?
 }
 
 # Get thread scheduling policy
