@@ -288,7 +288,7 @@ start_stalld() {
 		local timeout=15
 		local elapsed=0
 		while [ ! -f "$pidfile" ] && [ $elapsed -lt $timeout ]; do
-			sleep 0.5
+			sleep 1
 			elapsed=$((elapsed + 1))
 		done
 
@@ -452,21 +452,23 @@ cleanup() {
 		if [ -n "${pid}" ] && [ "${pid}" -gt 0 ] 2>/dev/null; then
 			# Check if process exists
 			if kill -0 ${pid} 2>/dev/null; then
-				# Try gentle kill first
 				kill ${pid} 2>/dev/null || true
-				# Give it a moment
-				sleep 0.1
-				# Force kill if still running
-				if kill -0 ${pid} 2>/dev/null; then
-					kill -9 ${pid} 2>/dev/null || true
-				fi
-				# Poll for termination (don't use wait - might not be a child)
+
 				local timeout=5
 				local elapsed=0
 				while kill -0 ${pid} 2>/dev/null && [ ${elapsed} -lt ${timeout} ]; do
-					sleep 0.1
+					sleep 1
 					elapsed=$((elapsed + 1))
 				done
+
+				if kill -0 ${pid} 2>/dev/null; then
+					kill -9 ${pid} 2>/dev/null || true
+					elapsed=0
+					while kill -0 ${pid} 2>/dev/null && [ ${elapsed} -lt ${timeout} ]; do
+						sleep 1
+						elapsed=$((elapsed + 1))
+					done
+				fi
 			fi
 		fi
 	done
