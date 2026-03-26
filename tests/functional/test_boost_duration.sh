@@ -58,20 +58,15 @@ log "=========================================="
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (default boost duration)"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -l > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -l
 
 # Create starvation
 starvation_duration=15
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for detection and boosting
-wait_time=$((threshold + 2))
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
-
-# Check if boosting occurred (in log-only mode we look for detection messages)
-if grep -qi "detect\|starv" "${STALLD_LOG}"; then
+# Wait for starvation detection
+if wait_for_starvation_detected "${STALLD_LOG}"; then
     log "✓ PASS: Starvation detection occurred with default duration"
 else
     log "✗ FAIL: No starvation detection"
@@ -96,18 +91,14 @@ STALLD_LOG2="/tmp/stalld_test_boost_duration_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
 
 log "Starting stalld with ${threshold}s threshold and ${short_duration}s boost duration"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${short_duration} -l > "${STALLD_LOG2}" 2>&1
+start_stalld_with_log "${STALLD_LOG2}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${short_duration} -l
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for detection and boosting
-log "Waiting ${wait_time}s for detection"
-sleep ${wait_time}
-
-# Check if detection occurred
-if grep -qi "detect\|starv" "${STALLD_LOG2}"; then
+# Wait for starvation detection
+if wait_for_starvation_detected "${STALLD_LOG2}"; then
     log "✓ PASS: Starvation detection with ${short_duration}s duration"
 else
     log "✗ FAIL: No starvation detection with short duration"
@@ -129,22 +120,19 @@ log "=========================================="
 
 long_duration=10
 long_starvation=20
+threshold=10
 STALLD_LOG3="/tmp/stalld_test_boost_duration_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
 
 log "Starting stalld with ${threshold}s threshold and ${long_duration}s boost duration"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${long_duration} -l > "${STALLD_LOG3}" 2>&1
+start_stalld_with_log "${STALLD_LOG3}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${long_duration} -l
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${long_starvation}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation}
 
-# Wait for detection
-log "Waiting ${wait_time}s for detection"
-sleep ${wait_time}
-
-# Check if detection occurred
-if grep -qi "detect\|starv" "${STALLD_LOG3}"; then
+# Wait for starvation detection
+if wait_for_starvation_detected "${STALLD_LOG3}"; then
     log "✓ PASS: Starvation detection with ${long_duration}s duration"
 else
     log "✗ FAIL: No starvation detection with long duration"
@@ -164,22 +152,20 @@ log "=========================================="
 log "Test 4: Verify policy restoration after boost duration"
 log "=========================================="
 
+threshold=3
 duration=2
 STALLD_LOG4="/tmp/stalld_test_boost_duration_test4_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG4}")
 
 log "Starting stalld with ${threshold}s threshold and ${duration}s boost duration"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${duration} -l > "${STALLD_LOG4}" 2>&1
+start_stalld_with_log "${STALLD_LOG4}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${duration} -l
 
 # Create starvation with a specific task we can track
 log "Creating starvation on CPU ${TEST_CPU} for 15s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 1 -d 15
 
-# Wait for detection
-log "Waiting ${wait_time}s for detection"
-sleep ${wait_time}
-
-if grep -qi "detect\|starv" "${STALLD_LOG4}"; then
+# Wait for starvation detection
+if wait_for_starvation_detected "${STALLD_LOG4}"; then
     log "✓ PASS: Starvation detection with ${duration}s boost duration"
 else
     log "✗ FAIL: No starvation detection"

@@ -69,13 +69,9 @@ start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d ${starvation_duration}
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
-# Wait for detection (threshold + small buffer)
-wait_time=$((threshold + 2))
-log "Waiting ${wait_time}s for starvation detection..."
-sleep ${wait_time}
-
-# Verify starvation was detected
-if grep -q "starved on CPU" "${STALLD_LOG}"; then
+# Wait for starvation detection
+log "Waiting for starvation detection..."
+if wait_for_starvation_detected "${STALLD_LOG}"; then
     log "✓ PASS: FIFO-on-FIFO starvation detected"
 
     # Verify correct CPU is logged
@@ -195,12 +191,14 @@ log "Will monitor for multiple detection cycles to verify timestamp preservation
 start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for multiple detection cycles
-log "Waiting for multiple detection cycles..."
-sleep $((threshold + 2))
+log "Waiting for first detection cycle..."
+wait_for_starvation_detected "${STALLD_LOG}"
 log "First detection cycle should have occurred"
-sleep 3
+log "Waiting for second detection cycle..."
+wait_for_starvation_detected "${STALLD_LOG}"
 log "Second detection cycle should have occurred"
-sleep 3
+log "Waiting for third detection cycle..."
+wait_for_starvation_detected "${STALLD_LOG}"
 log "Third detection cycle should have occurred"
 
 # Check if we see accumulating starvation time in logs
@@ -257,11 +255,9 @@ start_starvation_gen -c ${TEST_CPU} -p 6 -b 5 -n 1 -d $((threshold + 5))
 log "Starting stalld with ${threshold}s threshold"
 start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
-# Wait for detection
-sleep $((threshold + 2))
-
-# Verify detection works even with close priorities
-if grep -q "starved on CPU" "${STALLD_LOG}"; then
+# Wait for starvation detection
+log "Waiting for starvation detection..."
+if wait_for_starvation_detected "${STALLD_LOG}"; then
     log "✓ PASS: Starvation detected even with close priority gap (6 vs 5)"
 else
     log "⚠ WARNING: Starvation not detected with close priority gap"
@@ -298,11 +294,9 @@ log "Starvation generator PID: ${STARVE_PID}"
 log "Starting stalld with boosting enabled"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
-# Wait for detection and boosting
-sleep $((threshold + 2))
-
-# Verify boosting occurred
-if grep -q "boosted" "${STALLD_LOG}"; then
+# Wait for boosting
+log "Waiting for boost detection..."
+if wait_for_boost_detected "${STALLD_LOG}"; then
     log "✓ PASS: Boosting occurred"
 
     # Try to verify the correct task was boosted

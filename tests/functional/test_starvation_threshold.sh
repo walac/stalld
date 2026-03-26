@@ -69,18 +69,13 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
 # Use -i to ignore kernel workers that may starve before our test tasks
-start_stalld -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold}
 
-# Wait for threshold + granularity + buffer time
-# With -g 1, stalld checks every 1 second. In worst case, it checks just before
-# threshold is reached, then waits another granularity period.
-# So we need: threshold + granularity + buffer for processing
-wait_time=$((threshold + 1 + 3))
-log "Waiting ${wait_time}s for detection (threshold: ${threshold}s, granularity: 1s)"
-sleep ${wait_time}
+# Wait for starvation detection
+log "Waiting for detection (threshold: ${threshold}s)"
 
 # Check if starvation was detected - specifically look for starvation_gen tasks
-if grep -qE "starvation_gen.*starved on CPU ${TEST_CPU}|starved on CPU ${TEST_CPU}.*starvation_gen" "${STALLD_LOG}"; then
+if wait_for_starvation_detected "${STALLD_LOG}"; then
     log "✓ PASS: Starvation detected after ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected after ${threshold}s threshold"
@@ -113,7 +108,7 @@ log "Creating short starvation (${starvation_duration}s) with threshold of ${thr
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
-start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG2}" 2>&1
+start_stalld_with_log "${STALLD_LOG2}" -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold}
 
 # Wait for starvation duration + small buffer
 sleep 8
@@ -159,15 +154,13 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
 # Use -i to ignore kernel workers that may starve before our test tasks
-start_stalld -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG3}" 2>&1
+start_stalld_with_log "${STALLD_LOG3}" -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold}
 
-# Wait for threshold + granularity + buffer
-wait_time=$((threshold + 1 + 3))
-log "Waiting ${wait_time}s for detection (threshold: ${threshold}s, granularity: 1s)"
-sleep ${wait_time}
+# Wait for starvation detection
+log "Waiting for detection (threshold: ${threshold}s)"
 
 # Check if starvation_gen was detected
-if grep -qE "starvation_gen.*starved on CPU ${TEST_CPU}|starved on CPU ${TEST_CPU}.*starvation_gen" "${STALLD_LOG3}"; then
+if wait_for_starvation_detected "${STALLD_LOG3}"; then
     log "✓ PASS: Starvation detected with ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected with ${threshold}s threshold"

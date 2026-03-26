@@ -84,7 +84,7 @@ log "Idle CPUs should be skipped to reduce overhead"
 threshold=5
 log "Starting stalld with verbose logging"
 # Use -g 1 for 1-second granularity
-start_stalld -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Let stalld run while CPU is idle (no load)
 log "CPU ${TEST_CPU} should be idle (no load created)"
@@ -152,7 +152,7 @@ log "=========================================="
 threshold=5
 rm -f "${STALLD_LOG}"
 log "Starting stalld"
-start_stalld -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Initially idle
 log "CPU ${TEST_CPU} initially idle"
@@ -162,13 +162,11 @@ sleep 3
 log "Creating load on CPU ${TEST_CPU} to make it busy"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 12
 
-# Wait for stalld to detect the busy CPU and starvation (threshold + granularity + buffer)
+# Wait for stalld to detect the busy CPU and starvation
 log "Waiting for stalld to detect busy CPU and starvation..."
-wait_time=$((threshold + 1 + 3))
-sleep ${wait_time}
 
 # Verify stalld detected starvation (meaning it resumed monitoring)
-if grep -q "starved" "${STALLD_LOG}"; then
+if wait_for_starvation_detected "${STALLD_LOG}"; then
     log "✓ PASS: stalld detected starvation on now-busy CPU"
     log "        Monitoring resumed when CPU became busy"
 else
@@ -226,15 +224,14 @@ else
 
     threshold=5
     rm -f "${STALLD_LOG}"
-    start_stalld -f -v -g 1 -l -t $threshold -c ${CPU0},${CPU1} > "${STALLD_LOG}" 2>&1
+    start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -l -t $threshold -c ${CPU0},${CPU1}
 
     # Create load only on CPU1, leave CPU0 idle
     log "Creating load on CPU ${CPU1} only"
     start_starvation_gen -c ${CPU1} -p 80 -n 2 -d 12
 
-    # Wait for detection (threshold + granularity + buffer)
-    wait_time=$((threshold + 1 + 3))
-    sleep ${wait_time}
+    # Wait for detection
+    wait_for_starvation_detected "${STALLD_LOG}"
 
     # Check which CPU had starvation detected
     cpu0_detections=$(grep -c "starved on CPU ${CPU0}" "${STALLD_LOG}")

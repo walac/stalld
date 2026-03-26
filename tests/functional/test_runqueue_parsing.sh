@@ -100,12 +100,8 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
     log "Creating starvation for ${starvation_duration}s"
     start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
-    # Wait for detection (threshold + granularity + buffer)
-    wait_time=$((threshold + 1 + 3))
-    sleep ${wait_time}
-
-    # Verify eBPF backend detected starvation
-    if grep -q "starved on CPU" "${STALLD_LOG_BPF}"; then
+    # Wait for starvation detection
+    if wait_for_starvation_detected "${STALLD_LOG_BPF}"; then
         log "✓ PASS: eBPF backend detected starving tasks"
 
         # Verify task info is present (PID, comm)
@@ -159,12 +155,8 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     log "Creating starvation for ${starvation_duration}s"
     start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
-    # Wait for detection (threshold + granularity + buffer)
-    wait_time=$((threshold + 1 + 3))
-    sleep ${wait_time}
-
-    # Verify sched_debug backend detected starvation
-    if grep -q "starved on CPU" "${STALLD_LOG_SCHED}"; then
+    # Wait for starvation detection
+    if wait_for_starvation_detected "${STALLD_LOG_SCHED}"; then
         log "✓ PASS: sched_debug backend detected starving tasks"
 
         # Verify task info is present
@@ -227,8 +219,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
     start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
-    wait_time=$((threshold + 1 + 3))
-    sleep ${wait_time}
+    wait_for_starvation_detected "${STALLD_LOG_BPF}"
     bpf_detections=$(count_detected_tasks "${STALLD_LOG_BPF}")
     log "eBPF backend detected: ${bpf_detections} starvation events"
 
@@ -247,8 +238,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
     start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
-    wait_time=$((threshold + 1 + 3))
-    sleep ${wait_time}
+    wait_for_starvation_detected "${STALLD_LOG_SCHED}"
     sched_detections=$(count_detected_tasks "${STALLD_LOG_SCHED}")
     log "sched_debug backend detected: ${sched_detections} starvation events"
 
@@ -314,9 +304,8 @@ if [ -n "$test_backend" ]; then
     log "Creating starvation with known task name (starvation_gen)"
     start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 10 -v
 
-    # Wait for detection (threshold + granularity + buffer)
-    wait_time=$((threshold + 1 + 3))
-    sleep ${wait_time}
+    # Wait for starvation detection
+    wait_for_starvation_detected "${log_file}"
 
     # Verify fields are present
     log ""
@@ -376,8 +365,8 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     # Create brief starvation just to initialize the backend
     start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 8
 
-    wait_time=$((threshold + 1 + 3))
-    sleep ${wait_time}
+    # Wait for starvation detection
+    wait_for_starvation_detected "${STALLD_LOG_SCHED}"
 
     # Check for format detection messages
     if grep -q "detect_task_format" "${STALLD_LOG_SCHED}"; then

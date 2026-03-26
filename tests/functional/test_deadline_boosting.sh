@@ -58,22 +58,16 @@ log "=========================================="
 threshold=5
 log "Starting stalld with ${threshold}s threshold (default DEADLINE boosting)"
 # Use -g 1 for 1-second granularity to ensure timely detection
-start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Create starvation
 starvation_duration=$((threshold + 8))
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for detection and boosting (threshold + granularity + buffer)
-# With -g 1, stalld checks every 1 second. In worst case, it checks just before
-# threshold is reached, then waits another granularity period.
-wait_time=$((threshold + 1 + 3))
-log "Waiting ${wait_time}s for starvation detection and boosting (threshold: ${threshold}s, granularity: 1s)..."
-sleep ${wait_time}
-
-# Verify boosting occurred
-if grep -q "boosted" "${STALLD_LOG}"; then
+# Wait for boosting
+log "Waiting for boost detection..."
+if wait_for_boost_detected "${STALLD_LOG}"; then
     log "✓ PASS: Boosting occurred"
 
     # Verify SCHED_DEADLINE was used
@@ -123,18 +117,16 @@ log "  Runtime: ${boost_runtime}ns (50µs)"
 log "  Duration: ${boost_duration}s"
 
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
-    -p ${boost_period} -r ${boost_runtime} -d ${boost_duration} \
-    > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
+    -p ${boost_period} -r ${boost_runtime} -d ${boost_duration}
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 15
 
-# Wait for boosting (threshold + granularity + buffer)
-wait_time=$((threshold + 1 + 3))
-log "Waiting ${wait_time}s for detection..."
-sleep ${wait_time}
+# Wait for boosting
+log "Waiting for boost detection..."
+wait_for_boost_detected "${STALLD_LOG}"
 
 # Try to find the boosted task PID
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
@@ -184,16 +176,15 @@ boost_duration=5
 
 log "Starting stalld with ${boost_duration}s boost duration"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration}
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
-# Wait for starvation detection (threshold + granularity + buffer)
-wait_time=$((threshold + 1 + 3))
-log "Waiting ${wait_time}s for detection..."
-sleep ${wait_time}
+# Wait for boosting
+log "Waiting for boost detection..."
+wait_for_boost_detected "${STALLD_LOG}"
 
 # Find a starved task
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
@@ -257,7 +248,7 @@ boost_duration=3
 
 log "Starting stalld with ${boost_duration}s boost duration"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration}
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
@@ -285,10 +276,8 @@ if [ -n "${tracked_pid}" ]; then
         log "⚠ WARNING: Initial policy is not SCHED_OTHER (got ${initial_policy})"
     fi
 
-    # Wait for starvation detection and boosting (threshold + granularity + buffer)
-    wait_time=$((threshold + 1 + 3))
-    log "Waiting ${wait_time}s for detection..."
-    sleep ${wait_time}
+    # Wait for starvation detection and boosting
+    wait_for_boost_detected "${STALLD_LOG}"
 
     # Check if policy changed to DEADLINE during boost
     boosted_policy=$(get_sched_policy ${tracked_pid})
@@ -350,7 +339,7 @@ else
     log "Testing simultaneous boosts on CPU ${CPU0} and CPU ${CPU1}"
 
     rm -f "${STALLD_LOG}"
-    start_stalld -f -v -g 1 -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU} > "${STALLD_LOG}" 2>&1
+    start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU}
 
     # Create starvation on CPU0
     log "Creating starvation on CPU ${CPU0}"
@@ -362,10 +351,9 @@ else
     start_starvation_gen -c ${CPU1} -p 80 -n 1 -d 15
     STARVE_PID1=${STARVE_PID}
 
-    # Wait for detection and boosting (threshold + granularity + buffer)
-    wait_time=$((threshold + 1 + 3))
-    log "Waiting ${wait_time}s for detection..."
-    sleep ${wait_time}
+    # Wait for boosting on both CPUs
+    log "Waiting for boost detection..."
+    wait_for_boost_detected "${STALLD_LOG}"
 
     # Count boost messages
     boost_count=$(grep -c "boosted" "${STALLD_LOG}")

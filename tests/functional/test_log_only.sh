@@ -76,11 +76,10 @@ fi
 echo "stalld started with PID ${STALLD_PID}"
 
 echo "Starvation generator started (PID ${STARVGEN_PID})"
-echo "Waiting 7 seconds for starvation detection..."
-sleep 7
+echo "Waiting for starvation detection..."
 
 # Check if stalld detected the starvation (should log it)
-if grep -q "starved" "${LOG_FILE}"; then
+if wait_for_starvation_detected "${LOG_FILE}"; then
 	assert_equals "1" "1" "stalld detected and logged starvation"
 else
 	TEST_FAILED=$((TEST_FAILED + 1))

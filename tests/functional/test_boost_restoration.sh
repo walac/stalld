@@ -60,7 +60,7 @@ boost_duration=3
 
 log "Starting stalld with ${boost_duration}s boost duration"
 # Use -i to ignore kworkers so stalld focuses on our test workload
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker" > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker"
 
 # Create starvation (starvation_gen creates SCHED_FIFO blocker prio 80, blockee prio 1)
 log "Creating starvation with SCHED_FIFO tasks (blocker prio 80, blockee prio 1)"
@@ -92,7 +92,7 @@ if [ -n "${tracked_pid}" ]; then
 
     # Wait for starvation detection and boosting
     log "Waiting for starvation detection and boost..."
-    sleep $((threshold + 1))
+    wait_for_boost_detected "${STALLD_LOG}"
 
     # Check policy during boost (should be DEADLINE=6)
     if [ -f "/proc/${tracked_pid}/sched" ]; then
@@ -170,7 +170,7 @@ boost_duration=3
 
 log "Starting stalld"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker" > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker"
 
 # Create a SCHED_FIFO task that will starve
 # We'll create our own RT task instead of using starvation_gen
@@ -226,7 +226,7 @@ if chrt -f -p 10 ${FIFO_TASK_PID} 2>/dev/null; then
 
     # Wait for starvation detection
     log "Waiting for starvation detection and boost..."
-    sleep $((threshold + 1))
+    wait_for_boost_detected "${STALLD_LOG}"
 
     # Check if boosted
     if [ -f "/proc/${FIFO_TASK_PID}/sched" ]; then
@@ -284,7 +284,7 @@ boost_duration=3
 
 log "Starting stalld"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker" > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker"
 
 # Use -o flag to create SCHED_OTHER blockees
 log "Creating SCHED_OTHER starvation (RT blocker prio 80, SCHED_OTHER blockee)"
@@ -314,17 +314,14 @@ boost_duration=4  # 4 second boost
 
 log "Starting stalld with ${boost_duration}s boost duration"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker" > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker"
 
 # Create starvation
 log "Creating starvation"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
-# Wait for starvation detection
-sleep $((threshold + 1))
-
-# Check when boost occurred
-if grep -q "boosted" "${STALLD_LOG}"; then
+# Wait for starvation detection and boosting
+if wait_for_boost_detected "${STALLD_LOG}"; then
     boost_time=$(date +%s)
     log "Boost detected at timestamp: ${boost_time}"
 
@@ -373,7 +370,7 @@ boost_duration=5  # Task will exit during boost (after 8s, boost is 5s)
 
 log "Starting stalld with ${threshold}s threshold, ${boost_duration}s boost (task will exit during boost)"
 rm -f "${STALLD_LOG}"
-start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker" > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker"
 
 # Create starvation that exits after threshold - 2s (so 8s)
 # This ensures the task exits DURING the boost period
@@ -381,11 +378,8 @@ short_duration=$((threshold - 2))
 log "Creating starvation that will exit after ${short_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d ${short_duration}
 
-# Give stalld time to detect starvation and start boosting
-# Need: threshold (10s) + buffer for detection (2s) = 12s
-sleep $((threshold + 2))
-
-if grep -q "boosted" "${STALLD_LOG}"; then
+# Wait for starvation detection and boosting
+if wait_for_boost_detected "${STALLD_LOG}"; then
     log "✓ PASS: Boost occurred"
 
     # At this point (12s), starvation_gen has exited (at 8s) during the boost

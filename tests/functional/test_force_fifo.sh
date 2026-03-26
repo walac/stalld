@@ -51,7 +51,7 @@ log "=========================================="
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (default, no -F)"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -t ${threshold}
 
 # Create starvation
 starvation_duration=10
@@ -59,12 +59,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-wait_time=$((threshold + 2))
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
-
-# Check if boosting occurred and look for DEADLINE mentions
-if grep -q "boost" "${STALLD_LOG}"; then
+if wait_for_boost_detected "${STALLD_LOG}"; then
     log "Boosting occurred"
 
     # Look for SCHED_DEADLINE indicators
@@ -98,18 +93,14 @@ STALLD_LOG2="/tmp/stalld_test_force_fifo_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
 
 log "Starting stalld with -F flag and aggressive mode (-A)"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A > "${STALLD_LOG2}" 2>&1
+start_stalld_with_log "${STALLD_LOG2}" -f -v -c "${TEST_CPU}" -t ${threshold} -F -A
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
-
-# Check if boosting occurred and look for FIFO mentions
-if grep -q "boost" "${STALLD_LOG2}"; then
+if wait_for_boost_detected "${STALLD_LOG2}"; then
     log "Boosting occurred with -F flag"
 
     # Look for SCHED_FIFO indicators
@@ -142,15 +133,14 @@ STALLD_LOG3="/tmp/stalld_test_force_fifo_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
 
 log "Starting stalld with -F and -A flags"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A > "${STALLD_LOG3}" 2>&1
+start_stalld_with_log "${STALLD_LOG3}" -f -v -c "${TEST_CPU}" -t ${threshold} -F -A
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
+wait_for_boost_detected "${STALLD_LOG3}"
 
 # Check logs for priority information
 if grep -qi "priority\|prio" "${STALLD_LOG3}"; then
@@ -182,17 +172,14 @@ STALLD_LOG4="/tmp/stalld_test_force_fifo_test4_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG4}")
 
 log "Starting stalld with -F, -A, and ${boost_duration}s boost duration"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${boost_duration} > "${STALLD_LOG4}" 2>&1
+start_stalld_with_log "${STALLD_LOG4}" -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${boost_duration}
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${long_starvation}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${long_starvation}
 
 # Wait for detection and boosting
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
-
-if grep -q "boost" "${STALLD_LOG4}"; then
+if wait_for_boost_detected "${STALLD_LOG4}"; then
     log "Boosting detected, waiting for duration cycle"
 
     # Wait for boost duration + buffer to see restoration
@@ -261,9 +248,9 @@ STALLD_LOG_DL="/tmp/stalld_test_force_fifo_deadline_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG_DL}")
 
 log "Running comparison test with SCHED_DEADLINE"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -d ${comparison_duration} > "${STALLD_LOG_DL}" 2>&1
+start_stalld_with_log "${STALLD_LOG_DL}" -f -v -c "${TEST_CPU}" -t ${threshold} -d ${comparison_duration}
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${comparison_starvation}
-sleep $((threshold + 3))
+wait_for_boost_detected "${STALLD_LOG_DL}"
 
 deadline_boosts=$(grep -c "boost" "${STALLD_LOG_DL}" || echo 0)
 log "ℹ INFO: SCHED_DEADLINE boosts: $deadline_boosts"
@@ -277,9 +264,9 @@ STALLD_LOG_FIFO="/tmp/stalld_test_force_fifo_comparison_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
 
 log "Running comparison test with SCHED_FIFO"
-start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${comparison_duration} > "${STALLD_LOG_FIFO}" 2>&1
+start_stalld_with_log "${STALLD_LOG_FIFO}" -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${comparison_duration}
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${comparison_starvation}
-sleep $((threshold + 3))
+wait_for_boost_detected "${STALLD_LOG_FIFO}"
 
 fifo_boosts=$(grep -c "boost" "${STALLD_LOG_FIFO}" || echo 0)
 log "ℹ INFO: SCHED_FIFO boosts: $fifo_boosts"

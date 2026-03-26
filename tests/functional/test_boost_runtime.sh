@@ -58,7 +58,7 @@ log "=========================================="
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (default boost runtime)"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -l > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -l
 
 # Create starvation
 starvation_duration=10
@@ -66,12 +66,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-wait_time=$((threshold + 2))
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
-
-# Check if detection occurred
-if grep -qi "detect\|starv" "${STALLD_LOG}"; then
+if wait_for_starvation_detected "${STALLD_LOG}"; then
     log "✓ PASS: Starvation detection with default runtime"
 else
     log "✗ FAIL: No starvation detection"
@@ -96,18 +91,14 @@ STALLD_LOG2="/tmp/stalld_test_boost_runtime_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
 
 log "Starting stalld with ${threshold}s threshold and ${custom_runtime}ns runtime"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${custom_runtime} -l > "${STALLD_LOG2}" 2>&1
+start_stalld_with_log "${STALLD_LOG2}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${custom_runtime} -l
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
-
-# Check if detection occurred
-if grep -qi "detect\|starv" "${STALLD_LOG2}"; then
+if wait_for_starvation_detected "${STALLD_LOG2}"; then
     log "✓ PASS: Starvation detection with custom runtime ${custom_runtime}ns"
 else
     log "✗ FAIL: No starvation detection with custom runtime"
@@ -132,18 +123,14 @@ STALLD_LOG3="/tmp/stalld_test_boost_runtime_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
 
 log "Starting stalld with ${threshold}s threshold and ${large_runtime}ns runtime"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${large_runtime} -l > "${STALLD_LOG3}" 2>&1
+start_stalld_with_log "${STALLD_LOG3}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${large_runtime} -l
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
-
-# Check if detection occurred
-if grep -qi "detect\|starv" "${STALLD_LOG3}"; then
+if wait_for_starvation_detected "${STALLD_LOG3}"; then
     log "✓ PASS: Starvation detection with large runtime ${large_runtime}ns"
 else
     log "✗ FAIL: No starvation detection with large runtime"
@@ -170,18 +157,14 @@ STALLD_LOG4="/tmp/stalld_test_boost_runtime_test4_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG4}")
 
 log "Starting stalld with runtime ${valid_runtime}ns < period ${period}ns"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${valid_runtime} -p ${period} -l > "${STALLD_LOG4}" 2>&1
+start_stalld_with_log "${STALLD_LOG4}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -r ${valid_runtime} -p ${period} -l
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-log "Waiting ${wait_time}s for detection and boosting"
-sleep ${wait_time}
-
-# Check if detection occurred
-if grep -qi "detect\|starv" "${STALLD_LOG4}"; then
+if wait_for_starvation_detected "${STALLD_LOG4}"; then
     log "✓ PASS: Starvation detection with runtime < period"
 else
     log "✗ FAIL: No starvation detection when runtime < period"

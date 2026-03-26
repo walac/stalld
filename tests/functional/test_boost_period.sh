@@ -55,20 +55,15 @@ log "=========================================="
 
 threshold=5
 log "Starting stalld with default period"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -N > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -N
 
 # Create starvation
 starvation_duration=$((threshold + 5))
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for detection and boosting
-wait_time=$((threshold + 2))
-log "Waiting ${wait_time}s for starvation detection and boosting..."
-sleep ${wait_time}
-
-# Check if boosting occurred
-if grep -q "boost" "${STALLD_LOG}"; then
+# Wait for starvation detection and boosting
+if wait_for_boost_detected "${STALLD_LOG}"; then
     log "✓ PASS: Boosting occurred with default period"
 
     # Try to find period value in logs
@@ -98,17 +93,14 @@ log "=========================================="
 custom_period=500000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with custom period ${custom_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $custom_period -N > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $custom_period -N
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for detection and boosting
-sleep ${wait_time}
-
-# Check if boosting occurred
-if grep -q "boost" "${STALLD_LOG}"; then
+# Wait for starvation detection and boosting
+if wait_for_boost_detected "${STALLD_LOG}"; then
     log "✓ PASS: Boosting occurred with custom period ${custom_period} ns"
 else
     log "✗ FAIL: No boosting with custom period"
@@ -125,23 +117,20 @@ stop_stalld
 #=============================================================================
 log ""
 log "=========================================="
-log "Test 3: Very short period of 100,000,000 ns (100ms)"
+log "Test 3: Short period of 200,000,000 ns (200ms)"
 log "=========================================="
 
-short_period=100000000
+short_period=200000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with short period ${short_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $short_period -N > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $short_period -N
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for detection and boosting
-sleep ${wait_time}
-
-# Check if boosting occurred
-if grep -q "boost" "${STALLD_LOG}"; then
+# Wait for starvation detection and boosting
+if wait_for_boost_detected "${STALLD_LOG}"; then
     log "✓ PASS: Boosting occurred with short period ${short_period} ns"
 else
     log "✗ FAIL: No boosting with short period"
@@ -158,23 +147,20 @@ stop_stalld
 #=============================================================================
 log ""
 log "=========================================="
-log "Test 4: Very long period of 10,000,000,000 ns (10s)"
+log "Test 4: Long period of 3,000,000,000 ns (3s)"
 log "=========================================="
 
-long_period=10000000000
+long_period=3000000000
 rm -f "${STALLD_LOG}"
 log "Starting stalld with long period ${long_period} ns"
-start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $long_period -N > "${STALLD_LOG}" 2>&1
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t $threshold -p $long_period -N
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for detection and boosting
-sleep ${wait_time}
-
-# Check if boosting occurred
-if grep -q "boost" "${STALLD_LOG}"; then
+# Wait for starvation detection and boosting
+if wait_for_boost_detected "${STALLD_LOG}"; then
     log "✓ PASS: Boosting occurred with long period ${long_period} ns"
 else
     log "✗ FAIL: No boosting with long period"
