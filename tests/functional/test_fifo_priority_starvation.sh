@@ -136,7 +136,7 @@ if [ -n "${blockee_pid}" ]; then
 fi
 
 log "Starting stalld with boosting enabled"
-start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -a ${STALLD_CPU} -d ${boost_duration}
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration}
 
 # Wait for detection and boosting
 sleep $((threshold + boost_duration + 1))
