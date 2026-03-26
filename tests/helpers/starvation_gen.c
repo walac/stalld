@@ -345,6 +345,7 @@ int main(int argc, char **argv) {
 	}
 	printf("\nBlockees will complete if boosted enough to finish %lu iterations\n", cfg.work_target);
 	printf("Press Ctrl+C to stop early\n");
+	fflush(stdout);
 
 	/*
 	 * Wait for specified duration OR until all blockees complete (whichever comes first).
