@@ -52,28 +52,7 @@ STARVGEN_PID=${STARVE_PID}
 
 # Start stalld in log-only mode with verbose output to capture logs
 echo "Starting stalld in log-only mode with 5 second threshold"
-
-# Build stalld command with backend option if specified
-STALLD_ARGS="-f -v -l -t 5 -c ${TEST_CPU} -a ${STALLD_CPU}"
-if [ -n "${STALLD_TEST_BACKEND}" ]; then
-	STALLD_ARGS="-b ${STALLD_TEST_BACKEND} ${STALLD_ARGS}"
-	echo "Using backend: ${STALLD_TEST_BACKEND}"
-fi
-
-${TEST_ROOT}/../stalld ${STALLD_ARGS} > "${LOG_FILE}" 2>&1 &
-STALLD_PID=$!
-CLEANUP_PIDS+=("${STALLD_PID}")
-sleep 2
-
-# Verify stalld is running
-if ! assert_process_running "${STALLD_PID}" "stalld should be running"; then
-	echo "Failed to start stalld, aborting test"
-	echo "Log contents:"
-	cat "${LOG_FILE}"
-	end_test
-	exit 1
-fi
-echo "stalld started with PID ${STALLD_PID}"
+start_stalld_with_log "${LOG_FILE}" -f -v -l -t 5 -c ${TEST_CPU} -a ${STALLD_CPU}
 
 echo "Starvation generator started (PID ${STARVGEN_PID})"
 echo "Waiting for starvation detection..."
