@@ -56,12 +56,7 @@ threshold=5
 # Create starvation FIRST (before stalld starts)
 starvation_duration=$((threshold + 8))
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start and create actual starvation
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with -F flag to force SCHED_FIFO boosting"
 # Note: -F requires non-single-threaded mode (aggressive mode)
@@ -109,12 +104,7 @@ rm -f "${STALLD_LOG}"
 
 # Create starvation FIRST
 log "Creating starvation on CPU ${TEST_CPU}"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 15 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start and get child PIDs while they exist
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 15
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
 log "Starvation generator children PIDs: ${STARVE_CHILDREN}"
 
@@ -183,12 +173,7 @@ rm -f "${STALLD_LOG}"
 
 # Create starvation FIRST
 log "Creating starvation on CPU ${TEST_CPU}"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
 start_stalld -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
     -d ${boost_duration} -p ${boost_period} -r ${boost_runtime} \
@@ -233,12 +218,7 @@ STALLD_LOG_DEADLINE="/tmp/stalld_test_deadline_compare_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG_DEADLINE}")
 
 # Create starvation FIRST
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d 15 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Find a starved task and capture context switches immediately
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 15
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
 deadline_tracked_pid=""
 for child_pid in ${STARVE_CHILDREN}; do
@@ -281,12 +261,7 @@ STALLD_LOG_FIFO="/tmp/stalld_test_fifo_compare_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
 
 # Create starvation FIRST
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d 15 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Find a starved task and capture context switches immediately
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 15
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
 fifo_tracked_pid=""
 for child_pid in ${STARVE_CHILDREN}; do

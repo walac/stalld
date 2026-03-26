@@ -70,9 +70,7 @@ start_stalld -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${ST
 # Create long starvation to span multiple monitoring cycles
 starvation_duration=18
 log "Creating starvation for ${starvation_duration}s (multiple detection cycles)"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for first detection (threshold + granularity + buffer)
 log "Waiting for first detection cycle..."
@@ -150,9 +148,7 @@ start_stalld -f -v -g 1 -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${ST
 
 # Create starvation
 log "Creating starvation"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
 # Wait for detection (threshold + granularity + buffer)
 wait_time=$((threshold + 1 + 3))
@@ -226,9 +222,7 @@ start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d 2 > "${
 
 # Create starvation that will get boosted (allowing progress)
 log "Creating starvation that will be boosted"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
 # Wait for first detection and boost (threshold + granularity + buffer)
 wait_time=$((threshold + 1 + 3))
@@ -296,14 +290,12 @@ else
 
     # Create starvation on both CPUs
     log "Creating starvation on CPU ${CPU0}"
-    "${STARVE_GEN}" -c ${CPU0} -p 80 -n 1 -d 15 &
-    STARVE_PID0=$!
-    CLEANUP_PIDS+=("${STARVE_PID0}")
+    start_starvation_gen -c ${CPU0} -p 80 -n 1 -d 15
+    STARVE_PID0=${STARVE_PID}
 
     log "Creating starvation on CPU ${CPU1}"
-    "${STARVE_GEN}" -c ${CPU1} -p 80 -n 1 -d 15 &
-    STARVE_PID1=$!
-    CLEANUP_PIDS+=("${STARVE_PID1}")
+    start_starvation_gen -c ${CPU1} -p 80 -n 1 -d 15
+    STARVE_PID1=${STARVE_PID}
 
     # Wait for multiple detection cycles (threshold + granularity + buffer, then more)
     wait_time=$((threshold + 1 + 3))

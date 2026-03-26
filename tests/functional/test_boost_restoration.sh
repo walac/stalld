@@ -64,12 +64,9 @@ start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_dura
 
 # Create starvation (starvation_gen creates SCHED_FIFO blocker prio 80, blockee prio 1)
 log "Creating starvation with SCHED_FIFO tasks (blocker prio 80, blockee prio 1)"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -b 1 -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -b 1 -n 1 -d 20
 
 # Find the starved task
-sleep 2
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
 tracked_pid=""
 for child_pid in ${STARVE_CHILDREN}; do
@@ -201,11 +198,8 @@ chmod +x /tmp/fifo_task_$$.sh /tmp/fifo_task_running_$$.sh
 CLEANUP_FILES+=("/tmp/fifo_task_$$.sh" "/tmp/fifo_task_running_$$.sh")
 
 # Also create the blocker that will starve our FIFO task
-"${STARVE_GEN}" -c ${TEST_CPU} -p 90 -n 1 -d 20 &
-BLOCKER_PID=$!
-CLEANUP_PIDS+=("${BLOCKER_PID}")
-
-sleep 1
+start_starvation_gen -c ${TEST_CPU} -p 90 -n 1 -d 20
+BLOCKER_PID=${STARVE_PID}
 
 # Start our FIFO task on the same CPU (it will starve)
 bash /tmp/fifo_task_running_$$.sh &
@@ -294,9 +288,7 @@ start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_dura
 
 # Use -o flag to create SCHED_OTHER blockees
 log "Creating SCHED_OTHER starvation (RT blocker prio 80, SCHED_OTHER blockee)"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -o -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -o -n 1 -d 20
 
 # Wait for starvation_gen to complete
 log "Waiting for starvation test to complete..."
@@ -326,9 +318,7 @@ start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_dura
 
 # Create starvation
 log "Creating starvation"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
 # Wait for starvation detection
 sleep $((threshold + 1))
@@ -389,9 +379,7 @@ start_stalld -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_dura
 # This ensures the task exits DURING the boost period
 short_duration=$((threshold - 2))
 log "Creating starvation that will exit after ${short_duration}s"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d ${short_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d ${short_duration}
 
 # Give stalld time to detect starvation and start boosting
 # Need: threshold (10s) + buffer for detection (2s) = 12s

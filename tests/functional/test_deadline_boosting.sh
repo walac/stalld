@@ -63,9 +63,7 @@ start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} > "${STALL
 # Create starvation
 starvation_duration=$((threshold + 8))
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting (threshold + granularity + buffer)
 # With -g 1, stalld checks every 1 second. In worst case, it checks just before
@@ -131,9 +129,7 @@ start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 15 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 15
 
 # Wait for boosting (threshold + granularity + buffer)
 wait_time=$((threshold + 1 + 3))
@@ -192,9 +188,7 @@ start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
 # Wait for starvation detection (threshold + granularity + buffer)
 wait_time=$((threshold + 1 + 3))
@@ -267,9 +261,7 @@ start_stalld -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
 # Find a starved task and verify initial policy
 sleep 2
@@ -362,15 +354,13 @@ else
 
     # Create starvation on CPU0
     log "Creating starvation on CPU ${CPU0}"
-    "${STARVE_GEN}" -c ${CPU0} -p 80 -n 1 -d 15 &
-    STARVE_PID0=$!
-    CLEANUP_PIDS+=("${STARVE_PID0}")
+    start_starvation_gen -c ${CPU0} -p 80 -n 1 -d 15
+    STARVE_PID0=${STARVE_PID}
 
     # Create starvation on CPU1
     log "Creating starvation on CPU ${CPU1}"
-    "${STARVE_GEN}" -c ${CPU1} -p 80 -n 1 -d 15 &
-    STARVE_PID1=$!
-    CLEANUP_PIDS+=("${STARVE_PID1}")
+    start_starvation_gen -c ${CPU1} -p 80 -n 1 -d 15
+    STARVE_PID1=${STARVE_PID}
 
     # Wait for detection and boosting (threshold + granularity + buffer)
     wait_time=$((threshold + 1 + 3))

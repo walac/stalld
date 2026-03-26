@@ -63,9 +63,7 @@ start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -l > "${STA
 # Create starvation
 starvation_duration=15
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 wait_time=$((threshold + 2))
@@ -102,9 +100,7 @@ start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${short_
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 log "Waiting ${wait_time}s for detection"
@@ -141,9 +137,7 @@ start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${long_d
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${long_starvation}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation}
 
 # Wait for detection
 log "Waiting ${wait_time}s for detection"
@@ -179,9 +173,7 @@ start_stalld -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${durati
 
 # Create starvation with a specific task we can track
 log "Creating starvation on CPU ${TEST_CPU} for 15s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 1 -d 15 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 1 -d 15
 
 # Wait for detection
 log "Waiting ${wait_time}s for detection"

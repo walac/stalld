@@ -160,9 +160,7 @@ sleep 3
 
 # Now create load to make CPU busy
 log "Creating load on CPU ${TEST_CPU} to make it busy"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d 12 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 12
 
 # Wait for stalld to detect the busy CPU and starvation (threshold + granularity + buffer)
 log "Waiting for stalld to detect busy CPU and starvation..."
@@ -232,9 +230,7 @@ else
 
     # Create load only on CPU1, leave CPU0 idle
     log "Creating load on CPU ${CPU1} only"
-    "${STARVE_GEN}" -c ${CPU1} -p 80 -n 2 -d 12 &
-    STARVE_PID=$!
-    CLEANUP_PIDS+=("${STARVE_PID}")
+    start_starvation_gen -c ${CPU1} -p 80 -n 2 -d 12
 
     # Wait for detection (threshold + granularity + buffer)
     wait_time=$((threshold + 1 + 3))

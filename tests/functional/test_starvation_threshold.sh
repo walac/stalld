@@ -65,12 +65,7 @@ threshold=5
 # Create starvation BEFORE starting stalld (avoid detecting kworker tasks)
 starvation_duration=10
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start and create actual starvation
-sleep 2
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
 # Use -i to ignore kernel workers that may starve before our test tasks
@@ -115,12 +110,7 @@ CLEANUP_FILES+=("${STALLD_LOG2}")
 # Create starvation that will last 6 seconds (less than threshold)
 starvation_duration=6
 log "Creating short starvation (${starvation_duration}s) with threshold of ${threshold}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start and create actual starvation
-sleep 2
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
 start_stalld -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold} > "${STALLD_LOG2}" 2>&1
@@ -165,12 +155,7 @@ CLEANUP_FILES+=("${STALLD_LOG3}")
 # Create starvation for 8 seconds
 starvation_duration=8
 log "Creating starvation for ${starvation_duration}s with threshold of ${threshold}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start and create actual starvation
-sleep 2
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
 # Use -i to ignore kernel workers that may starve before our test tasks

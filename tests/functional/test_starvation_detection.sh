@@ -67,12 +67,7 @@ threshold=5
 # Create starvation BEFORE starting stalld to avoid idle detection race
 starvation_duration=$((threshold + 5))
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start and pin to CPU
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
@@ -129,12 +124,7 @@ threshold=5
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU}"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 15 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 15
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
@@ -194,12 +184,7 @@ threshold=3
 # Create long starvation to trigger multiple detection cycles
 starvation_duration=15
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 log "Will monitor for multiple detection cycles to verify timestamp preservation"
@@ -292,18 +277,13 @@ else
 
     # Create starvation on CPU0
     log "Creating starvation on CPU ${CPU0}"
-    "${STARVE_GEN}" -c ${CPU0} -p 80 -n 1 -d 12 &
-    STARVE_PID0=$!
-    CLEANUP_PIDS+=("${STARVE_PID0}")
+    start_starvation_gen -c ${CPU0} -p 80 -n 1 -d 12
+    STARVE_PID0=${STARVE_PID}
 
     # Create starvation on CPU1
     log "Creating starvation on CPU ${CPU1}"
-    "${STARVE_GEN}" -c ${CPU1} -p 80 -n 1 -d 12 &
-    STARVE_PID1=$!
-    CLEANUP_PIDS+=("${STARVE_PID1}")
-
-    # Give starvation generators time to start
-    sleep 2
+    start_starvation_gen -c ${CPU1} -p 80 -n 1 -d 12
+    STARVE_PID1=${STARVE_PID}
 
     start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU_MULTI}
 
@@ -394,8 +374,7 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a $
 
 # Create short-lived starvation that exits before threshold
 log "Creating short-lived starvation (3s, less than ${threshold}s threshold)"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 80 -n 1 -d 3 &
-STARVE_PID=$!
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 3
 
 # Wait for task to exit
 sleep 5

@@ -56,9 +56,7 @@ start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} > "${STALLD_LOG}" 2>&1
 # Create starvation
 starvation_duration=10
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 wait_time=$((threshold + 2))
@@ -104,9 +102,7 @@ start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A > "${STALLD_LOG2}" 2>&
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 log "Waiting ${wait_time}s for detection and boosting"
@@ -150,9 +146,7 @@ start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A > "${STALLD_LOG3}" 2>&
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 log "Waiting ${wait_time}s for detection and boosting"
@@ -192,9 +186,7 @@ start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${boost_duration} >
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${long_starvation}s"
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${long_starvation}
 
 # Wait for detection and boosting
 log "Waiting ${wait_time}s for detection and boosting"
@@ -270,9 +262,7 @@ CLEANUP_FILES+=("${STALLD_LOG_DL}")
 
 log "Running comparison test with SCHED_DEADLINE"
 start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -d ${comparison_duration} > "${STALLD_LOG_DL}" 2>&1
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${comparison_starvation} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${comparison_starvation}
 sleep $((threshold + 3))
 
 deadline_boosts=$(grep -c "boost" "${STALLD_LOG_DL}" || echo 0)
@@ -288,9 +278,7 @@ CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
 
 log "Running comparison test with SCHED_FIFO"
 start_stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${comparison_duration} > "${STALLD_LOG_FIFO}" 2>&1
-"${STARVE_GEN}" -c "${TEST_CPU}" -p 80 -n 2 -d ${comparison_starvation} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${comparison_starvation}
 sleep $((threshold + 3))
 
 fifo_boosts=$(grep -c "boost" "${STALLD_LOG_FIFO}" || echo 0)

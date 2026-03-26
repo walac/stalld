@@ -64,12 +64,7 @@ starvation_duration=$((threshold + 5))
 log "Creating FIFO-on-FIFO starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 log "  Blocker: SCHED_FIFO priority 10"
 log "  Blockee: SCHED_FIFO priority 5"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 10 -b 5 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start and pin to CPU
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
@@ -124,12 +119,7 @@ threshold=5
 boost_duration=3
 
 log "Creating FIFO-on-FIFO starvation on CPU ${TEST_CPU}"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 10 -b 5 -n 1 -d 20 &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 1 -d 20
 
 # Find the starved task (blockee) PID
 STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
@@ -198,12 +188,7 @@ threshold=3
 # Create long starvation to trigger multiple detection cycles
 starvation_duration=15
 log "Creating long FIFO-on-FIFO starvation for ${starvation_duration}s"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 10 -b 5 -n 2 -d ${starvation_duration} &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 log "Will monitor for multiple detection cycles to verify timestamp preservation"
@@ -267,12 +252,7 @@ threshold=5
 log "Creating FIFO-on-FIFO starvation with close priorities"
 log "  Blocker: SCHED_FIFO priority 6"
 log "  Blockee: SCHED_FIFO priority 5"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 6 -b 5 -n 1 -d $((threshold + 5)) &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start
-sleep 2
+start_starvation_gen -c ${TEST_CPU} -p 6 -b 5 -n 1 -d $((threshold + 5))
 
 log "Starting stalld with ${threshold}s threshold"
 start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
@@ -309,12 +289,7 @@ rm -f "${STALLD_LOG}"
 threshold=5
 
 log "Creating FIFO-on-FIFO starvation"
-"${STARVE_GEN}" -c ${TEST_CPU} -p 10 -b 5 -n 2 -d 20 -v &
-STARVE_PID=$!
-CLEANUP_PIDS+=("${STARVE_PID}")
-
-# Give starvation generator time to start and print PIDs
-sleep 3
+start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d 20 -v
 
 # Extract blocker and blockee PIDs from starvation_gen output
 # The output shows "Blocker TID: <pid>" and "Blockee N TID: <pid>"
