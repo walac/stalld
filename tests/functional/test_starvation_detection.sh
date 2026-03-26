@@ -180,7 +180,7 @@ start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 log "Will monitor for multiple detection cycles to verify timestamp preservation"
-start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU}
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for first detection cycle
 log "Waiting for first detection cycle..."
