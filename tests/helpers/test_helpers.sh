@@ -536,6 +536,24 @@ wait_for_stalld_ready() {
 	wait_for_log_message "checking cpu\|waiting tasks" "${timeout}" "${log_file}"
 }
 
+# Wait for stalld to detect a starving task.
+#
+# Usage: wait_for_starvation_detected <log_file> [timeout]
+wait_for_starvation_detected() {
+	local log_file=$1
+	local timeout=${2:-30}
+	wait_for_log_message "starved on CPU" "${timeout}" "${log_file}"
+}
+
+# Wait for stalld to boost a starving task.
+#
+# Usage: wait_for_boost_detected <log_file> [timeout]
+wait_for_boost_detected() {
+	local log_file=$1
+	local timeout=${2:-30}
+	wait_for_log_message "boosted pid" "${timeout}" "${log_file}"
+}
+
 # Get thread scheduling policy
 get_thread_policy() {
 	local pid=$1
@@ -1107,7 +1125,7 @@ export -f assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running
 export -f start_stalld stop_stalld kill_existing_stalld cleanup
-export -f wait_for_log_message wait_for_stalld_ready
+export -f wait_for_log_message wait_for_stalld_ready wait_for_starvation_detected wait_for_boost_detected
 export -f get_thread_policy get_thread_priority
 export -f create_cpu_load
 export -f detect_default_backend is_backend_available get_available_backends start_stalld_with_backend
