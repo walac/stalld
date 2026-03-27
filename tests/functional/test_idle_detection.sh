@@ -137,8 +137,7 @@ if [ -n "${idle_time1}" ] && [ -n "${idle_time2}" ]; then
         log "        stalld would parse this CPU"
     fi
 else
-    log "✗ FAIL: Could not read idle time from /proc/stat"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "Could not read idle time from /proc/stat"
 fi
 
 #=============================================================================

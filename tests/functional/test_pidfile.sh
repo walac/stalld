@@ -56,8 +56,7 @@ for pidfile in /var/run/stalld.pid /run/stalld.pid; do
         if [ "$pid_from_file" = "${STALLD_PID}" ]; then
             pass "Default pidfile contains correct PID"
         else
-            log "✗ FAIL: Default pidfile PID ($pid_from_file) doesn't match stalld PID (${STALLD_PID})"
-            TEST_FAILED=$((TEST_FAILED + 1))
+            fail "Default pidfile PID ($pid_from_file) doesn't match stalld PID (${STALLD_PID})"
         fi
         break
     fi
@@ -99,12 +98,10 @@ if [ -f "${custom_pidfile}" ]; then
     if [ "$pid_from_file" = "${STALLD_PID}" ]; then
         pass "Custom pidfile contains correct PID ($pid_from_file)"
     else
-        log "✗ FAIL: Custom pidfile PID ($pid_from_file) doesn't match stalld PID (${STALLD_PID})"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Custom pidfile PID ($pid_from_file) doesn't match stalld PID (${STALLD_PID})"
     fi
 else
-    log "✗ FAIL: Custom pidfile not created at ${custom_pidfile}"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "Custom pidfile not created at ${custom_pidfile}"
 fi
 
 # Test 3: Verify pidfile removed on clean shutdown
@@ -145,12 +142,10 @@ if [ -f "${tmp_pidfile}" ]; then
     if [ "$pid_from_file" = "${STALLD_PID}" ]; then
         pass "/tmp pidfile contains correct PID"
     else
-        log "✗ FAIL: /tmp pidfile has incorrect PID"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "/tmp pidfile has incorrect PID"
     fi
 else
-    log "✗ FAIL: Pidfile not created in /tmp"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "Pidfile not created in /tmp"
 fi
 
 stop_stalld
@@ -181,8 +176,7 @@ if [ -f "${fg_pidfile}" ]; then
     if [ "$pid_from_file" = "${STALLD_PID}" ]; then
         pass "Foreground mode pidfile contains correct PID"
     else
-        log "✗ FAIL: Foreground mode pidfile has incorrect PID"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Foreground mode pidfile has incorrect PID"
     fi
 else
     log "⚠ WARNING: Pidfile not created in foreground mode (may be expected)"
@@ -221,8 +215,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "Invalid pidfile path rejected with error"
 else
-    log "✗ FAIL: stalld did not reject invalid pidfile path"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject invalid pidfile path"
 fi
 
 # Cleanup
@@ -256,12 +249,10 @@ if [ -f "${readable_pidfile}" ]; then
         perms=$(stat -c "%a" "${readable_pidfile}" 2>/dev/null || stat -f "%Lp" "${readable_pidfile}" 2>/dev/null)
         log "ℹ INFO: Pidfile permissions: $perms"
     else
-        log "✗ FAIL: Pidfile not readable"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Pidfile not readable"
     fi
 else
-    log "✗ FAIL: Pidfile not created"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "Pidfile not created"
 fi
 
 stop_stalld

@@ -107,8 +107,7 @@ if wait_for_boost_detected "${STALLD_LOG2}"; then
     if grep -qi "fifo\|SCHED_FIFO" "${STALLD_LOG2}"; then
         pass "SCHED_FIFO used with -F flag"
     elif grep -qi "deadline\|SCHED_DEADLINE" "${STALLD_LOG2}"; then
-        log "✗ FAIL: SCHED_DEADLINE used despite -F flag"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "SCHED_DEADLINE used despite -F flag"
     else
         log "⚠ WARNING: Scheduling policy not explicitly mentioned in logs"
     fi
@@ -220,8 +219,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "single-threaded mode rejected FIFO"
 else
-    log "✗ FAIL: stalld did not reject -F in single-threaded mode"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject -F in single-threaded mode"
 fi
 
 #=============================================================================

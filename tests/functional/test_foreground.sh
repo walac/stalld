@@ -38,8 +38,7 @@ if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 		if [ "${PARENT_PID}" != "$$" ]; then
 			pass "stalld daemonized (parent is not test shell)"
 		else
-			TEST_FAILED=$((TEST_FAILED + 1))
-			echo -e "  ${RED}FAIL${NC}: stalld did not daemonize (parent is test shell)"
+			fail "stalld did not daemonize (parent is test shell)"
 		fi
 	fi
 fi
@@ -64,8 +63,7 @@ if assert_process_running "${STALLD_PID}" "stalld should be running with -f"; th
 	if [ "${PARENT_PID}" != "1" ]; then
 		pass "stalld did not daemonize with -f (parent is not init)"
 	else
-		TEST_FAILED=$((TEST_FAILED + 1))
-		echo -e "  ${RED}FAIL${NC}: stalld daemonized even with -f flag"
+		fail "stalld daemonized even with -f flag"
 	fi
 fi
 
@@ -84,8 +82,7 @@ if assert_process_running "${STALLD_PID}" "stalld should be running with -v"; th
 	if [ "${PARENT_PID}" != "1" ]; then
 		pass "-v implies foreground mode"
 	else
-		TEST_FAILED=$((TEST_FAILED + 1))
-		echo -e "  ${RED}FAIL${NC}: -v should imply foreground mode"
+		fail "-v should imply foreground mode"
 	fi
 fi
 

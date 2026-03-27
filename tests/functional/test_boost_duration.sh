@@ -69,8 +69,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 if wait_for_starvation_detected "${STALLD_LOG}"; then
     pass "Starvation detection occurred with default duration"
 else
-    log "✗ FAIL: No starvation detection"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No starvation detection"
 fi
 
 # Cleanup
@@ -101,8 +100,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 if wait_for_starvation_detected "${STALLD_LOG2}"; then
     pass "Starvation detection with ${short_duration}s duration"
 else
-    log "✗ FAIL: No starvation detection with short duration"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No starvation detection with short duration"
 fi
 
 # Cleanup
@@ -135,8 +133,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation}
 if wait_for_starvation_detected "${STALLD_LOG3}"; then
     pass "Starvation detection with ${long_duration}s duration"
 else
-    log "✗ FAIL: No starvation detection with long duration"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No starvation detection with long duration"
 fi
 
 # Cleanup
@@ -168,8 +165,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 1 -d 15
 if wait_for_starvation_detected "${STALLD_LOG4}"; then
     pass "Starvation detection with ${duration}s boost duration"
 else
-    log "✗ FAIL: No starvation detection"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No starvation detection"
 fi
 
 # Cleanup
@@ -202,8 +198,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "Zero duration rejected with error"
 else
-    log "✗ FAIL: stalld did not reject invalid duration value 0"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject invalid duration value 0"
 fi
 
 # Test 6: Negative duration
@@ -217,8 +212,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "Negative duration rejected with error"
 else
-    log "✗ FAIL: stalld did not reject invalid negative duration"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject invalid negative duration"
 fi
 
 log ""

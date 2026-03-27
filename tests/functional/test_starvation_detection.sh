@@ -81,22 +81,19 @@ if wait_for_starvation_detected "${STALLD_LOG}"; then
     if grep "starved on CPU ${TEST_CPU}" "${STALLD_LOG}"; then
         pass "Correct CPU ID logged (CPU ${TEST_CPU})"
     else
-        log "✗ FAIL: Wrong CPU ID in log"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Wrong CPU ID in log"
     fi
 
     # Verify duration is logged
     if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}"; then
         pass "Starvation duration logged"
     else
-        log "✗ FAIL: Starvation duration not logged"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Starvation duration not logged"
     fi
 else
-    log "✗ FAIL: Starvation not detected"
+    fail "Starvation not detected"
     log "Log contents:"
     cat "${STALLD_LOG}"
-    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Cleanup
@@ -147,8 +144,7 @@ if [ -n "${STARVE_CHILDREN}" ]; then
             if [ ${ctxt_delta} -lt 5 ]; then
                 pass "Context switch count remained low (delta: ${ctxt_delta})"
             else
-                log "✗ FAIL: Context switches increased significantly (delta: ${ctxt_delta})"
-                TEST_FAILED=$((TEST_FAILED + 1))
+                fail "Context switches increased significantly (delta: ${ctxt_delta})"
             fi
             break
         fi
@@ -213,14 +209,12 @@ if [ "${report_count}" -ge 2 ]; then
         pass "Starvation duration increased (${first_duration}s -> ${last_duration}s)"
         log "        This confirms task merging preserved the timestamp"
     else
-        log "✗ FAIL: Starvation duration did not increase (timestamp may have been reset)"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Starvation duration did not increase (timestamp may have been reset)"
     fi
 else
-    log "✗ FAIL: Not enough starvation reports to verify task merging (found ${report_count}, need >= 2)"
+    fail "Not enough starvation reports to verify task merging (found ${report_count}, need >= 2)"
     log "Log contents:"
     cat "${STALLD_LOG}"
-    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Cleanup starvation generator
@@ -285,15 +279,13 @@ else
     if grep -qE "starvation_gen.*starved on CPU ${CPU0}|starved on CPU ${CPU0}.*starvation_gen" "${STALLD_LOG}"; then
         pass "Starvation detected on CPU ${CPU0}"
     else
-        log "✗ FAIL: Starvation not detected on CPU ${CPU0}"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Starvation not detected on CPU ${CPU0}"
     fi
 
     if grep -qE "starvation_gen.*starved on CPU ${CPU1}|starved on CPU ${CPU1}.*starvation_gen" "${STALLD_LOG}"; then
         pass "Starvation detected on CPU ${CPU1}"
     else
-        log "✗ FAIL: Starvation not detected on CPU ${CPU1}"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Starvation not detected on CPU ${CPU1}"
     fi
 
     # Cleanup
@@ -372,16 +364,14 @@ sleep 5
 if assert_process_running "${STALLD_PID}" "stalld still running after task exit"; then
     pass "stalld handled task exit gracefully"
 else
-    log "✗ FAIL: stalld crashed or exited unexpectedly"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld crashed or exited unexpectedly"
 fi
 
 # Check for error messages
 if grep -iE "error|segfault|crash" "${STALLD_LOG}"; then
-    log "✗ FAIL: Error messages found in log"
+    fail "Error messages found in log"
     log "Errors:"
     grep -iE "error|segfault|crash" "${STALLD_LOG}"
-    TEST_FAILED=$((TEST_FAILED + 1))
 else
     pass "No error messages in log"
 fi

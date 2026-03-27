@@ -74,8 +74,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
     if grep -q "SCHED_DEADLINE" "${STALLD_LOG}"; then
         pass "SCHED_DEADLINE boosting used (default)"
     else
-        log "✗ FAIL: SCHED_DEADLINE not mentioned in boost message"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "SCHED_DEADLINE not mentioned in boost message"
     fi
 
     # Verify boost happened after threshold
@@ -86,10 +85,9 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
         log "⚠ WARNING: No starvation message before boost"
     fi
 else
-    log "✗ FAIL: No boosting detected"
+    fail "No boosting detected"
     log "Log contents:"
     cat "${STALLD_LOG}"
-    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Cleanup
@@ -153,8 +151,7 @@ if [ ${boosted_task_found} -eq 0 ]; then
     if grep -q "boosted.*SCHED_DEADLINE" "${STALLD_LOG}"; then
         pass "SCHED_DEADLINE boost confirmed in logs"
     else
-        log "✗ FAIL: No SCHED_DEADLINE boost detected"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "No SCHED_DEADLINE boost detected"
     fi
 fi
 
@@ -226,8 +223,7 @@ fi
 if grep -q "boosted" "${STALLD_LOG}"; then
     pass "Boost occurred as expected"
 else
-    log "✗ FAIL: No boost detected"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No boost detected"
 fi
 
 # Cleanup

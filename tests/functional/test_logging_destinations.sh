@@ -45,8 +45,7 @@ if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 			pass "output contains expected messages"
 		fi
 	else
-		TEST_FAILED=$((TEST_FAILED + 1))
-		echo -e "  ${RED}FAIL${NC}: no output in verbose mode"
+		fail "no output in verbose mode"
 	fi
 fi
 
@@ -158,8 +157,7 @@ if assert_process_running "${STALLD_PID}" "stalld with combined logging should b
 	if [ -s "${LOG_FILE}" ]; then
 		pass "combined logging produces output"
 	else
-		TEST_FAILED=$((TEST_FAILED + 1))
-		echo -e "  ${RED}FAIL${NC}: no output with combined logging"
+		fail "no output with combined logging"
 	fi
 fi
 

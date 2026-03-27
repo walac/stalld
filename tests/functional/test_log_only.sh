@@ -61,8 +61,7 @@ echo "Waiting for starvation detection..."
 if wait_for_starvation_detected "${LOG_FILE}"; then
 	pass "stalld detected and logged starvation"
 else
-	TEST_FAILED=$((TEST_FAILED + 1))
-	echo -e "  ${RED}FAIL${NC}: stalld did not detect starvation"
+	fail "stalld did not detect starvation"
 	echo "Log contents:"
 	cat "${LOG_FILE}"
 fi
@@ -71,8 +70,7 @@ fi
 if ! grep -q "boosted" "${LOG_FILE}"; then
 	pass "stalld did not boost in log-only mode"
 else
-	TEST_FAILED=$((TEST_FAILED + 1))
-	echo -e "  ${RED}FAIL${NC}: stalld boosted despite -l flag"
+	fail "stalld boosted despite -l flag"
 	echo "Log contents:"
 	cat "${LOG_FILE}"
 fi

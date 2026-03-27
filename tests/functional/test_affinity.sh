@@ -109,8 +109,7 @@ affinity=$(check_affinity "${STALLD_PID}")
 if [ "$affinity" = "0" ]; then
     pass "stalld restricted to CPU 0"
 else
-    log "✗ FAIL: stalld affinity ($affinity) doesn't match requested (0)"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld affinity ($affinity) doesn't match requested (0)"
 fi
 
 stop_stalld
@@ -270,8 +269,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "Invalid CPU affinity rejected with error"
 else
-    log "✗ FAIL: stalld did not reject invalid CPU affinity"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject invalid CPU affinity"
 fi
 
 #=============================================================================

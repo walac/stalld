@@ -69,8 +69,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 if wait_for_starvation_detected "${STALLD_LOG}"; then
     pass "Starvation detection with default runtime"
 else
-    log "✗ FAIL: No starvation detection"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No starvation detection"
 fi
 
 # Cleanup
@@ -101,8 +100,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 if wait_for_starvation_detected "${STALLD_LOG2}"; then
     pass "Starvation detection with custom runtime ${custom_runtime}ns"
 else
-    log "✗ FAIL: No starvation detection with custom runtime"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No starvation detection with custom runtime"
 fi
 
 # Cleanup
@@ -133,8 +131,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 if wait_for_starvation_detected "${STALLD_LOG3}"; then
     pass "Starvation detection with large runtime ${large_runtime}ns"
 else
-    log "✗ FAIL: No starvation detection with large runtime"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No starvation detection with large runtime"
 fi
 
 # Cleanup
@@ -167,8 +164,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 if wait_for_starvation_detected "${STALLD_LOG4}"; then
     pass "Starvation detection with runtime < period"
 else
-    log "✗ FAIL: No starvation detection when runtime < period"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "No starvation detection when runtime < period"
 fi
 
 # Cleanup
@@ -202,8 +198,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "Runtime > period rejected with error"
 else
-    log "✗ FAIL: stalld did not reject invalid runtime > period"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject invalid runtime > period"
 fi
 
 #=============================================================================
@@ -224,8 +219,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "Zero runtime rejected with error"
 else
-    log "✗ FAIL: stalld did not reject invalid runtime value 0"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject invalid runtime value 0"
 fi
 
 #=============================================================================
@@ -246,8 +240,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "Negative runtime rejected with error"
 else
-    log "✗ FAIL: stalld did not reject invalid negative runtime"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject invalid negative runtime"
 fi
 
 log ""

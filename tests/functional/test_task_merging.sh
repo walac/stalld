@@ -106,9 +106,8 @@ if [ "${second_duration}" -gt "${first_duration}" ]; then
     pass "Starvation duration increased by ${delta}s"
     log "        Timestamp preserved across monitoring cycles"
 else
-    log "✗ FAIL: Duration did not increase (${first_duration}s -> ${second_duration}s)"
+    fail "Duration did not increase (${first_duration}s -> ${second_duration}s)"
     log "        Timestamp may have been reset (task merging failed)"
-    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Wait for third detection to confirm continued accumulation

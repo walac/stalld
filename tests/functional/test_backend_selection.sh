@@ -39,8 +39,7 @@ test_backend_flag() {
 	CLEANUP_PIDS+=("${STALLD_PID}")
 
 	if ! wait_for_stalld_ready "${log_file}" 15; then
-		TEST_FAILED=$((TEST_FAILED + 1))
-		echo -e "  ${RED}FAIL${NC}: stalld failed to start (${description})"
+		fail "stalld failed to start (${description})"
 		stop_stalld
 		return 1
 	fi
@@ -48,8 +47,7 @@ test_backend_flag() {
 	if grep -q "${expected_msg}" "${log_file}"; then
 		pass "${description}"
 	else
-		TEST_FAILED=$((TEST_FAILED + 1))
-		echo -e "  ${RED}FAIL${NC}: Backend message not found (${description})"
+		fail "Backend message not found (${description})"
 		echo "  Expected: ${expected_msg}"
 		echo "  Log contents:"
 		cat "${log_file}"

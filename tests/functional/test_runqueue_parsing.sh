@@ -108,8 +108,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
         if grep -E "starvation_gen.*starved on CPU ${TEST_CPU}" "${STALLD_LOG_BPF}"; then
             pass "Task name (comm) correctly extracted"
         else
-            log "✗ FAIL: Task name not found in eBPF backend output"
-            TEST_FAILED=$((TEST_FAILED + 1))
+            fail "Task name not found in eBPF backend output"
         fi
 
         # Verify PID is logged
@@ -119,10 +118,9 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
             log "⚠ INFO: PID format may have changed"
         fi
     else
-        log "✗ FAIL: eBPF backend did not detect starvation"
+        fail "eBPF backend did not detect starvation"
         log "Log contents:"
         cat "${STALLD_LOG_BPF}"
-        TEST_FAILED=$((TEST_FAILED + 1))
     fi
 
     # Cleanup
@@ -163,8 +161,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
         if grep -E "starvation_gen.*starved on CPU ${TEST_CPU}" "${STALLD_LOG_SCHED}"; then
             pass "Task name (comm) correctly extracted"
         else
-            log "✗ FAIL: Task name not found in sched_debug backend output"
-            TEST_FAILED=$((TEST_FAILED + 1))
+            fail "Task name not found in sched_debug backend output"
         fi
 
         # Verify PID is logged
@@ -180,10 +177,9 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
             log "ℹ INFO: Kernel format detected: $format"
         fi
     else
-        log "✗ FAIL: sched_debug backend did not detect starvation"
+        fail "sched_debug backend did not detect starvation"
         log "Log contents:"
         cat "${STALLD_LOG_SCHED}"
-        TEST_FAILED=$((TEST_FAILED + 1))
     fi
 
     # Cleanup
@@ -262,8 +258,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
             log "        This may be due to timing differences between backends"
         fi
     else
-        log "✗ FAIL: One or both backends failed to detect starvation"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "One or both backends failed to detect starvation"
     fi
 else
     log ""
@@ -315,32 +310,28 @@ if [ -n "$test_backend" ]; then
     if grep -q "starvation_gen" "${log_file}"; then
         pass "Task name (comm) field extracted"
     else
-        log "✗ FAIL: Task name (comm) field not found"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Task name (comm) field not found"
     fi
 
     # Check for PID field (format: name-PID or [PID])
     if grep -qE "(starvation_gen-[0-9]+|\[[0-9]+\])" "${log_file}"; then
         pass "PID field extracted"
     else
-        log "✗ FAIL: PID field not found"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "PID field not found"
     fi
 
     # Check for CPU ID
     if grep -q "CPU ${TEST_CPU}" "${log_file}"; then
         pass "CPU ID field extracted"
     else
-        log "✗ FAIL: CPU ID field not found"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "CPU ID field not found"
     fi
 
     # Check for starvation duration
     if grep -qE "for [0-9]+ seconds" "${log_file}"; then
         pass "Starvation duration calculated from context switches/time"
     else
-        log "✗ FAIL: Starvation duration not found"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Starvation duration not found"
     fi
 
     # Cleanup

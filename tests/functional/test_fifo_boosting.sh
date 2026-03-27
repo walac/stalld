@@ -72,14 +72,12 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
     if grep -q "SCHED_FIFO" "${STALLD_LOG}"; then
         pass "SCHED_FIFO boosting used (as requested by -F)"
     else
-        log "✗ FAIL: SCHED_FIFO not mentioned in boost message"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "SCHED_FIFO not mentioned in boost message"
     fi
 else
-    log "✗ FAIL: No boosting detected with -F flag"
+    fail "No boosting detected with -F flag"
     log "Log contents:"
     cat "${STALLD_LOG}"
-    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Cleanup
@@ -134,8 +132,7 @@ if [ ${fifo_task_found} -eq 0 ]; then
     if grep -q "boosted.*SCHED_FIFO" "${STALLD_LOG}"; then
         pass "SCHED_FIFO boost confirmed in logs"
     else
-        log "✗ FAIL: No SCHED_FIFO boost detected"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "No SCHED_FIFO boost detected"
     fi
 fi
 
@@ -337,8 +334,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "stalld exited as expected"
 else
-    log "✗ FAIL: stalld did not reject FIFO in single-threaded mode"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject FIFO in single-threaded mode"
 fi
 
 # Check for error message in log

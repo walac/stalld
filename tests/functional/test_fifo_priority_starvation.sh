@@ -78,22 +78,19 @@ if wait_for_starvation_detected "${STALLD_LOG}"; then
     if grep "starved on CPU ${TEST_CPU}" "${STALLD_LOG}"; then
         pass "Correct CPU ID logged (CPU ${TEST_CPU})"
     else
-        log "✗ FAIL: Wrong CPU ID in log"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Wrong CPU ID in log"
     fi
 
     # Verify duration is logged
     if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}"; then
         pass "Starvation duration logged"
     else
-        log "✗ FAIL: Starvation duration not logged"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Starvation duration not logged"
     fi
 else
-    log "✗ FAIL: FIFO-on-FIFO starvation not detected"
+    fail "FIFO-on-FIFO starvation not detected"
     log "Log contents:"
     cat "${STALLD_LOG}"
-    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Cleanup
@@ -159,8 +156,7 @@ else
     if grep -q "boosted" "${STALLD_LOG}"; then
         log "ℹ INFO: Boosting did occur according to logs"
     else
-        log "✗ FAIL: No boosting detected"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "No boosting detected"
     fi
 fi
 
@@ -218,8 +214,7 @@ if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}" | wc 
         pass "Starvation duration increased (${first_duration}s -> ${last_duration}s)"
         log "        This confirms task merging preserved the timestamp"
     else
-        log "✗ FAIL: Starvation duration did not increase (timestamp may have been reset)"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "Starvation duration did not increase (timestamp may have been reset)"
     fi
 else
     log "⚠ WARNING: Not enough starvation reports to verify task merging"

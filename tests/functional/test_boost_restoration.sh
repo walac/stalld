@@ -391,8 +391,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
     if assert_process_running "${STALLD_PID}" "stalld still running after task exit"; then
         pass "stalld handled task exit during boost gracefully"
     else
-        log "✗ FAIL: stalld crashed or exited after task died during boost"
-        TEST_FAILED=$((TEST_FAILED + 1))
+        fail "stalld crashed or exited after task died during boost"
     fi
 
     # Check for error messages

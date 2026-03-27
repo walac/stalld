@@ -44,8 +44,7 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -c 0 -l -t 5
 if grep -q "cpu 0" "$STALLD_LOG"; then
     pass "stalld monitoring CPU 0"
 else
-    TEST_FAILED=$((TEST_FAILED + 1))
-    echo -e "  ${RED}FAIL${NC}: stalld not monitoring CPU 0"
+    fail "stalld not monitoring CPU 0"
 fi
 
 stop_stalld
@@ -70,8 +69,7 @@ if [ "$num_cpus" -ge 4 ]; then
     if [ "$cpu0_found" -eq 1 ] && [ "$cpu2_found" -eq 1 ]; then
         pass "stalld monitoring CPUs 0 and 2"
     else
-        TEST_FAILED=$((TEST_FAILED + 1))
-        echo -e "  ${RED}FAIL${NC}: stalld not monitoring specified CPUs (0: $cpu0_found, 2: $cpu2_found)"
+        fail "stalld not monitoring specified CPUs (0: $cpu0_found, 2: $cpu2_found)"
     fi
 
     stop_stalld
@@ -103,8 +101,7 @@ if [ "$num_cpus" -ge 4 ]; then
     if [ "$cpu0_found" -eq 1 ] && [ "$cpu1_found" -eq 1 ] && [ "$cpu2_found" -eq 1 ]; then
         pass "stalld monitoring CPUs 0-2"
     else
-        TEST_FAILED=$((TEST_FAILED + 1))
-        echo -e "  ${RED}FAIL${NC}: stalld not monitoring specified CPU range (0: $cpu0_found, 1: $cpu1_found, 2: $cpu2_found)"
+        fail "stalld not monitoring specified CPU range (0: $cpu0_found, 1: $cpu1_found, 2: $cpu2_found)"
     fi
 
     stop_stalld
@@ -130,8 +127,7 @@ if [ "$num_cpus" -ge 6 ]; then
     if [ "$monitored_cpus" -eq 4 ]; then
         pass "stalld monitoring combined CPU specification (0,2-4)"
     else
-        TEST_FAILED=$((TEST_FAILED + 1))
-        echo -e "  ${RED}FAIL${NC}: stalld not monitoring all specified CPUs (found $monitored_cpus/4)"
+        fail "stalld not monitoring all specified CPUs (found $monitored_cpus/4)"
     fi
 
     stop_stalld
@@ -155,8 +151,7 @@ ret=$?
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "stalld rejected invalid CPU number"
 else
-    log "✗ FAIL: stalld did not reject invalid CPU"
-    TEST_FAILED=$((TEST_FAILED + 1))
+    fail "stalld did not reject invalid CPU"
 fi
 
 # Test 6: Verify non-selected CPUs are NOT monitored
@@ -170,8 +165,7 @@ if [ "$num_cpus" -ge 2 ]; then
     if ! grep -q "cpu 1" "$STALLD_LOG" || grep -q "not monitoring.*cpu 1" "$STALLD_LOG"; then
         pass "stalld not monitoring non-selected CPU 1"
     else
-        TEST_FAILED=$((TEST_FAILED + 1))
-        echo -e "  ${RED}FAIL${NC}: stalld appears to be monitoring CPU 1 when only CPU 0 selected"
+        fail "stalld appears to be monitoring CPU 1 when only CPU 0 selected"
     fi
 
     stop_stalld
