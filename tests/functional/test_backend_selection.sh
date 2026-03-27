@@ -33,15 +33,15 @@ test_backend_flag() {
 
 	CLEANUP_FILES+=("${log_file}")
 
-	"${TEST_ROOT}/../stalld" -v -f -l -b "${backend_flag}" -t 60 \
+	"${TEST_ROOT}/../stalld" -v -f -l -g 1 -b "${backend_flag}" -t 60 \
 		> "${log_file}" 2>&1 &
 	STALLD_PID=$!
 	CLEANUP_PIDS+=("${STALLD_PID}")
-	sleep 1
 
-	if ! kill -0 ${STALLD_PID} 2>/dev/null; then
+	if ! wait_for_stalld_ready "${log_file}" 15; then
 		TEST_FAILED=$((TEST_FAILED + 1))
 		echo -e "  ${RED}FAIL${NC}: stalld failed to start (${description})"
+		stop_stalld
 		return 1
 	fi
 
