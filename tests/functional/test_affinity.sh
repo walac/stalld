@@ -268,7 +268,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 -a ${invalid_cpu}
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Invalid CPU affinity rejected with error"
+    pass "Invalid CPU affinity rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid CPU affinity"
     TEST_FAILED=$((TEST_FAILED + 1))

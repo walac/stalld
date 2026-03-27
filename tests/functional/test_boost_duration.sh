@@ -200,7 +200,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -d 0 > "$
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Zero duration rejected with error"
+    pass "Zero duration rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid duration value 0"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -215,7 +215,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -d -5 > "
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Negative duration rejected with error"
+    pass "Negative duration rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid negative duration"
     TEST_FAILED=$((TEST_FAILED + 1))

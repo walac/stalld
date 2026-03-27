@@ -200,7 +200,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r ${inva
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Runtime > period rejected with error"
+    pass "Runtime > period rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid runtime > period"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -222,7 +222,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r 0 > "$
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Zero runtime rejected with error"
+    pass "Zero runtime rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid runtime value 0"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -244,7 +244,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r -5000 
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Negative runtime rejected with error"
+    pass "Negative runtime rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid negative runtime"
     TEST_FAILED=$((TEST_FAILED + 1))

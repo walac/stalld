@@ -335,7 +335,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v -F -t 5 -c ${TEST_CPU} > "${STALLD_LOG_FA
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "stalld exited as expected"
+    pass "stalld exited as expected"
 else
     log "✗ FAIL: stalld did not reject FIFO in single-threaded mode"
     TEST_FAILED=$((TEST_FAILED + 1))

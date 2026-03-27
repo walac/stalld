@@ -31,12 +31,12 @@ if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 	# Check parent process - should be init (PID 1) or systemd
 	PARENT_PID=$(ps -o ppid= -p ${STALLD_PID} 2>/dev/null | tr -d ' ')
 	if [ "${PARENT_PID}" == "1" ] || [ "${PARENT_PID}" == "2" ]; then
-		assert_equals "1" "1" "stalld daemonized (parent is init/kthreadd)"
+		pass "stalld daemonized (parent is init/kthreadd)"
 	else
 		# On modern systems with session leaders, ppid might not be 1
 		# Just verify it's not our shell's PID
 		if [ "${PARENT_PID}" != "$$" ]; then
-			assert_equals "1" "1" "stalld daemonized (parent is not test shell)"
+			pass "stalld daemonized (parent is not test shell)"
 		else
 			TEST_FAILED=$((TEST_FAILED + 1))
 			echo -e "  ${RED}FAIL${NC}: stalld did not daemonize (parent is test shell)"
@@ -62,7 +62,7 @@ if assert_process_running "${STALLD_PID}" "stalld should be running with -f"; th
 	# The parent might be the subshell from start_stalld, not directly our shell
 	# So we just verify it's not PID 1
 	if [ "${PARENT_PID}" != "1" ]; then
-		assert_equals "1" "1" "stalld did not daemonize with -f (parent is not init)"
+		pass "stalld did not daemonize with -f (parent is not init)"
 	else
 		TEST_FAILED=$((TEST_FAILED + 1))
 		echo -e "  ${RED}FAIL${NC}: stalld daemonized even with -f flag"
@@ -82,7 +82,7 @@ if assert_process_running "${STALLD_PID}" "stalld should be running with -v"; th
 	PARENT_PID=$(ps -o ppid= -p ${STALLD_PID} 2>/dev/null | tr -d ' ')
 
 	if [ "${PARENT_PID}" != "1" ]; then
-		assert_equals "1" "1" "-v implies foreground mode"
+		pass "-v implies foreground mode"
 	else
 		TEST_FAILED=$((TEST_FAILED + 1))
 		echo -e "  ${RED}FAIL${NC}: -v should imply foreground mode"

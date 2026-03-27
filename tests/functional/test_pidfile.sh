@@ -219,7 +219,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 --pidfile "${inva
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Invalid pidfile path rejected with error"
+    pass "Invalid pidfile path rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid pidfile path"
     TEST_FAILED=$((TEST_FAILED + 1))

@@ -193,7 +193,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p 0 > "${I
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Zero period rejected with error"
+    pass "Zero period rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid period value 0"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -214,7 +214,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p -1000000
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Negative period rejected with error"
+    pass "Negative period rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid negative period"
     TEST_FAILED=$((TEST_FAILED + 1))

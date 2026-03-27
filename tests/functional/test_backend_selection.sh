@@ -46,7 +46,7 @@ test_backend_flag() {
 	fi
 
 	if grep -q "${expected_msg}" "${log_file}"; then
-		assert_equals "0" "0" "${description}"
+		pass "${description}"
 	else
 		TEST_FAILED=$((TEST_FAILED + 1))
 		echo -e "  ${RED}FAIL${NC}: Backend message not found (${description})"

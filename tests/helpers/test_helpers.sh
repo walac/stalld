@@ -105,6 +105,15 @@ end_test() {
 	fi
 }
 
+# Record a test pass with a description message.
+#
+# Usage: pass "description"
+pass() {
+	local message=${1:-""}
+	log "✓ PASS: ${message}"
+	TEST_PASSED=$((TEST_PASSED + 1))
+}
+
 # Assert functions
 assert_equals() {
 	local expected=$1
@@ -1121,7 +1130,7 @@ start_starvation_gen() {
 
 # Export functions for use in tests
 export -f start_test end_test
-export -f assert_equals assert_contains assert_not_contains
+export -f pass assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running
 export -f start_stalld stop_stalld kill_existing_stalld cleanup

@@ -191,7 +191,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v -t 0 > "${INVALID_LOG}" 2>&1
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Zero threshold rejected with error"
+    pass "Zero threshold rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid threshold value 0"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -206,7 +206,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v -t -5 > "${INVALID_LOG2}" 2>&1
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "Negative threshold rejected with error"
+    pass "Negative threshold rejected with error"
 else
     log "✗ FAIL: stalld did not reject invalid negative threshold"
     TEST_FAILED=$((TEST_FAILED + 1))

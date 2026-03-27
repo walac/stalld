@@ -218,7 +218,7 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F > "${
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    assert_equals "1" "1" "single-threaded mode rejected FIFO"
+    pass "single-threaded mode rejected FIFO"
 else
     log "✗ FAIL: stalld did not reject -F in single-threaded mode"
     TEST_FAILED=$((TEST_FAILED + 1))

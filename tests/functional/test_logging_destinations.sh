@@ -38,11 +38,11 @@ start_stalld_with_log "${LOG_FILE}" -f -v -l -t 5
 if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 	# Check that output was written to our log file
 	if [ -s "${LOG_FILE}" ]; then
-		assert_equals "1" "1" "verbose mode produces output"
+		pass "verbose mode produces output"
 
 		# Should contain initialization messages
 		if grep -q -E "(stalld|version|monitoring)" "${LOG_FILE}"; then
-			assert_equals "1" "1" "output contains expected messages"
+			pass "output contains expected messages"
 		fi
 	else
 		TEST_FAILED=$((TEST_FAILED + 1))
@@ -72,7 +72,7 @@ if command -v dmesg >/dev/null 2>&1; then
 		if [ ${DMESG_AFTER} -gt ${DMESG_BEFORE} ]; then
 			# Check if recent dmesg contains stalld messages
 			if dmesg | tail -10 | has_stalld_log; then
-				assert_equals "1" "1" "stalld messages in kernel log"
+				pass "stalld messages in kernel log"
 			else
 				echo -e "  ${YELLOW}SKIP${NC}: cannot verify kernel log messages"
 			fi
@@ -111,7 +111,7 @@ if [ -n "${SYSLOG_FILE}" ]; then
 		if [ ${SYSLOG_AFTER} -gt ${SYSLOG_BEFORE} ]; then
 			# Check for stalld messages in recent syslog
 			if tail -20 "${SYSLOG_FILE}" | has_stalld_log; then
-				assert_equals "1" "1" "stalld messages in syslog"
+				pass "stalld messages in syslog"
 			else
 				echo -e "  ${YELLOW}SKIP${NC}: no stalld messages found in syslog"
 			fi
@@ -131,9 +131,9 @@ elif command -v journalctl >/dev/null 2>&1; then
 	if assert_process_running "${STALLD_PID}" "stalld with -s should be running"; then
 		# Check journalctl for stalld messages
 		if journalctl -u stalld --since "1 minute ago" 2>/dev/null | has_stalld_log; then
-			assert_equals "1" "1" "stalld messages in journalctl"
+			pass "stalld messages in journalctl"
 		elif journalctl --since "1 minute ago" 2>/dev/null | has_stalld_log; then
-			assert_equals "1" "1" "stalld messages in system journal"
+			pass "stalld messages in system journal"
 		else
 			echo -e "  ${YELLOW}SKIP${NC}: no stalld messages in journal (may take time to appear)"
 		fi
@@ -156,7 +156,7 @@ start_stalld_with_log "${LOG_FILE}" -f -v -k -s -l -t 5
 if assert_process_running "${STALLD_PID}" "stalld with combined logging should be running"; then
 	# Verify verbose output
 	if [ -s "${LOG_FILE}" ]; then
-		assert_equals "1" "1" "combined logging produces output"
+		pass "combined logging produces output"
 	else
 		TEST_FAILED=$((TEST_FAILED + 1))
 		echo -e "  ${RED}FAIL${NC}: no output with combined logging"
