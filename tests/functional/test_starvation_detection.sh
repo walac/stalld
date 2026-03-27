@@ -75,11 +75,11 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -
 # Wait for starvation detection
 log "Waiting for starvation detection..."
 if wait_for_starvation_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Starvation detected"
+    pass "Starvation detected"
 
     # Verify correct CPU is logged
     if grep "starved on CPU ${TEST_CPU}" "${STALLD_LOG}"; then
-        log "✓ PASS: Correct CPU ID logged (CPU ${TEST_CPU})"
+        pass "Correct CPU ID logged (CPU ${TEST_CPU})"
     else
         log "✗ FAIL: Wrong CPU ID in log"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -87,7 +87,7 @@ if wait_for_starvation_detected "${STALLD_LOG}"; then
 
     # Verify duration is logged
     if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}"; then
-        log "✓ PASS: Starvation duration logged"
+        pass "Starvation duration logged"
     else
         log "✗ FAIL: Starvation duration not logged"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -145,7 +145,7 @@ if [ -n "${STARVE_CHILDREN}" ]; then
 
             ctxt_delta=$((ctxt_after - ctxt_before))
             if [ ${ctxt_delta} -lt 5 ]; then
-                log "✓ PASS: Context switch count remained low (delta: ${ctxt_delta})"
+                pass "Context switch count remained low (delta: ${ctxt_delta})"
             else
                 log "✗ FAIL: Context switches increased significantly (delta: ${ctxt_delta})"
                 TEST_FAILED=$((TEST_FAILED + 1))
@@ -199,7 +199,7 @@ stop_stalld
 # Task merging means the timestamp is preserved, so duration increases
 report_count=$(grep -cE "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}")
 if [ "${report_count}" -ge 2 ]; then
-    log "✓ PASS: Multiple starvation reports found (${report_count} reports)"
+    pass "Multiple starvation reports found (${report_count} reports)"
 
     # Extract starvation durations from log
     durations=$(grep -oE "starved on CPU ${TEST_CPU} for [0-9]+" "${STALLD_LOG}" | grep -oE "[0-9]+$")
@@ -210,7 +210,7 @@ if [ "${report_count}" -ge 2 ]; then
     last_duration=$(echo "$durations" | tail -1)
 
     if [ ${last_duration} -gt ${first_duration} ]; then
-        log "✓ PASS: Starvation duration increased (${first_duration}s -> ${last_duration}s)"
+        pass "Starvation duration increased (${first_duration}s -> ${last_duration}s)"
         log "        This confirms task merging preserved the timestamp"
     else
         log "✗ FAIL: Starvation duration did not increase (timestamp may have been reset)"
@@ -283,14 +283,14 @@ else
 
     # Check both CPUs detected - specifically look for starvation_gen tasks
     if grep -qE "starvation_gen.*starved on CPU ${CPU0}|starved on CPU ${CPU0}.*starvation_gen" "${STALLD_LOG}"; then
-        log "✓ PASS: Starvation detected on CPU ${CPU0}"
+        pass "Starvation detected on CPU ${CPU0}"
     else
         log "✗ FAIL: Starvation not detected on CPU ${CPU0}"
         TEST_FAILED=$((TEST_FAILED + 1))
     fi
 
     if grep -qE "starvation_gen.*starved on CPU ${CPU1}|starved on CPU ${CPU1}.*starvation_gen" "${STALLD_LOG}"; then
-        log "✓ PASS: Starvation detected on CPU ${CPU1}"
+        pass "Starvation detected on CPU ${CPU1}"
     else
         log "✗ FAIL: Starvation not detected on CPU ${CPU1}"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -330,7 +330,7 @@ log "Creating a busy task that should NOT be starved"
     # Verify this task was NOT reported as starved
     # Since it's making progress, stalld shouldn't detect it
     if ! grep "starved" "${STALLD_LOG}"; then
-        log "✓ PASS: No false positive - task making progress not reported as starved"
+        pass "No false positive - task making progress not reported as starved"
     else
         # Check if our specific task was reported
         log "Log shows starvation, checking if it's our progress-making task..."
@@ -370,7 +370,7 @@ sleep 5
 
 # Verify stalld is still running (didn't crash)
 if assert_process_running "${STALLD_PID}" "stalld still running after task exit"; then
-    log "✓ PASS: stalld handled task exit gracefully"
+    pass "stalld handled task exit gracefully"
 else
     log "✗ FAIL: stalld crashed or exited unexpectedly"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -383,7 +383,7 @@ if grep -iE "error|segfault|crash" "${STALLD_LOG}"; then
     grep -iE "error|segfault|crash" "${STALLD_LOG}"
     TEST_FAILED=$((TEST_FAILED + 1))
 else
-    log "✓ PASS: No error messages in log"
+    pass "No error messages in log"
 fi
 
 stop_stalld

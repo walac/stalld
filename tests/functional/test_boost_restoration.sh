@@ -85,7 +85,7 @@ if [ -n "${tracked_pid}" ]; then
     log "Initial policy: ${initial_policy} (expected: 1=SCHED_FIFO), prio: ${initial_prio}"
 
     if [ "$initial_policy" = "1" ]; then
-        log "✓ PASS: Initial policy is SCHED_FIFO"
+        pass "Initial policy is SCHED_FIFO"
     else
         log "⚠ WARNING: Initial policy is ${initial_policy}, not SCHED_FIFO (1)"
     fi
@@ -100,7 +100,7 @@ if [ -n "${tracked_pid}" ]; then
         log "Policy during boost: ${boosted_policy}"
 
         if [ "$boosted_policy" = "6" ]; then
-            log "✓ PASS: Task boosted to SCHED_DEADLINE (6)"
+            pass "Task boosted to SCHED_DEADLINE (6)"
         else
             log "ℹ INFO: Policy is ${boosted_policy} (may be between boost cycles)"
         fi
@@ -117,7 +117,7 @@ if [ -n "${tracked_pid}" ]; then
         log "Policy after boost: ${post_boost_policy}, prio: ${post_boost_prio}"
 
         if [ "$post_boost_policy" = "1" ]; then
-            log "✓ PASS: Policy restored to SCHED_FIFO (1) during boost cycle"
+            pass "Policy restored to SCHED_FIFO (1) during boost cycle"
         elif [ "$post_boost_policy" = "6" ]; then
             log "ℹ INFO: Still in boost (DEADLINE), will check final restoration"
         else
@@ -139,9 +139,9 @@ if [ -n "${tracked_pid}" ] && [ -f "/proc/${tracked_pid}/sched" ]; then
     log "Final policy: ${final_policy}, prio: ${final_prio}"
 
     if [ "$final_policy" = "1" ]; then
-        log "✓ PASS: Policy restored to SCHED_FIFO (1)"
+        pass "Policy restored to SCHED_FIFO (1)"
         if [ "$final_prio" = "$initial_prio" ]; then
-            log "✓ PASS: Priority restored to ${initial_prio}"
+            pass "Priority restored to ${initial_prio}"
         else
             log "⚠ INFO: Priority is ${final_prio} (initial was ${initial_prio})"
         fi
@@ -219,7 +219,7 @@ if chrt -f -p 10 ${FIFO_TASK_PID} 2>/dev/null; then
     log "Initial: policy=${initial_policy} (1=FIFO), prio=${initial_prio}"
 
     if [ "$initial_policy" = "1" ]; then
-        log "✓ PASS: Initial policy is SCHED_FIFO (1)"
+        pass "Initial policy is SCHED_FIFO (1)"
     else
         log "⚠ WARNING: Could not set FIFO policy (got ${initial_policy})"
     fi
@@ -234,7 +234,7 @@ if chrt -f -p 10 ${FIFO_TASK_PID} 2>/dev/null; then
         log "Policy during detection window: ${boosted_policy}"
 
         if [ "$boosted_policy" = "6" ]; then
-            log "✓ PASS: Task boosted to SCHED_DEADLINE (6)"
+            pass "Task boosted to SCHED_DEADLINE (6)"
         elif [ "$boosted_policy" = "1" ]; then
             log "ℹ INFO: Still SCHED_FIFO (may not have starved yet)"
         fi
@@ -251,7 +251,7 @@ if chrt -f -p 10 ${FIFO_TASK_PID} 2>/dev/null; then
         log "Final: policy=${final_policy}, prio=${final_prio}"
 
         if [ "$final_policy" = "1" ]; then
-            log "✓ PASS: Policy restored to SCHED_FIFO (1)"
+            pass "Policy restored to SCHED_FIFO (1)"
             log "ℹ INFO: Priority after restoration: ${final_prio}"
         else
             log "⚠ INFO: Final policy is ${final_policy}"
@@ -340,7 +340,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
     log "Time difference: ${time_diff}s"
 
     if [ ${time_diff} -le 2 ]; then
-        log "✓ PASS: Restoration timing within acceptable margin (±2s)"
+        pass "Restoration timing within acceptable margin (±2s)"
     else
         log "ℹ INFO: Restoration timing difference: ${time_diff}s"
         log "        (may be acceptable depending on system load)"
@@ -380,7 +380,7 @@ start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d ${short_duration}
 
 # Wait for starvation detection and boosting
 if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Boost occurred"
+    pass "Boost occurred"
 
     # At this point (12s), starvation_gen has exited (at 8s) during the boost
     # stalld should still be running despite the task exiting during boost
@@ -389,7 +389,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
 
     # Verify stalld is still running and didn't crash after task exit
     if assert_process_running "${STALLD_PID}" "stalld still running after task exit"; then
-        log "✓ PASS: stalld handled task exit during boost gracefully"
+        pass "stalld handled task exit during boost gracefully"
     else
         log "✗ FAIL: stalld crashed or exited after task died during boost"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -401,7 +401,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
         grep -iE "error.*restor|fail.*restor" "${STALLD_LOG}"
         log "        These errors are normal when tasks exit during boost"
     else
-        log "✓ PASS: No restoration errors (clean handling)"
+        pass "No restoration errors (clean handling)"
     fi
 else
     log "⚠ WARNING: No boost detected in this test run"

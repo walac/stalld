@@ -72,11 +72,11 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a $
 # Wait for starvation detection
 log "Waiting for starvation detection..."
 if wait_for_starvation_detected "${STALLD_LOG}"; then
-    log "✓ PASS: FIFO-on-FIFO starvation detected"
+    pass "FIFO-on-FIFO starvation detected"
 
     # Verify correct CPU is logged
     if grep "starved on CPU ${TEST_CPU}" "${STALLD_LOG}"; then
-        log "✓ PASS: Correct CPU ID logged (CPU ${TEST_CPU})"
+        pass "Correct CPU ID logged (CPU ${TEST_CPU})"
     else
         log "✗ FAIL: Wrong CPU ID in log"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -84,7 +84,7 @@ if wait_for_starvation_detected "${STALLD_LOG}"; then
 
     # Verify duration is logged
     if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}"; then
-        log "✓ PASS: Starvation duration logged"
+        pass "Starvation duration logged"
     else
         log "✗ FAIL: Starvation duration not logged"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -152,7 +152,7 @@ ctxt_delta=$((ctxt_after - ctxt_before))
 log "Context switch delta: ${ctxt_delta}"
 
 if [ ${ctxt_delta} -gt 0 ]; then
-    log "✓ PASS: Blockee task made progress (${ctxt_delta} context switches)"
+    pass "Blockee task made progress (${ctxt_delta} context switches)"
 else
     log "⚠ WARNING: Could not verify progress (timing issue or blockee not found)"
     # Check if boosting occurred at least
@@ -204,7 +204,7 @@ log "Third detection cycle should have occurred"
 # Check if we see accumulating starvation time in logs
 # Task merging means the timestamp is preserved, so duration increases
 if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}" | wc -l | grep -q "[2-9]"; then
-    log "✓ PASS: Multiple starvation reports found"
+    pass "Multiple starvation reports found"
 
     # Extract starvation durations from log
     durations=$(grep -oE "starved on CPU ${TEST_CPU} for [0-9]+" "${STALLD_LOG}" | grep -oE "[0-9]+$")
@@ -215,7 +215,7 @@ if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}" | wc 
     last_duration=$(echo "$durations" | tail -1)
 
     if [ ${last_duration} -gt ${first_duration} ]; then
-        log "✓ PASS: Starvation duration increased (${first_duration}s -> ${last_duration}s)"
+        pass "Starvation duration increased (${first_duration}s -> ${last_duration}s)"
         log "        This confirms task merging preserved the timestamp"
     else
         log "✗ FAIL: Starvation duration did not increase (timestamp may have been reset)"
@@ -258,7 +258,7 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a $
 # Wait for starvation detection
 log "Waiting for starvation detection..."
 if wait_for_starvation_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Starvation detected even with close priority gap (6 vs 5)"
+    pass "Starvation detected even with close priority gap (6 vs 5)"
 else
     log "⚠ WARNING: Starvation not detected with close priority gap"
     log "        (May be due to queue_track backend limitation)"
@@ -297,12 +297,12 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a $
 # Wait for boosting
 log "Waiting for boost detection..."
 if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Boosting occurred"
+    pass "Boosting occurred"
 
     # Try to verify the correct task was boosted
     # stalld logs should show the blockee task name (starvation_gen thread)
     if grep "boosted.*starvation_gen" "${STALLD_LOG}"; then
-        log "✓ PASS: starvation_gen task was boosted (likely the blockee)"
+        pass "starvation_gen task was boosted (likely the blockee)"
     else
         log "ℹ INFO: Could not verify specific task from logs"
     fi

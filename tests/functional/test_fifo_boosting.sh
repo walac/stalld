@@ -66,11 +66,11 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -N -F -A -t $threshold -c ${TES
 # Wait for boosting
 log "Waiting for boost detection..."
 if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Boosting occurred with -F flag"
+    pass "Boosting occurred with -F flag"
 
     # Verify SCHED_FIFO was used
     if grep -q "SCHED_FIFO" "${STALLD_LOG}"; then
-        log "✓ PASS: SCHED_FIFO boosting used (as requested by -F)"
+        pass "SCHED_FIFO boosting used (as requested by -F)"
     else
         log "✗ FAIL: SCHED_FIFO not mentioned in boost message"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -120,7 +120,7 @@ for child_pid in ${STARVE_CHILDREN}; do
         # Policy 1 = SCHED_FIFO
         if [ "$policy" = "1" ]; then
             priority=$(get_sched_priority ${child_pid})
-            log "✓ PASS: Task PID ${child_pid} boosted to SCHED_FIFO (policy 1)"
+            pass "Task PID ${child_pid} boosted to SCHED_FIFO (policy 1)"
             log "        Priority: ${priority}"
             fifo_task_found=1
             break
@@ -132,7 +132,7 @@ if [ ${fifo_task_found} -eq 0 ]; then
     log "⚠ INFO: Could not verify FIFO policy in /proc (timing issue or boost already expired)"
     # FIFO emulation cycles between FIFO and OTHER, so we may catch it in OTHER state
     if grep -q "boosted.*SCHED_FIFO" "${STALLD_LOG}"; then
-        log "✓ PASS: SCHED_FIFO boost confirmed in logs"
+        pass "SCHED_FIFO boost confirmed in logs"
     else
         log "✗ FAIL: No SCHED_FIFO boost detected"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -186,7 +186,7 @@ boost_count=$(grep -c "boosted.*SCHED_FIFO" "${STALLD_LOG}")
 log "Number of FIFO boost events: ${boost_count}"
 
 if [ ${boost_count} -gt 1 ]; then
-    log "✓ PASS: Multiple FIFO boost events (${boost_count}) - emulation cycling detected"
+    pass "Multiple FIFO boost events (${boost_count}) - emulation cycling detected"
     log "        (FIFO emulation boosts, sleeps, restores, repeats)"
 else
     log "⚠ INFO: Only ${boost_count} FIFO boost event(s)"
@@ -303,7 +303,7 @@ log "  DEADLINE: ${deadline_progress} context switches"
 log "  FIFO: ${fifo_progress} context switches"
 
 if [ ${deadline_progress} -gt 0 ] && [ ${fifo_progress} -gt 0 ]; then
-    log "✓ PASS: Both DEADLINE and FIFO allowed tasks to make progress"
+    pass "Both DEADLINE and FIFO allowed tasks to make progress"
 
     # Both should be effective, but exact numbers may vary
     if [ ${deadline_progress} -gt ${fifo_progress} ]; then
@@ -343,7 +343,7 @@ fi
 
 # Check for error message in log
 if grep -qiE "single.*thread.*fifo|fifo.*single.*thread|can.*only.*deadline" "${STALLD_LOG_FAIL}"; then
-    log "✓ PASS: Error message about FIFO+single-threaded incompatibility found"
+    pass "Error message about FIFO+single-threaded incompatibility found"
 else
     log "ℹ INFO: Checking exit status or error messages..."
     if [ -s "${STALLD_LOG_FAIL}" ]; then

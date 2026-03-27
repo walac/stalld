@@ -64,7 +64,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
 
     # Look for SCHED_DEADLINE indicators
     if grep -qi "deadline\|SCHED_DEADLINE" "${STALLD_LOG}"; then
-        log "✓ PASS: SCHED_DEADLINE used by default"
+        pass "SCHED_DEADLINE used by default"
     elif grep -qi "fifo\|SCHED_FIFO" "${STALLD_LOG}"; then
         log "⚠ WARNING: SCHED_FIFO used instead of SCHED_DEADLINE"
     else
@@ -105,7 +105,7 @@ if wait_for_boost_detected "${STALLD_LOG2}"; then
 
     # Look for SCHED_FIFO indicators
     if grep -qi "fifo\|SCHED_FIFO" "${STALLD_LOG2}"; then
-        log "✓ PASS: SCHED_FIFO used with -F flag"
+        pass "SCHED_FIFO used with -F flag"
     elif grep -qi "deadline\|SCHED_DEADLINE" "${STALLD_LOG2}"; then
         log "✗ FAIL: SCHED_DEADLINE used despite -F flag"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -148,7 +148,7 @@ if grep -qi "priority\|prio" "${STALLD_LOG3}"; then
 fi
 
 if grep -q "boost" "${STALLD_LOG3}"; then
-    log "✓ PASS: FIFO boosting with priority setting completed"
+    pass "FIFO boosting with priority setting completed"
 else
     log "⚠ WARNING: No boosting detected"
 fi
@@ -187,7 +187,7 @@ if wait_for_boost_detected "${STALLD_LOG4}"; then
 
     # Check for restoration messages (part of FIFO emulation)
     if grep -qi "restor\|unboosted\|normal\|original" "${STALLD_LOG4}"; then
-        log "✓ PASS: FIFO emulation with restoration detected"
+        pass "FIFO emulation with restoration detected"
     else
         log "ℹ INFO: FIFO boosting completed (restoration may be implicit)"
     fi

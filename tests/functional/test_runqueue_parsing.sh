@@ -102,11 +102,11 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
 
     # Wait for starvation detection
     if wait_for_starvation_detected "${STALLD_LOG_BPF}"; then
-        log "✓ PASS: eBPF backend detected starving tasks"
+        pass "eBPF backend detected starving tasks"
 
         # Verify task info is present (PID, comm)
         if grep -E "starvation_gen.*starved on CPU ${TEST_CPU}" "${STALLD_LOG_BPF}"; then
-            log "✓ PASS: Task name (comm) correctly extracted"
+            pass "Task name (comm) correctly extracted"
         else
             log "✗ FAIL: Task name not found in eBPF backend output"
             TEST_FAILED=$((TEST_FAILED + 1))
@@ -114,7 +114,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
 
         # Verify PID is logged
         if grep -E "\[[0-9]+\].*starved on CPU" "${STALLD_LOG_BPF}"; then
-            log "✓ PASS: Task PID correctly extracted"
+            pass "Task PID correctly extracted"
         else
             log "⚠ INFO: PID format may have changed"
         fi
@@ -157,11 +157,11 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
     # Wait for starvation detection
     if wait_for_starvation_detected "${STALLD_LOG_SCHED}"; then
-        log "✓ PASS: sched_debug backend detected starving tasks"
+        pass "sched_debug backend detected starving tasks"
 
         # Verify task info is present
         if grep -E "starvation_gen.*starved on CPU ${TEST_CPU}" "${STALLD_LOG_SCHED}"; then
-            log "✓ PASS: Task name (comm) correctly extracted"
+            pass "Task name (comm) correctly extracted"
         else
             log "✗ FAIL: Task name not found in sched_debug backend output"
             TEST_FAILED=$((TEST_FAILED + 1))
@@ -169,7 +169,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
         # Verify PID is logged
         if grep -E "\[[0-9]+\].*starved on CPU" "${STALLD_LOG_SCHED}"; then
-            log "✓ PASS: Task PID correctly extracted"
+            pass "Task PID correctly extracted"
         else
             log "⚠ INFO: PID format may have changed"
         fi
@@ -249,14 +249,14 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     # Compare results
     log ""
     if [ ${bpf_detections} -gt 0 ] && [ ${sched_detections} -gt 0 ]; then
-        log "✓ PASS: Both backends detected starvation"
+        pass "Both backends detected starvation"
 
         # Check if detection counts are similar (within reasonable variance)
         diff=$((bpf_detections - sched_detections))
         diff=${diff#-}  # absolute value
 
         if [ ${diff} -le 2 ]; then
-            log "✓ PASS: Detection counts are consistent (eBPF: ${bpf_detections}, sched_debug: ${sched_detections})"
+            pass "Detection counts are consistent (eBPF: ${bpf_detections}, sched_debug: ${sched_detections})"
         else
             log "⚠ INFO: Detection counts differ (eBPF: ${bpf_detections}, sched_debug: ${sched_detections})"
             log "        This may be due to timing differences between backends"
@@ -313,7 +313,7 @@ if [ -n "$test_backend" ]; then
 
     # Check for task name (comm field)
     if grep -q "starvation_gen" "${log_file}"; then
-        log "✓ PASS: Task name (comm) field extracted"
+        pass "Task name (comm) field extracted"
     else
         log "✗ FAIL: Task name (comm) field not found"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -321,7 +321,7 @@ if [ -n "$test_backend" ]; then
 
     # Check for PID field (format: name-PID or [PID])
     if grep -qE "(starvation_gen-[0-9]+|\[[0-9]+\])" "${log_file}"; then
-        log "✓ PASS: PID field extracted"
+        pass "PID field extracted"
     else
         log "✗ FAIL: PID field not found"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -329,7 +329,7 @@ if [ -n "$test_backend" ]; then
 
     # Check for CPU ID
     if grep -q "CPU ${TEST_CPU}" "${log_file}"; then
-        log "✓ PASS: CPU ID field extracted"
+        pass "CPU ID field extracted"
     else
         log "✗ FAIL: CPU ID field not found"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -337,7 +337,7 @@ if [ -n "$test_backend" ]; then
 
     # Check for starvation duration
     if grep -qE "for [0-9]+ seconds" "${log_file}"; then
-        log "✓ PASS: Starvation duration calculated from context switches/time"
+        pass "Starvation duration calculated from context switches/time"
     else
         log "✗ FAIL: Starvation duration not found"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -371,21 +371,21 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     # Check for format detection messages
     if grep -q "detect_task_format" "${STALLD_LOG_SCHED}"; then
         detected_format=$(grep "detect_task_format" "${STALLD_LOG_SCHED}" | grep "detected" | tail -1)
-        log "✓ PASS: Kernel format auto-detection occurred"
+        pass "Kernel format auto-detection occurred"
         log "ℹ INFO: ${detected_format}"
 
         # Check if field offsets were detected
         if grep -q "found 'task' at word" "${STALLD_LOG_SCHED}"; then
-            log "✓ PASS: Task field offset detected"
+            pass "Task field offset detected"
         fi
         if grep -q "found 'PID' at word" "${STALLD_LOG_SCHED}"; then
-            log "✓ PASS: PID field offset detected"
+            pass "PID field offset detected"
         fi
         if grep -q "found 'switches' at word" "${STALLD_LOG_SCHED}"; then
-            log "✓ PASS: Switches field offset detected"
+            pass "Switches field offset detected"
         fi
         if grep -q "found 'prio' at word" "${STALLD_LOG_SCHED}"; then
-            log "✓ PASS: Priority field offset detected"
+            pass "Priority field offset detected"
         fi
     else
         log "⚠ INFO: Format detection messages not in log (may not be verbose enough)"
@@ -393,7 +393,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
 
     # Verify the backend still works despite format
     if grep -q "starved on CPU" "${STALLD_LOG_SCHED}"; then
-        log "✓ PASS: Backend successfully parsed tasks despite kernel format"
+        pass "Backend successfully parsed tasks despite kernel format"
     else
         log "⚠ INFO: No starvation detected in this test run"
     fi

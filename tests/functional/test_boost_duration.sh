@@ -67,7 +67,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection
 if wait_for_starvation_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Starvation detection occurred with default duration"
+    pass "Starvation detection occurred with default duration"
 else
     log "✗ FAIL: No starvation detection"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -99,7 +99,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection
 if wait_for_starvation_detected "${STALLD_LOG2}"; then
-    log "✓ PASS: Starvation detection with ${short_duration}s duration"
+    pass "Starvation detection with ${short_duration}s duration"
 else
     log "✗ FAIL: No starvation detection with short duration"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -133,7 +133,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation}
 
 # Wait for starvation detection
 if wait_for_starvation_detected "${STALLD_LOG3}"; then
-    log "✓ PASS: Starvation detection with ${long_duration}s duration"
+    pass "Starvation detection with ${long_duration}s duration"
 else
     log "✗ FAIL: No starvation detection with long duration"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -166,7 +166,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 1 -d 15
 
 # Wait for starvation detection
 if wait_for_starvation_detected "${STALLD_LOG4}"; then
-    log "✓ PASS: Starvation detection with ${duration}s boost duration"
+    pass "Starvation detection with ${duration}s boost duration"
 else
     log "✗ FAIL: No starvation detection"
     TEST_FAILED=$((TEST_FAILED + 1))

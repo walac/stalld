@@ -76,7 +76,7 @@ log "Waiting for detection (threshold: ${threshold}s)"
 
 # Check if starvation was detected - specifically look for starvation_gen tasks
 if wait_for_starvation_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Starvation detected after ${threshold}s threshold"
+    pass "Starvation detected after ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected after ${threshold}s threshold"
     log "Log contents:"
@@ -121,7 +121,7 @@ sleep 2
 
 # Check that starvation_gen was NOT detected (duration less than threshold)
 if ! grep -qE "starvation_gen.*starved on CPU ${TEST_CPU}|starved on CPU ${TEST_CPU}.*starvation_gen" "${STALLD_LOG2}"; then
-    log "✓ PASS: No starvation detected for duration less than threshold"
+    pass "No starvation detected for duration less than threshold"
 else
     log "✗ FAIL: Starvation detected before threshold"
     log "Found starvation_gen task in logs:"
@@ -161,7 +161,7 @@ log "Waiting for detection (threshold: ${threshold}s)"
 
 # Check if starvation_gen was detected
 if wait_for_starvation_detected "${STALLD_LOG3}"; then
-    log "✓ PASS: Starvation detected with ${threshold}s threshold"
+    pass "Starvation detected with ${threshold}s threshold"
 else
     log "✗ FAIL: Starvation not detected with ${threshold}s threshold"
     log "Log contents:"

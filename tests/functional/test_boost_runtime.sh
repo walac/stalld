@@ -67,7 +67,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 if wait_for_starvation_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Starvation detection with default runtime"
+    pass "Starvation detection with default runtime"
 else
     log "✗ FAIL: No starvation detection"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -99,7 +99,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 if wait_for_starvation_detected "${STALLD_LOG2}"; then
-    log "✓ PASS: Starvation detection with custom runtime ${custom_runtime}ns"
+    pass "Starvation detection with custom runtime ${custom_runtime}ns"
 else
     log "✗ FAIL: No starvation detection with custom runtime"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -131,7 +131,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 if wait_for_starvation_detected "${STALLD_LOG3}"; then
-    log "✓ PASS: Starvation detection with large runtime ${large_runtime}ns"
+    pass "Starvation detection with large runtime ${large_runtime}ns"
 else
     log "✗ FAIL: No starvation detection with large runtime"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -165,7 +165,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
 if wait_for_starvation_detected "${STALLD_LOG4}"; then
-    log "✓ PASS: Starvation detection with runtime < period"
+    pass "Starvation detection with runtime < period"
 else
     log "✗ FAIL: No starvation detection when runtime < period"
     TEST_FAILED=$((TEST_FAILED + 1))

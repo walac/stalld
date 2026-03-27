@@ -100,7 +100,7 @@ fi
 
 # Verify CPU is actually idle
 if is_cpu_idle ${TEST_CPU}; then
-    log "✓ PASS: CPU ${TEST_CPU} is currently idle (idle time increasing)"
+    pass "CPU ${TEST_CPU} is currently idle (idle time increasing)"
 else
     log "⚠ INFO: CPU ${TEST_CPU} appears busy (background activity)"
 fi
@@ -130,10 +130,10 @@ if [ -n "${idle_time1}" ] && [ -n "${idle_time2}" ]; then
     log "Idle time delta: ${delta}"
 
     if [ ${delta} -gt 0 ]; then
-        log "✓ PASS: Idle time increased (CPU is idle)"
+        pass "Idle time increased (CPU is idle)"
         log "        stalld would skip this CPU"
     else
-        log "✓ PASS: Idle time unchanged (CPU is busy)"
+        pass "Idle time unchanged (CPU is busy)"
         log "        stalld would parse this CPU"
     fi
 else
@@ -167,7 +167,7 @@ log "Waiting for stalld to detect busy CPU and starvation..."
 
 # Verify stalld detected starvation (meaning it resumed monitoring)
 if wait_for_starvation_detected "${STALLD_LOG}"; then
-    log "✓ PASS: stalld detected starvation on now-busy CPU"
+    pass "stalld detected starvation on now-busy CPU"
     log "        Monitoring resumed when CPU became busy"
 else
     log "⚠ INFO: No starvation detected"
@@ -241,9 +241,9 @@ else
     log "CPU ${CPU1} detections: ${cpu1_detections} (should be >0, it's busy)"
 
     if [ ${cpu0_detections} -eq 0 ] && [ ${cpu1_detections} -gt 0 ]; then
-        log "✓ PASS: Idle CPU skipped, busy CPU monitored"
+        pass "Idle CPU skipped, busy CPU monitored"
     elif [ ${cpu1_detections} -gt 0 ]; then
-        log "✓ PASS: Busy CPU ${CPU1} monitored"
+        pass "Busy CPU ${CPU1} monitored"
         if [ ${cpu0_detections} -gt 0 ]; then
             log "⚠ INFO: CPU ${CPU0} also had detections (may have background activity)"
         fi

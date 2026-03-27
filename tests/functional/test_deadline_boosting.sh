@@ -68,11 +68,11 @@ start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 # Wait for boosting
 log "Waiting for boost detection..."
 if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Boosting occurred"
+    pass "Boosting occurred"
 
     # Verify SCHED_DEADLINE was used
     if grep -q "SCHED_DEADLINE" "${STALLD_LOG}"; then
-        log "✓ PASS: SCHED_DEADLINE boosting used (default)"
+        pass "SCHED_DEADLINE boosting used (default)"
     else
         log "✗ FAIL: SCHED_DEADLINE not mentioned in boost message"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -81,7 +81,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
     # Verify boost happened after threshold
     # (starvation logged, then boosting)
     if grep -q "starved" "${STALLD_LOG}"; then
-        log "✓ PASS: Starvation detected before boosting"
+        pass "Starvation detected before boosting"
     else
         log "⚠ WARNING: No starvation message before boost"
     fi
@@ -140,7 +140,7 @@ for child_pid in ${STARVE_CHILDREN}; do
 
         # Policy 6 = SCHED_DEADLINE
         if [ "$policy" = "6" ]; then
-            log "✓ PASS: Task PID ${child_pid} boosted to SCHED_DEADLINE (policy 6)"
+            pass "Task PID ${child_pid} boosted to SCHED_DEADLINE (policy 6)"
             boosted_task_found=1
             break
         fi
@@ -151,7 +151,7 @@ if [ ${boosted_task_found} -eq 0 ]; then
     log "⚠ INFO: Could not verify DEADLINE policy in /proc (timing issue or boost already expired)"
     # Still check if boost happened in logs
     if grep -q "boosted.*SCHED_DEADLINE" "${STALLD_LOG}"; then
-        log "✓ PASS: SCHED_DEADLINE boost confirmed in logs"
+        pass "SCHED_DEADLINE boost confirmed in logs"
     else
         log "✗ FAIL: No SCHED_DEADLINE boost detected"
         TEST_FAILED=$((TEST_FAILED + 1))
@@ -213,7 +213,7 @@ if [ -n "${tracked_pid}" ]; then
     # Verify task made progress (context switches increased)
     ctxt_delta=$((ctxt_after - ctxt_before))
     if [ ${ctxt_delta} -gt 5 ]; then
-        log "✓ PASS: Task made progress during boost (${ctxt_delta} context switches)"
+        pass "Task made progress during boost (${ctxt_delta} context switches)"
     else
         log "⚠ INFO: Limited progress detected (${ctxt_delta} context switches)"
         log "        This may be acceptable depending on boost parameters"
@@ -224,7 +224,7 @@ fi
 
 # Verify boost happened
 if grep -q "boosted" "${STALLD_LOG}"; then
-    log "✓ PASS: Boost occurred as expected"
+    pass "Boost occurred as expected"
 else
     log "✗ FAIL: No boost detected"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -284,7 +284,7 @@ if [ -n "${tracked_pid}" ]; then
     log "Policy during boost window: ${boosted_policy} (6=SCHED_DEADLINE)"
 
     if [ "$boosted_policy" = "6" ]; then
-        log "✓ PASS: Policy changed to SCHED_DEADLINE during boost"
+        pass "Policy changed to SCHED_DEADLINE during boost"
     else
         log "⚠ INFO: Policy is ${boosted_policy} (may have already restored or not yet boosted)"
     fi
@@ -299,7 +299,7 @@ if [ -n "${tracked_pid}" ]; then
         log "Policy after boost: ${restored_policy}"
 
         if [ "$restored_policy" = "0" ]; then
-            log "✓ PASS: Policy restored to SCHED_OTHER (0)"
+            pass "Policy restored to SCHED_OTHER (0)"
         else
             log "⚠ INFO: Policy is ${restored_policy} after boost"
             log "        (task may have exited or restoration timing differs)"
@@ -360,18 +360,18 @@ else
     log "Number of boost events: ${boost_count}"
 
     if [ ${boost_count} -ge 2 ]; then
-        log "✓ PASS: Multiple boost events detected (${boost_count})"
+        pass "Multiple boost events detected (${boost_count})"
 
         # Verify both CPUs mentioned
         if grep -q "CPU ${CPU0}" "${STALLD_LOG}" && grep -q "CPU ${CPU1}" "${STALLD_LOG}"; then
-            log "✓ PASS: Boosts occurred on both CPUs"
+            pass "Boosts occurred on both CPUs"
         else
             log "⚠ INFO: Could not verify boosts on both specific CPUs"
         fi
 
         # Verify independent boost cycles
         if [ ${boost_count} -gt 2 ]; then
-            log "✓ PASS: Multiple boost cycles (${boost_count} total), showing independent operation"
+            pass "Multiple boost cycles (${boost_count} total), showing independent operation"
         fi
     else
         log "⚠ INFO: Only ${boost_count} boost event(s) detected"

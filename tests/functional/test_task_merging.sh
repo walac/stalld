@@ -103,7 +103,7 @@ log "Second detection: task starved for ${second_duration}s"
 # Verify timestamp was preserved (duration increased)
 if [ "${second_duration}" -gt "${first_duration}" ]; then
     delta=$((second_duration - first_duration))
-    log "✓ PASS: Starvation duration increased by ${delta}s"
+    pass "Starvation duration increased by ${delta}s"
     log "        Timestamp preserved across monitoring cycles"
 else
     log "✗ FAIL: Duration did not increase (${first_duration}s -> ${second_duration}s)"
@@ -122,7 +122,7 @@ fi
 log "Third detection: task starved for ${third_duration}s"
 
 if [ "${third_duration}" -gt "${second_duration}" ]; then
-    log "✓ PASS: Duration continues to accumulate (${third_duration}s total)"
+    pass "Duration continues to accumulate (${third_duration}s total)"
 else
     log "⚠ INFO: Duration did not increase in third cycle"
 fi
@@ -179,7 +179,7 @@ if [ -n "${tracked_pid}" ]; then
 
         delta=$((ctxsw_after - ctxsw_before))
         if [ ${delta} -lt 5 ]; then
-            log "✓ PASS: Context switches remained low (delta: ${delta})"
+            pass "Context switches remained low (delta: ${delta})"
             log "        Task meeting merge criteria (same PID, same ctxsw)"
         else
             log "⚠ INFO: Context switches increased by ${delta}"
@@ -191,7 +191,7 @@ if [ -n "${tracked_pid}" ]; then
         log "Total starvation detections: ${detections}"
 
         if [ ${detections} -ge 2 ]; then
-            log "✓ PASS: Multiple detections indicate task merging across cycles"
+            pass "Multiple detections indicate task merging across cycles"
         fi
     else
         log "⚠ WARNING: Task exited before second check"
@@ -242,7 +242,7 @@ if [ -n "${tracked_pid}" ]; then
     # If task was boosted, context switches should have changed
     # meaning timestamp should reset for next starvation period
     if grep -q "boosted" "${STALLD_LOG}"; then
-        log "✓ PASS: Task was boosted (made progress)"
+        pass "Task was boosted (made progress)"
 
         # Check if we see a new starvation period starting
         # (This is harder to verify, but context switches changing = no merge)
@@ -311,7 +311,7 @@ else
         log "CPU ${CPU0}: ${cpu0_first}s -> ${cpu0_last}s"
 
         if [ "${cpu0_last}" -gt "${cpu0_first}" ]; then
-            log "✓ PASS: CPU ${CPU0} task merging working (timestamp preserved)"
+            pass "CPU ${CPU0} task merging working (timestamp preserved)"
         fi
     fi
 
@@ -327,12 +327,12 @@ else
         log "CPU ${CPU1}: ${cpu1_first}s -> ${cpu1_last}s"
 
         if [ "${cpu1_last}" -gt "${cpu1_first}" ]; then
-            log "✓ PASS: CPU ${CPU1} task merging working (timestamp preserved)"
+            pass "CPU ${CPU1} task merging working (timestamp preserved)"
         fi
     fi
 
     if [ ${cpu0_detections} -ge 2 ] && [ ${cpu1_detections} -ge 2 ]; then
-        log "✓ PASS: Independent task merging on both CPUs"
+        pass "Independent task merging on both CPUs"
     fi
 
     # Cleanup

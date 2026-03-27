@@ -64,7 +64,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection and boosting
 if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Boosting occurred with default period"
+    pass "Boosting occurred with default period"
 
     # Try to find period value in logs
     if grep -qi "period" "${STALLD_LOG}"; then
@@ -101,7 +101,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection and boosting
 if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Boosting occurred with custom period ${custom_period} ns"
+    pass "Boosting occurred with custom period ${custom_period} ns"
 else
     log "✗ FAIL: No boosting with custom period"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -131,7 +131,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection and boosting
 if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Boosting occurred with short period ${short_period} ns"
+    pass "Boosting occurred with short period ${short_period} ns"
 else
     log "✗ FAIL: No boosting with short period"
     TEST_FAILED=$((TEST_FAILED + 1))
@@ -161,7 +161,7 @@ start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection and boosting
 if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "✓ PASS: Boosting occurred with long period ${long_period} ns"
+    pass "Boosting occurred with long period ${long_period} ns"
 else
     log "✗ FAIL: No boosting with long period"
     TEST_FAILED=$((TEST_FAILED + 1))
