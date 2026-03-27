@@ -33,16 +33,7 @@ echo "Test 1: Verbose mode (-v) logs to stdout"
 LOG_FILE="/tmp/stalld_test_verbose_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
 
-# Start stalld directly (not using start_stalld helper) to capture output
-# Add backend flag if specified via test runner
-BACKEND_FLAG=""
-if [ -n "${STALLD_TEST_BACKEND}" ]; then
-	BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
-fi
-"${TEST_ROOT}/../stalld" -f -v ${BACKEND_FLAG} -l -t 5 > "${LOG_FILE}" 2>&1 &
-STALLD_PID=$!
-CLEANUP_PIDS+=("${STALLD_PID}")
-sleep 2
+start_stalld_with_log "${LOG_FILE}" -f -v -l -t 5
 
 if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 	# Check that output was written to our log file
@@ -160,11 +151,7 @@ echo "Test 4: Combined logging modes"
 LOG_FILE="/tmp/stalld_test_combined_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
 
-# Start stalld directly (not using start_stalld helper) to capture output
-"${TEST_ROOT}/../stalld" -f -v -k -s ${BACKEND_FLAG} -l -t 5 > "${LOG_FILE}" 2>&1 &
-STALLD_PID=$!
-CLEANUP_PIDS+=("${STALLD_PID}")
-sleep 2
+start_stalld_with_log "${LOG_FILE}" -f -v -k -s -l -t 5
 
 if assert_process_running "${STALLD_PID}" "stalld with combined logging should be running"; then
 	# Verify verbose output
