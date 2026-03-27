@@ -25,24 +25,6 @@ check_rt_throttling
 STALLD_LOG="/tmp/stalld_cpu_selection_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG}")
 
-# Helper to start stalld with output capture
-start_stalld_with_output() {
-    local args="$@"
-
-    # Add backend option if specified
-    if [ -n "${STALLD_TEST_BACKEND}" ]; then
-        args="-b ${STALLD_TEST_BACKEND} ${args}"
-        echo "Using backend: ${STALLD_TEST_BACKEND}"
-    fi
-
-    # Start stalld with output redirected
-    ${TEST_ROOT}/../stalld ${args} > "${STALLD_LOG}" 2>&1 &
-    STALLD_PID=$!
-    CLEANUP_PIDS+=("${STALLD_PID}")
-    sleep 1
-    echo "stalld started with PID ${STALLD_PID}"
-}
-
 # Get available CPUs
 num_cpus=$(nproc)
 if [ "$num_cpus" -lt 2 ]; then
@@ -56,8 +38,7 @@ echo "System has $num_cpus CPUs"
 echo ""
 echo "Test 1: Single CPU monitoring (-c 0)"
 rm -f "${STALLD_LOG}"
-start_stalld_with_output -f -v -c 0 -l -t 5
-sleep 2
+start_stalld_with_log "${STALLD_LOG}" -f -v -c 0 -l -t 5
 
 # Check that stalld mentions CPU 0
 if grep -q "cpu 0" "$STALLD_LOG"; then
@@ -74,8 +55,7 @@ if [ "$num_cpus" -ge 4 ]; then
     echo ""
     echo "Test 2: CPU list monitoring (-c 0,2)"
     rm -f "${STALLD_LOG}"
-    start_stalld_with_output -f -v -c 0,2 -l -t 5
-    sleep 2
+    start_stalld_with_log "${STALLD_LOG}" -f -v -c 0,2 -l -t 5
 
     # Check for CPU 0 and CPU 2 in output
     cpu0_found=0
@@ -104,8 +84,7 @@ if [ "$num_cpus" -ge 4 ]; then
     echo ""
     echo "Test 3: CPU range monitoring (-c 0-2)"
     rm -f "${STALLD_LOG}"
-    start_stalld_with_output -f -v -c 0-2 -l -t 5
-    sleep 2
+    start_stalld_with_log "${STALLD_LOG}" -f -v -c 0-2 -l -t 5
 
     # Check for CPUs 0, 1, 2 in output
     cpu0_found=0
@@ -138,8 +117,7 @@ if [ "$num_cpus" -ge 6 ]; then
     echo ""
     echo "Test 4: Combined format (-c 0,2-4)"
     rm -f "${STALLD_LOG}"
-    start_stalld_with_output -f -v -c 0,2-4 -l -t 5
-    sleep 2
+    start_stalld_with_log "${STALLD_LOG}" -f -v -c 0,2-4 -l -t 5
 
     # Should monitor CPUs 0, 2, 3, 4
     monitored_cpus=0
@@ -171,24 +149,14 @@ INVALID_LOG="/tmp/stalld_invalid_cpu_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
 
 # Run stalld with invalid CPU and capture output
-"${TEST_ROOT}/../stalld" -f -v -c $invalid_cpu -l -t 5 > "${INVALID_LOG}" 2>&1 &
-INVALID_PID=$!
+timeout 5 "${TEST_ROOT}/../stalld" -f -v -c $invalid_cpu -l -t 5 > "${INVALID_LOG}" 2>&1
+ret=$?
 
-# Wait a bit to see if it exits or produces error
-sleep 2
-
-if ! kill -0 "$INVALID_PID" 2>/dev/null; then
-    # Process exited - check for error message
-    if grep -qi "error\|invalid\|failed" "$INVALID_LOG"; then
-        assert_equals "1" "1" "stalld rejected invalid CPU number with error"
-    else
-        assert_equals "1" "1" "stalld exited when given invalid CPU"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "stalld rejected invalid CPU number"
 else
-    # Process still running - it might have ignored the invalid CPU
-    echo -e "  ${YELLOW}WARNING${NC}: stalld still running with invalid CPU (may have ignored it)"
-    kill -TERM "$INVALID_PID" 2>/dev/null
-    wait "$INVALID_PID" 2>/dev/null
+    log "✗ FAIL: stalld did not reject invalid CPU"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Test 6: Verify non-selected CPUs are NOT monitored
@@ -196,8 +164,7 @@ if [ "$num_cpus" -ge 2 ]; then
     echo ""
     echo "Test 6: Verify non-selected CPUs not monitored (-c 0)"
     rm -f "${STALLD_LOG}"
-    start_stalld_with_output -f -v -c 0 -l -t 5
-    sleep 2
+    start_stalld_with_log "${STALLD_LOG}" -f -v -c 0 -l -t 5
 
     # Check that CPU 1 is NOT mentioned (or mentioned as "not monitoring")
     if ! grep -q "cpu 1" "$STALLD_LOG" || grep -q "not monitoring.*cpu 1" "$STALLD_LOG"; then
