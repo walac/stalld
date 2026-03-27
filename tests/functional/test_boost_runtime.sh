@@ -196,22 +196,14 @@ if [ -n "${STALLD_TEST_BACKEND}" ]; then
 fi
 
 log "Testing with runtime ${invalid_runtime}ns > period ${period}ns"
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r ${invalid_runtime} -p ${period} > "${INVALID_LOG}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r ${invalid_runtime} -p ${period} > "${INVALID_LOG}" 2>&1
+ret=$?
 
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    # Process exited - this is expected behavior
-    if grep -qi "error\|invalid\|failed" "${INVALID_LOG}"; then
-        log "✓ PASS: Runtime > period rejected with error"
-    else
-        log "ℹ INFO: Runtime > period caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Runtime > period rejected with error"
 else
-    # Process still running - might be accepted or might fail later
-    log "⚠ WARNING: stalld accepted runtime > period"
-    kill -TERM "${invalid_pid}" 2>/dev/null || true
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid runtime > period"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 #=============================================================================
@@ -226,20 +218,14 @@ INVALID_LOG2="/tmp/stalld_test_boost_runtime_invalid2_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG2}")
 
 log "Testing with runtime = 0"
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r 0 > "${INVALID_LOG2}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r 0 > "${INVALID_LOG2}" 2>&1
+ret=$?
 
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    if grep -qi "error\|invalid" "${INVALID_LOG2}"; then
-        log "✓ PASS: Zero runtime rejected with error"
-    else
-        log "ℹ INFO: Zero runtime caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Zero runtime rejected with error"
 else
-    log "⚠ WARNING: stalld accepted zero runtime"
-    kill -TERM "${invalid_pid}" 2>/dev/null || true
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid runtime value 0"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 #=============================================================================
@@ -254,20 +240,14 @@ INVALID_LOG3="/tmp/stalld_test_boost_runtime_invalid3_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG3}")
 
 log "Testing with runtime = -5000"
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r -5000 > "${INVALID_LOG3}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r -5000 > "${INVALID_LOG3}" 2>&1
+ret=$?
 
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    if grep -qi "error\|invalid" "${INVALID_LOG3}"; then
-        log "✓ PASS: Negative runtime rejected with error"
-    else
-        log "ℹ INFO: Negative runtime caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Negative runtime rejected with error"
 else
-    log "⚠ WARNING: stalld accepted negative runtime"
-    kill -TERM "${invalid_pid}" 2>/dev/null || true
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid negative runtime"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 log ""

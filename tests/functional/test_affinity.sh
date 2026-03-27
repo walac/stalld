@@ -264,22 +264,14 @@ if [ -n "${STALLD_TEST_BACKEND}" ]; then
     BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
 fi
 
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 -a ${invalid_cpu} > "${INVALID_LOG}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 -a ${invalid_cpu} > "${INVALID_LOG}" 2>&1
+ret=$?
 
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    # Process exited
-    if grep -qi "error\|invalid\|failed" "${INVALID_LOG}"; then
-        log "✓ PASS: Invalid CPU affinity rejected with error"
-    else
-        log "ℹ INFO: Invalid CPU affinity caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Invalid CPU affinity rejected with error"
 else
-    # Process still running - might have been ignored
-    log "⚠ WARNING: stalld accepted invalid CPU affinity"
-    kill -TERM "${invalid_pid}" 2>/dev/null || true
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid CPU affinity"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 #=============================================================================

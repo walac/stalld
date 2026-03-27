@@ -189,20 +189,14 @@ if [ -n "${STALLD_TEST_BACKEND}" ]; then
     BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
 fi
 
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p 0 > "${INVALID_LOG}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p 0 > "${INVALID_LOG}" 2>&1
+ret=$?
 
-if ! kill -0 "$invalid_pid" 2>/dev/null; then
-    if grep -qi "error\|invalid" "${INVALID_LOG}"; then
-        log "✓ PASS: Zero period rejected with error"
-    else
-        log "ℹ INFO: Zero period caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Zero period rejected with error"
 else
-    log "⚠ WARNING: stalld accepted zero period"
-    kill -TERM "$invalid_pid" 2>/dev/null || true
-    wait "$invalid_pid" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid period value 0"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 #=============================================================================
@@ -216,20 +210,14 @@ log "=========================================="
 INVALID_LOG2="/tmp/stalld_test_boost_period_invalid2_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG2}")
 
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p -1000000 > "${INVALID_LOG2}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p -1000000 > "${INVALID_LOG2}" 2>&1
+ret=$?
 
-if ! kill -0 "$invalid_pid" 2>/dev/null; then
-    if grep -qi "error\|invalid" "${INVALID_LOG2}"; then
-        log "✓ PASS: Negative period rejected with error"
-    else
-        log "ℹ INFO: Negative period caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Negative period rejected with error"
 else
-    log "⚠ WARNING: stalld accepted negative period"
-    kill -TERM "$invalid_pid" 2>/dev/null || true
-    wait "$invalid_pid" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid negative period"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 #=============================================================================

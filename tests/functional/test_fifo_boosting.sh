@@ -331,19 +331,14 @@ CLEANUP_FILES+=("${STALLD_LOG_FAIL}")
 
 # Try to start stalld with -F but without -A (single-threaded mode)
 # This should fail because single-threaded mode only works with DEADLINE
-${TEST_ROOT}/../stalld -f -v -F -t 5 -c ${TEST_CPU} > "${STALLD_LOG_FAIL}" 2>&1 &
-FAIL_PID=$!
+timeout 5 ${TEST_ROOT}/../stalld -f -v -F -t 5 -c ${TEST_CPU} > "${STALLD_LOG_FAIL}" 2>&1
+ret=$?
 
-# Wait a bit for it to fail
-sleep 3
-
-# Check if it's still running (it shouldn't be)
-if ps -p ${FAIL_PID} > /dev/null 2>&1; then
-    log "⚠ WARNING: stalld is still running (should have exited)"
-    kill -TERM ${FAIL_PID} 2>/dev/null
-    wait ${FAIL_PID} 2>/dev/null
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "stalld exited as expected"
 else
-    log "✓ PASS: stalld exited as expected"
+    log "✗ FAIL: stalld did not reject FIFO in single-threaded mode"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Check for error message in log

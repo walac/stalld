@@ -187,20 +187,14 @@ log "Testing with threshold = 0"
 INVALID_LOG="/tmp/stalld_test_threshold_invalid_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
 
-${TEST_ROOT}/../stalld -f -v -t 0 > "${INVALID_LOG}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v -t 0 > "${INVALID_LOG}" 2>&1
+ret=$?
 
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    if grep -qi "error\|invalid" "${INVALID_LOG}"; then
-        log "✓ PASS: Zero threshold rejected with error"
-    else
-        log "ℹ INFO: Zero threshold caused exit (may have been rejected)"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Zero threshold rejected with error"
 else
-    log "⚠ WARNING: stalld accepted zero threshold"
-    kill -TERM "${invalid_pid}" 2>/dev/null
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid threshold value 0"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Test with negative threshold
@@ -208,20 +202,14 @@ log "Testing with threshold = -5"
 INVALID_LOG2="/tmp/stalld_test_threshold_invalid2_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG2}")
 
-${TEST_ROOT}/../stalld -f -v -t -5 > "${INVALID_LOG2}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v -t -5 > "${INVALID_LOG2}" 2>&1
+ret=$?
 
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    if grep -qi "error\|invalid" "${INVALID_LOG2}"; then
-        log "✓ PASS: Negative threshold rejected with error"
-    else
-        log "ℹ INFO: Negative threshold caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Negative threshold rejected with error"
 else
-    log "⚠ WARNING: stalld accepted negative threshold"
-    kill -TERM "${invalid_pid}" 2>/dev/null
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid negative threshold"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 log ""

@@ -215,23 +215,14 @@ if [ -n "${STALLD_TEST_BACKEND}" ]; then
 fi
 
 log "Testing invalid pidfile path: ${invalid_pidfile}"
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 --pidfile "${invalid_pidfile}" > "${INVALID_LOG}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 --pidfile "${invalid_pidfile}" > "${INVALID_LOG}" 2>&1
+ret=$?
 
-# Check if stalld is still running
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    # Process exited
-    if grep -qi "error\|permission\|denied\|failed" "${INVALID_LOG}"; then
-        log "✓ PASS: Invalid pidfile path rejected with error"
-    else
-        log "ℹ INFO: Invalid pidfile path caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Invalid pidfile path rejected with error"
 else
-    # Process still running - might have accepted it or created elsewhere
-    log "⚠ WARNING: stalld running despite potentially invalid pidfile path"
-    kill -TERM "${invalid_pid}" 2>/dev/null || true
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid pidfile path"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Cleanup

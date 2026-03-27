@@ -196,20 +196,14 @@ if [ -n "${STALLD_TEST_BACKEND}" ]; then
     BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
 fi
 
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -d 0 > "${INVALID_LOG}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -d 0 > "${INVALID_LOG}" 2>&1
+ret=$?
 
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    if grep -qi "error\|invalid" "${INVALID_LOG}"; then
-        log "✓ PASS: Zero duration rejected with error"
-    else
-        log "ℹ INFO: Zero duration caused exit (may have been rejected)"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Zero duration rejected with error"
 else
-    log "⚠ WARNING: stalld accepted zero duration"
-    kill -TERM "${invalid_pid}" 2>/dev/null || true
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid duration value 0"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 # Test 6: Negative duration
@@ -217,20 +211,14 @@ log "Testing with duration = -5"
 INVALID_LOG2="/tmp/stalld_test_boost_duration_invalid2_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG2}")
 
-${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -d -5 > "${INVALID_LOG2}" 2>&1 &
-invalid_pid=$!
-sleep 2
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -d -5 > "${INVALID_LOG2}" 2>&1
+ret=$?
 
-if ! kill -0 "${invalid_pid}" 2>/dev/null; then
-    if grep -qi "error\|invalid" "${INVALID_LOG2}"; then
-        log "✓ PASS: Negative duration rejected with error"
-    else
-        log "ℹ INFO: Negative duration caused exit"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "Negative duration rejected with error"
 else
-    log "⚠ WARNING: stalld accepted negative duration"
-    kill -TERM "${invalid_pid}" 2>/dev/null || true
-    wait "${invalid_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject invalid negative duration"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 log ""
