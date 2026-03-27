@@ -130,14 +130,12 @@ assert_equals() {
 	local message=${3:-""}
 
 	if [ "${expected}" == "${actual}" ]; then
-		echo -e "  ${GREEN}PASS${NC}: ${message}"
-		TEST_PASSED=$((TEST_PASSED + 1))
+		pass "${message}"
 		return 0
 	else
-		echo -e "  ${RED}FAIL${NC}: ${message}"
-		echo "    Expected: ${expected}"
-		echo "    Actual:   ${actual}"
-		TEST_FAILED=$((TEST_FAILED + 1))
+		fail "${message}"
+		log "    Expected: ${expected}"
+		log "    Actual:   ${actual}"
 		return 1
 	fi
 }
@@ -148,13 +146,11 @@ assert_contains() {
 	local message=${3:-""}
 
 	if echo "${haystack}" | grep -q "${needle}"; then
-		echo -e "  ${GREEN}PASS${NC}: ${message}"
-		TEST_PASSED=$((TEST_PASSED + 1))
+		pass "${message}"
 		return 0
 	else
-		echo -e "  ${RED}FAIL${NC}: ${message}"
-		echo "    String '${needle}' not found"
-		TEST_FAILED=$((TEST_FAILED + 1))
+		fail "${message}"
+		log "    String '${needle}' not found"
 		return 1
 	fi
 }
@@ -165,13 +161,11 @@ assert_not_contains() {
 	local message=${3:-""}
 
 	if ! echo "${haystack}" | grep -q "${needle}"; then
-		echo -e "  ${GREEN}PASS${NC}: ${message}"
-		TEST_PASSED=$((TEST_PASSED + 1))
+		pass "${message}"
 		return 0
 	else
-		echo -e "  ${RED}FAIL${NC}: ${message}"
-		echo "    String '${needle}' found but should not be present"
-		TEST_FAILED=$((TEST_FAILED + 1))
+		fail "${message}"
+		log "    String '${needle}' found but should not be present"
 		return 1
 	fi
 }
@@ -181,12 +175,10 @@ assert_file_exists() {
 	local message=${2:-"File should exist: ${file}"}
 
 	if [ -f "${file}" ]; then
-		echo -e "  ${GREEN}PASS${NC}: ${message}"
-		TEST_PASSED=$((TEST_PASSED + 1))
+		pass "${message}"
 		return 0
 	else
-		echo -e "  ${RED}FAIL${NC}: ${message}"
-		TEST_FAILED=$((TEST_FAILED + 1))
+		fail "${message}"
 		return 1
 	fi
 }
@@ -196,12 +188,10 @@ assert_file_not_exists() {
 	local message=${2:-"File should not exist: ${file}"}
 
 	if [ ! -f "${file}" ]; then
-		echo -e "  ${GREEN}PASS${NC}: ${message}"
-		TEST_PASSED=$((TEST_PASSED + 1))
+		pass "${message}"
 		return 0
 	else
-		echo -e "  ${RED}FAIL${NC}: ${message}"
-		TEST_FAILED=$((TEST_FAILED + 1))
+		fail "${message}"
 		return 1
 	fi
 }
@@ -211,12 +201,10 @@ assert_process_running() {
 	local message=${2:-"Process ${pid} should be running"}
 
 	if kill -0 ${pid} 2>/dev/null; then
-		echo -e "  ${GREEN}PASS${NC}: ${message}"
-		TEST_PASSED=$((TEST_PASSED + 1))
+		pass "${message}"
 		return 0
 	else
-		echo -e "  ${RED}FAIL${NC}: ${message}"
-		TEST_FAILED=$((TEST_FAILED + 1))
+		fail "${message}"
 		return 1
 	fi
 }
@@ -226,12 +214,10 @@ assert_process_not_running() {
 	local message=${2:-"Process ${pid} should not be running"}
 
 	if ! kill -0 ${pid} 2>/dev/null; then
-		echo -e "  ${GREEN}PASS${NC}: ${message}"
-		TEST_PASSED=$((TEST_PASSED + 1))
+		pass "${message}"
 		return 0
 	else
-		echo -e "  ${RED}FAIL${NC}: ${message}"
-		TEST_FAILED=$((TEST_FAILED + 1))
+		fail "${message}"
 		return 1
 	fi
 }
