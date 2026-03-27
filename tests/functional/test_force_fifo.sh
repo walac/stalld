@@ -214,22 +214,14 @@ FIFO_SINGLE_LOG="/tmp/stalld_test_force_fifo_single_$$.log"
 CLEANUP_FILES+=("${FIFO_SINGLE_LOG}")
 
 log "Testing single-threaded mode with -F (should exit)"
-${TEST_ROOT}/../stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F > "${FIFO_SINGLE_LOG}" 2>&1 &
-fifo_pid=$!
-sleep 3
+timeout 5 ${TEST_ROOT}/../stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F > "${FIFO_SINGLE_LOG}" 2>&1
+ret=$?
 
-if ! kill -0 "${fifo_pid}" 2>/dev/null; then
-    # Process exited - this is expected
-    if grep -qi "error\|single.*thread\|not.*support" "${FIFO_SINGLE_LOG}"; then
-        log "✓ PASS: Single-threaded mode rejected FIFO with error message"
-    else
-        log "✓ PASS: Single-threaded mode with FIFO caused exit (as expected)"
-    fi
+if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+    assert_equals "1" "1" "single-threaded mode rejected FIFO"
 else
-    # Process still running - unexpected
-    log "⚠ WARNING: Single-threaded mode accepted FIFO (may have switched to multi-threaded)"
-    kill -TERM "${fifo_pid}" 2>/dev/null
-    wait "${fifo_pid}" 2>/dev/null || true
+    log "✗ FAIL: stalld did not reject -F in single-threaded mode"
+    TEST_FAILED=$((TEST_FAILED + 1))
 fi
 
 #=============================================================================
