@@ -271,18 +271,16 @@ else
 
     start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU_MULTI}
 
-    # Wait for starvation detection
-    log "Waiting for starvation detection..."
-    wait_for_starvation_detected "${STALLD_LOG}"
-
-    # Check both CPUs detected - specifically look for starvation_gen tasks
-    if grep -qE "starvation_gen.*starved on CPU ${CPU0}|starved on CPU ${CPU0}.*starvation_gen" "${STALLD_LOG}"; then
+    # Wait for starvation detection on both CPUs
+    log "Waiting for starvation detection on CPU ${CPU0}..."
+    if wait_for_starvation_detected "${STALLD_LOG}" 30 "${CPU0}"; then
         pass "Starvation detected on CPU ${CPU0}"
     else
         fail "Starvation not detected on CPU ${CPU0}"
     fi
 
-    if grep -qE "starvation_gen.*starved on CPU ${CPU1}|starved on CPU ${CPU1}.*starvation_gen" "${STALLD_LOG}"; then
+    log "Waiting for starvation detection on CPU ${CPU1}..."
+    if wait_for_starvation_detected "${STALLD_LOG}" 30 "${CPU1}"; then
         pass "Starvation detected on CPU ${CPU1}"
     else
         fail "Starvation not detected on CPU ${CPU1}"

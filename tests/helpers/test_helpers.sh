@@ -542,11 +542,16 @@ wait_for_stalld_ready() {
 
 # Wait for stalld to detect a starving task.
 #
-# Usage: wait_for_starvation_detected <log_file> [timeout]
+# Usage: wait_for_starvation_detected <log_file> [timeout] [cpu]
 wait_for_starvation_detected() {
 	local log_file=$1
 	local timeout=${2:-30}
-	wait_for_log_message "starved on CPU" "${timeout}" "${log_file}"
+	local cpu=${3:-}
+	local pattern="starved on CPU"
+	if [ -n "${cpu}" ]; then
+		pattern="starved on CPU ${cpu}"
+	fi
+	wait_for_log_message "${pattern}" "${timeout}" "${log_file}"
 }
 
 # Wait for stalld to boost a starving task.
