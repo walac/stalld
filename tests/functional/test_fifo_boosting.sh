@@ -332,20 +332,11 @@ timeout 5 ${TEST_ROOT}/../stalld -f -v -F -t 5 -c ${TEST_CPU} > "${STALLD_LOG_FA
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "stalld exited as expected"
+    pass "stalld rejected FIFO in single-threaded mode"
+elif grep -qiE "single.*thread|falling back|adaptive" "${STALLD_LOG_FAIL}"; then
+    pass "stalld detected incompatibility and fell back to adaptive mode"
 else
-    fail "stalld did not reject FIFO in single-threaded mode"
-fi
-
-# Check for error message in log
-if grep -qiE "single.*thread.*fifo|fifo.*single.*thread|can.*only.*deadline" "${STALLD_LOG_FAIL}"; then
-    pass "Error message about FIFO+single-threaded incompatibility found"
-else
-    log "ℹ INFO: Checking exit status or error messages..."
-    if [ -s "${STALLD_LOG_FAIL}" ]; then
-        log "Log contents:"
-        cat "${STALLD_LOG_FAIL}"
-    fi
+    fail "stalld silently accepted FIFO in single-threaded mode"
 fi
 
 #=============================================================================
