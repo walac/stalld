@@ -192,12 +192,8 @@ log "=========================================="
 log "Test 6: Invalid pidfile path (permission denied)"
 log "=========================================="
 
-# Create a directory with no write permissions
-test_dir="/tmp/stalld_test_no_write_$$"
-mkdir -p "${test_dir}"
-chmod 555 "${test_dir}"
-invalid_pidfile="${test_dir}/stalld.pid"
-CLEANUP_FILES+=("${test_dir}")
+# Use a non-existent parent directory so fopen() fails even as root
+invalid_pidfile="/nonexistent_${$}/stalld.pid"
 
 INVALID_LOG="/tmp/stalld_test_pidfile_invalid_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
