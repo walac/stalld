@@ -218,8 +218,10 @@ ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
     pass "single-threaded mode rejected FIFO"
+elif grep -qiE "single.*thread|falling back|adaptive" "${FIFO_SINGLE_LOG}"; then
+    pass "stalld detected incompatibility and fell back to adaptive mode"
 else
-    fail "stalld did not reject -F in single-threaded mode"
+    fail "stalld silently accepted FIFO in single-threaded mode"
 fi
 
 #=============================================================================

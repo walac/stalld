@@ -537,7 +537,7 @@ wait_for_log_message() {
 wait_for_stalld_ready() {
 	local log_file=$1
 	local timeout=${2:-15}
-	wait_for_log_message "checking cpu\|waiting tasks" "${timeout}" "${log_file}"
+	wait_for_log_message "checking cpu\|waiting tasks\|skipping" "${timeout}" "${log_file}"
 }
 
 # Wait for stalld to detect a starving task.
