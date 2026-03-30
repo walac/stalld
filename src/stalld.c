@@ -1166,11 +1166,9 @@ int main(int argc, char **argv)
 
 	parse_args(argc, argv);
 
-	/*
-	 * it will not die...
-	 */
 	if (config_affinity_cpus)
-		set_cpu_affinity(config_affinity_cpus);
+		if (set_cpu_affinity(config_affinity_cpus))
+			die("invalid CPU affinity: %s\n", config_affinity_cpus);
 
 	if (!check_dl_server_dir_exists())
 		log_msg("DL-server detected.\n");
