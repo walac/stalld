@@ -338,16 +338,16 @@ sleep 1
 #=============================================================================
 test_section "Test 5: Graceful Handling of Task Exit During Boost"
 
-threshold=10
-boost_duration=5  # Task will exit during boost (after 8s, boost is 5s)
+threshold=5
+boost_duration=5
 
 log "Starting stalld with ${threshold}s threshold, ${boost_duration}s boost (task will exit during boost)"
 rm -f "${STALLD_LOG}"
 start_stalld_with_log "${STALLD_LOG}" -f -v -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration} -N -i "kworker"
 
-# Create starvation that exits after threshold - 2s (so 8s)
-# This ensures the task exits DURING the boost period
-short_duration=$((threshold - 2))
+# Task must survive past the threshold to be detected and boosted,
+# then exit during the boost window.
+short_duration=$((threshold + 3))
 log "Creating starvation that will exit after ${short_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d ${short_duration}
 
