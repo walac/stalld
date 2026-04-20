@@ -108,33 +108,14 @@ cleanup_scenario "${STARVE_PID}"
 #=============================================================================
 test_section "Test 5: Invalid period value (0)"
 
-INVALID_LOG="/tmp/stalld_test_boost_period_invalid_$$.log"
-CLEANUP_FILES+=("${INVALID_LOG}")
-
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p 0 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Zero period rejected with error"
-else
-    fail "stalld did not reject invalid period value 0"
-fi
+assert_stalld_rejects "Zero period rejected with error" -f -v -t $threshold -p 0
 
 #=============================================================================
 # Test 6: Negative period
 #=============================================================================
 test_section "Test 6: Invalid period value (negative)"
 
-rm -f "${INVALID_LOG}"
-
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p -1000000 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Negative period rejected with error"
-else
-    fail "stalld did not reject invalid negative period"
-fi
+assert_stalld_rejects "Negative period rejected with error" -f -v -t $threshold -p -1000000
 
 #=============================================================================
 # Final Summary

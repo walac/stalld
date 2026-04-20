@@ -106,32 +106,11 @@ cleanup_scenario "${STARVE_PID}"
 #=============================================================================
 test_section "Test 5: Invalid duration values"
 
-# Test with zero duration
 log "Testing with duration = 0"
-INVALID_LOG="/tmp/stalld_test_boost_duration_invalid_$$.log"
-CLEANUP_FILES+=("${INVALID_LOG}")
+assert_stalld_rejects "Zero duration rejected with error" -f -v -t ${threshold} -d 0
 
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -d 0 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Zero duration rejected with error"
-else
-    fail "stalld did not reject invalid duration value 0"
-fi
-
-# Test 6: Negative duration
 log "Testing with duration = -5"
-rm -f "${INVALID_LOG}"
-
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -d -5 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Negative duration rejected with error"
-else
-    fail "stalld did not reject invalid negative duration"
-fi
+assert_stalld_rejects "Negative duration rejected with error" -f -v -t ${threshold} -d -5
 
 log ""
 log "All boost duration tests completed"

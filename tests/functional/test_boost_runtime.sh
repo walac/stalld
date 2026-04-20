@@ -107,52 +107,25 @@ test_section "Test 5: Runtime > period (invalid)"
 
 invalid_runtime=2000000000
 period=1000000000
-INVALID_LOG="/tmp/stalld_test_boost_runtime_invalid_$$.log"
-CLEANUP_FILES+=("${INVALID_LOG}")
 
 log "Testing with runtime ${invalid_runtime}ns > period ${period}ns"
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r ${invalid_runtime} -p ${period} > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Runtime > period rejected with error"
-else
-    fail "stalld did not reject invalid runtime > period"
-fi
+assert_stalld_rejects "Runtime > period rejected with error" -f -v -t ${threshold} -r ${invalid_runtime} -p ${period}
 
 #=============================================================================
 # Test 6: Invalid runtime (0)
 #=============================================================================
 test_section "Test 6: Invalid runtime value (0)"
 
-rm -f "${INVALID_LOG}"
-
 log "Testing with runtime = 0"
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r 0 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Zero runtime rejected with error"
-else
-    fail "stalld did not reject invalid runtime value 0"
-fi
+assert_stalld_rejects "Zero runtime rejected with error" -f -v -t ${threshold} -r 0
 
 #=============================================================================
 # Test 7: Negative runtime
 #=============================================================================
 test_section "Test 7: Invalid runtime value (negative)"
 
-rm -f "${INVALID_LOG}"
-
 log "Testing with runtime = -5000"
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t ${threshold} -r -5000 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Negative runtime rejected with error"
-else
-    fail "stalld did not reject invalid negative runtime"
-fi
+assert_stalld_rejects "Negative runtime rejected with error" -f -v -t ${threshold} -r -5000
 
 log ""
 log "All boost runtime tests completed"

@@ -191,6 +191,25 @@ assert_boost_detected() {
 	fi
 }
 
+# Assert that stalld rejects invalid arguments and exits non-zero.
+# Usage: assert_stalld_rejects <message> [stalld_args...]
+assert_stalld_rejects() {
+	local message=$1
+	shift
+
+	local log="/tmp/stalld_reject_$$.log"
+	timeout 5 ${TEST_ROOT}/../stalld ${BACKEND_FLAG} "$@" > "${log}" 2>&1
+	local ret=$?
+	if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
+		pass "${message}"
+	else
+		fail "${message}"
+		log "stalld output:"
+		cat "${log}"
+	fi
+	rm -f "${log}"
+}
+
 # Record a test pass with a description message.
 #
 # Usage: pass "description"
@@ -1226,7 +1245,7 @@ start_starvation_gen() {
 }
 
 # Export functions for use in tests
-export -f start_test end_test test_section cleanup_scenario find_starved_child assert_starvation_detected assert_boost_detected
+export -f start_test end_test test_section cleanup_scenario find_starved_child assert_starvation_detected assert_boost_detected assert_stalld_rejects
 export -f pass fail assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running

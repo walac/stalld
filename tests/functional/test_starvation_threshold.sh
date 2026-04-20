@@ -113,32 +113,11 @@ cleanup_scenario "${STARVE_PID}"
 #=============================================================================
 test_section "Test 4: Invalid threshold values"
 
-# Test with zero threshold
 log "Testing with threshold = 0"
-INVALID_LOG="/tmp/stalld_test_threshold_invalid_$$.log"
-CLEANUP_FILES+=("${INVALID_LOG}")
+assert_stalld_rejects "Zero threshold rejected with error" -f -v -t 0
 
-timeout 5 ${TEST_ROOT}/../stalld -f -v -t 0 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Zero threshold rejected with error"
-else
-    fail "stalld did not reject invalid threshold value 0"
-fi
-
-# Test with negative threshold
 log "Testing with threshold = -5"
-rm -f "${INVALID_LOG}"
-
-timeout 5 ${TEST_ROOT}/../stalld -f -v -t -5 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Negative threshold rejected with error"
-else
-    fail "stalld did not reject invalid negative threshold"
-fi
+assert_stalld_rejects "Negative threshold rejected with error" -f -v -t -5
 
 log ""
 log "All starvation threshold tests completed"

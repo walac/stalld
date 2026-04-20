@@ -200,18 +200,7 @@ fi
 #=============================================================================
 test_section "Test 7: Invalid CPU affinity (-a 999)"
 
-invalid_cpu=999
-INVALID_LOG="/tmp/stalld_test_affinity_invalid_$$.log"
-CLEANUP_FILES+=("${INVALID_LOG}")
-
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 -a ${invalid_cpu} > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Invalid CPU affinity rejected with error"
-else
-    fail "stalld did not reject invalid CPU affinity"
-fi
+assert_stalld_rejects "Invalid CPU affinity rejected with error" -f -v -l -t 5 -a 999
 
 #=============================================================================
 # Test 8: Verify affinity persists

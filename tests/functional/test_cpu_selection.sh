@@ -135,19 +135,7 @@ fi
 test_section "Test 5: Invalid CPU number (-c 999)"
 invalid_cpu=999
 
-# Create temporary log file for this specific test
-INVALID_LOG="/tmp/stalld_invalid_cpu_$$.log"
-CLEANUP_FILES+=("${INVALID_LOG}")
-
-# Run stalld with invalid CPU and capture output
-timeout 5 "${TEST_ROOT}/../stalld" -f -v -c $invalid_cpu -l -t 5 > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "stalld rejected invalid CPU number"
-else
-    fail "stalld did not reject invalid CPU"
-fi
+assert_stalld_rejects "stalld rejected invalid CPU number" -f -v -c $invalid_cpu -l -t 5
 
 # Test 6: Verify non-selected CPUs are NOT monitored
 if [ "$num_cpus" -ge 2 ]; then

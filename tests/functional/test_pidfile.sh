@@ -151,21 +151,8 @@ stop_stalld
 #=============================================================================
 test_section "Test 6: Invalid pidfile path (permission denied)"
 
-# Use a non-existent parent directory so fopen() fails even as root
-invalid_pidfile="/nonexistent_${$}/stalld.pid"
-
-INVALID_LOG="/tmp/stalld_test_pidfile_invalid_$$.log"
-CLEANUP_FILES+=("${INVALID_LOG}")
-
-log "Testing invalid pidfile path: ${invalid_pidfile}"
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 --pidfile "${invalid_pidfile}" > "${INVALID_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "Invalid pidfile path rejected with error"
-else
-    fail "stalld did not reject invalid pidfile path"
-fi
+log "Testing invalid pidfile path"
+assert_stalld_rejects "Invalid pidfile path rejected with error" -f -v -l -t 5 --pidfile "/nonexistent_$$/stalld.pid"
 
 #=============================================================================
 # Test 7: Verify pidfile is readable by other processes
