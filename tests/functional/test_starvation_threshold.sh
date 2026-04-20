@@ -71,14 +71,7 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c
 # Wait for starvation detection
 log "Waiting for detection (threshold: ${threshold}s)"
 
-# Check if starvation was detected - specifically look for starvation_gen tasks
-if wait_for_starvation_detected "${STALLD_LOG}"; then
-    pass "Starvation detected after ${threshold}s threshold"
-else
-    fail "Starvation not detected after ${threshold}s threshold"
-    log "Log contents:"
-    cat "${STALLD_LOG}"
-fi
+assert_starvation_detected "${STALLD_LOG}" "Starvation detected after ${threshold}s threshold"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -145,13 +138,7 @@ start_stalld_with_log "${STALLD_LOG3}" -f -v -N -M -g 1 -i "ksoftirqd,kworker" -
 log "Waiting for detection (threshold: ${threshold}s)"
 
 # Check if starvation_gen was detected
-if wait_for_starvation_detected "${STALLD_LOG3}"; then
-    pass "Starvation detected with ${threshold}s threshold"
-else
-    fail "Starvation not detected with ${threshold}s threshold"
-    log "Log contents:"
-    cat "${STALLD_LOG3}"
-fi
+assert_starvation_detected "${STALLD_LOG3}" "Starvation detected with ${threshold}s threshold"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"

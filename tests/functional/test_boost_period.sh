@@ -91,11 +91,7 @@ log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection and boosting
-if wait_for_boost_detected "${STALLD_LOG}"; then
-    pass "Boosting occurred with custom period ${custom_period} ns"
-else
-    fail "No boosting with custom period"
-fi
+assert_boost_detected "${STALLD_LOG}" "Boosting occurred with custom period ${custom_period} ns"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -115,11 +111,7 @@ log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection and boosting
-if wait_for_boost_detected "${STALLD_LOG}"; then
-    pass "Boosting occurred with short period ${short_period} ns"
-else
-    fail "No boosting with short period"
-fi
+assert_boost_detected "${STALLD_LOG}" "Boosting occurred with short period ${short_period} ns"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -139,11 +131,7 @@ log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection and boosting
-if wait_for_boost_detected "${STALLD_LOG}"; then
-    pass "Boosting occurred with long period ${long_period} ns"
-else
-    fail "No boosting with long period"
-fi
+assert_boost_detected "${STALLD_LOG}" "Boosting occurred with long period ${long_period} ns"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"

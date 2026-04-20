@@ -58,13 +58,7 @@ echo "Starvation generator started (PID ${STARVGEN_PID})"
 echo "Waiting for starvation detection..."
 
 # Check if stalld detected the starvation (should log it)
-if wait_for_starvation_detected "${LOG_FILE}"; then
-	pass "stalld detected and logged starvation"
-else
-	fail "stalld did not detect starvation"
-	echo "Log contents:"
-	cat "${LOG_FILE}"
-fi
+assert_starvation_detected "${LOG_FILE}" "stalld detected and logged starvation"
 
 # Check that stalld did NOT boost (should not see "boosted" message with -l)
 if ! grep -q "boosted" "${LOG_FILE}"; then

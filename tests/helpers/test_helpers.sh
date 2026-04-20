@@ -126,6 +126,43 @@ cleanup_scenario() {
 	stop_stalld
 }
 
+# Assert that stalld detects a starving task within the timeout.
+# Usage: assert_starvation_detected <log_file> <message> [timeout] [cpu]
+assert_starvation_detected() {
+	local log_file=$1
+	local message=${2:-"Starvation detected"}
+	local timeout=${3:-30}
+	local cpu=${4:-}
+
+	if wait_for_starvation_detected "${log_file}" "${timeout}" "${cpu}"; then
+		pass "${message}"
+		return 0
+	else
+		fail "${message}"
+		log "Log contents:"
+		cat "${log_file}"
+		return 1
+	fi
+}
+
+# Assert that stalld boosts a starving task within the timeout.
+# Usage: assert_boost_detected <log_file> <message> [timeout]
+assert_boost_detected() {
+	local log_file=$1
+	local message=${2:-"Boost detected"}
+	local timeout=${3:-30}
+
+	if wait_for_boost_detected "${log_file}" "${timeout}"; then
+		pass "${message}"
+		return 0
+	else
+		fail "${message}"
+		log "Log contents:"
+		cat "${log_file}"
+		return 1
+	fi
+}
+
 # Record a test pass with a description message.
 #
 # Usage: pass "description"
@@ -1150,7 +1187,7 @@ start_starvation_gen() {
 }
 
 # Export functions for use in tests
-export -f start_test end_test test_section cleanup_scenario
+export -f start_test end_test test_section cleanup_scenario assert_starvation_detected assert_boost_detected
 export -f pass fail assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running

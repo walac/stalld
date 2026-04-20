@@ -256,18 +256,10 @@ else
 
     # Wait for starvation detection on both CPUs
     log "Waiting for starvation detection on CPU ${CPU0}..."
-    if wait_for_starvation_detected "${STALLD_LOG}" 30 "${CPU0}"; then
-        pass "Starvation detected on CPU ${CPU0}"
-    else
-        fail "Starvation not detected on CPU ${CPU0}"
-    fi
+    assert_starvation_detected "${STALLD_LOG}" "Starvation detected on CPU ${CPU0}" "30" "${CPU0}"
 
     log "Waiting for starvation detection on CPU ${CPU1}..."
-    if wait_for_starvation_detected "${STALLD_LOG}" 30 "${CPU1}"; then
-        pass "Starvation detected on CPU ${CPU1}"
-    else
-        fail "Starvation not detected on CPU ${CPU1}"
-    fi
+    assert_starvation_detected "${STALLD_LOG}" "Starvation detected on CPU ${CPU1}" "30" "${CPU1}"
 
     # Cleanup
     cleanup_scenario "${STARVE_PID0}" "${STARVE_PID1}"

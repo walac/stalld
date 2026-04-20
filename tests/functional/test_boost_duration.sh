@@ -63,11 +63,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection
-if wait_for_starvation_detected "${STALLD_LOG}"; then
-    pass "Starvation detection occurred with default duration"
-else
-    fail "No starvation detection"
-fi
+assert_starvation_detected "${STALLD_LOG}" "Starvation detection occurred with default duration"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -89,11 +85,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection
-if wait_for_starvation_detected "${STALLD_LOG2}"; then
-    pass "Starvation detection with ${short_duration}s duration"
-else
-    fail "No starvation detection with short duration"
-fi
+assert_starvation_detected "${STALLD_LOG2}" "Starvation detection with ${short_duration}s duration"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -117,11 +109,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${long_starvation}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation}
 
 # Wait for starvation detection
-if wait_for_starvation_detected "${STALLD_LOG3}"; then
-    pass "Starvation detection with ${long_duration}s duration"
-else
-    fail "No starvation detection with long duration"
-fi
+assert_starvation_detected "${STALLD_LOG3}" "Starvation detection with ${long_duration}s duration"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -144,11 +132,7 @@ log "Creating starvation on CPU ${TEST_CPU} for 15s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 1 -d 15
 
 # Wait for starvation detection
-if wait_for_starvation_detected "${STALLD_LOG4}"; then
-    pass "Starvation detection with ${duration}s boost duration"
-else
-    fail "No starvation detection"
-fi
+assert_starvation_detected "${STALLD_LOG4}" "Starvation detection with ${duration}s boost duration"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"

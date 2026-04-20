@@ -63,11 +63,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-if wait_for_starvation_detected "${STALLD_LOG}"; then
-    pass "Starvation detection with default runtime"
-else
-    fail "No starvation detection"
-fi
+assert_starvation_detected "${STALLD_LOG}" "Starvation detection with default runtime"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -89,11 +85,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-if wait_for_starvation_detected "${STALLD_LOG2}"; then
-    pass "Starvation detection with custom runtime ${custom_runtime}ns"
-else
-    fail "No starvation detection with custom runtime"
-fi
+assert_starvation_detected "${STALLD_LOG2}" "Starvation detection with custom runtime ${custom_runtime}ns"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -115,11 +107,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-if wait_for_starvation_detected "${STALLD_LOG3}"; then
-    pass "Starvation detection with large runtime ${large_runtime}ns"
-else
-    fail "No starvation detection with large runtime"
-fi
+assert_starvation_detected "${STALLD_LOG3}" "Starvation detection with large runtime ${large_runtime}ns"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -143,11 +131,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-if wait_for_starvation_detected "${STALLD_LOG4}"; then
-    pass "Starvation detection with runtime < period"
-else
-    fail "No starvation detection when runtime < period"
-fi
+assert_starvation_detected "${STALLD_LOG4}" "Starvation detection with runtime < period"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
