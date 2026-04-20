@@ -165,9 +165,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Idle Detection Overhead Reduction
@@ -236,9 +234,7 @@ else
     fi
 
     # Cleanup
-    kill -TERM ${STARVE_PID} 2>/dev/null
-    wait ${STARVE_PID} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID}"
 fi
 
 #=============================================================================

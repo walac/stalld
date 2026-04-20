@@ -70,9 +70,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null || true
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: Short duration (1 second)
@@ -98,9 +96,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null || true
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 3: Long duration (10 seconds)
@@ -128,9 +124,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null || true
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Verify task policy is restored after boost duration
@@ -157,9 +151,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null || true
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 5: Invalid duration values

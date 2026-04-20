@@ -81,9 +81,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: Verify no detection before threshold
@@ -122,9 +120,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 3: Shorter threshold (3 seconds)
@@ -158,9 +154,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Invalid threshold values

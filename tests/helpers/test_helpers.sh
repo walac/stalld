@@ -114,6 +114,18 @@ test_section() {
 	log "=========================================="
 }
 
+# Tear down starvation workloads and stalld between test sections.
+# Usage: cleanup_scenario [PID ...]
+cleanup_scenario() {
+	for pid in "$@"; do
+		if [ -n "$pid" ]; then
+			kill -TERM "$pid" 2>/dev/null || true
+			wait "$pid" 2>/dev/null || true
+		fi
+	done
+	stop_stalld
+}
+
 # Record a test pass with a description message.
 #
 # Usage: pass "description"
@@ -1138,7 +1150,7 @@ start_starvation_gen() {
 }
 
 # Export functions for use in tests
-export -f start_test end_test test_section
+export -f start_test end_test test_section cleanup_scenario
 export -f pass fail assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running

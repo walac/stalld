@@ -124,9 +124,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: Same PID + Same Context Switches = Merged
@@ -194,9 +192,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 3: Task Making Progress (No Merge)
@@ -246,9 +242,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Multiple CPUs with Independent Task Merging
@@ -323,11 +317,7 @@ else
     fi
 
     # Cleanup
-    kill -TERM ${STARVE_PID0} 2>/dev/null
-    kill -TERM ${STARVE_PID1} 2>/dev/null
-    wait ${STARVE_PID0} 2>/dev/null
-    wait ${STARVE_PID1} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID0}" "${STARVE_PID1}"
 fi
 
 #=============================================================================

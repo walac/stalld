@@ -88,9 +88,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: DEADLINE Parameters Verification
@@ -150,9 +148,7 @@ if [ ${boosted_task_found} -eq 0 ]; then
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 3: Task Makes Progress During Boost
@@ -218,9 +214,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Policy Restoration After Boost
@@ -296,9 +290,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 5: Multiple Simultaneous Boosts
@@ -360,11 +352,7 @@ else
     fi
 
     # Cleanup
-    kill -TERM ${STARVE_PID0} 2>/dev/null
-    kill -TERM ${STARVE_PID1} 2>/dev/null
-    wait ${STARVE_PID0} 2>/dev/null
-    wait ${STARVE_PID1} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID0}" "${STARVE_PID1}"
 fi
 
 #=============================================================================

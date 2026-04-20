@@ -78,9 +78,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: FIFO Priority Verification
@@ -131,9 +129,7 @@ if [ ${fifo_task_found} -eq 0 ]; then
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 3: FIFO Emulation Behavior
@@ -182,9 +178,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: FIFO vs DEADLINE Comparison
@@ -232,9 +226,7 @@ fi
 deadline_progress=$((ctxt_after_deadline - ctxt_before_deadline))
 log "DEADLINE progress: ${deadline_progress} context switches"
 
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 # Small delay between tests
 sleep 2
@@ -277,9 +269,7 @@ fi
 fifo_progress=$((ctxt_after_fifo - ctxt_before_fifo))
 log "FIFO progress: ${fifo_progress} context switches"
 
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 # Compare effectiveness
 log ""

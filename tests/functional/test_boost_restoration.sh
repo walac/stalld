@@ -150,8 +150,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: Restore Original RT Policy (SCHED_FIFO)
@@ -261,8 +260,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${BLOCKER_PID} 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${BLOCKER_PID}"
 
 #=============================================================================
 # Test 3: SCHED_OTHER Policy Restoration
@@ -289,8 +287,7 @@ wait ${STARVE_PID} 2>/dev/null || true
 # The starvation_gen output will show if blockees completed
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Restoration Timing Verification
@@ -338,9 +335,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null || true
-wait ${STARVE_PID} 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 # Give stalld time to fully exit before next test
 sleep 1
@@ -392,9 +387,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null || true
-wait ${STARVE_PID} 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Final Summary

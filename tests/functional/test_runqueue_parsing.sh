@@ -121,9 +121,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
     fi
 
     # Cleanup
-    kill -TERM ${STARVE_PID} 2>/dev/null
-    wait ${STARVE_PID} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID}"
 else
     test_section "Test 1: eBPF Backend - SKIPPED"
     log "eBPF backend not available on this system"
@@ -174,9 +172,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     fi
 
     # Cleanup
-    kill -TERM ${STARVE_PID} 2>/dev/null
-    wait ${STARVE_PID} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID}"
 else
     test_section "Test 2: sched_debug Backend - SKIPPED"
     log "sched_debug backend not available on this system"
@@ -204,9 +200,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     bpf_detections=$(count_detected_tasks "${STALLD_LOG_BPF}")
     log "eBPF backend detected: ${bpf_detections} starvation events"
 
-    kill -TERM ${STARVE_PID} 2>/dev/null
-    wait ${STARVE_PID} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID}"
 
     # Small delay between tests
     sleep 2
@@ -223,9 +217,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     sched_detections=$(count_detected_tasks "${STALLD_LOG_SCHED}")
     log "sched_debug backend detected: ${sched_detections} starvation events"
 
-    kill -TERM ${STARVE_PID} 2>/dev/null
-    wait ${STARVE_PID} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID}"
 
     # Compare results
     log ""
@@ -314,9 +306,7 @@ if [ -n "$test_backend" ]; then
     fi
 
     # Cleanup
-    kill -TERM ${STARVE_PID} 2>/dev/null
-    wait ${STARVE_PID} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID}"
 fi
 
 #=============================================================================
@@ -366,9 +356,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     fi
 
     # Cleanup
-    kill -TERM ${STARVE_PID} 2>/dev/null
-    wait ${STARVE_PID} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID}"
 else
     test_section "Test 5: Kernel Format Detection - SKIPPED"
     log "sched_debug backend required for format detection tests"

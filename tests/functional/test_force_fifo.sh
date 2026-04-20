@@ -72,9 +72,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: Force FIFO mode (-F)
@@ -110,9 +108,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 3: Verify FIFO priority setting
@@ -144,9 +140,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Verify FIFO emulation behavior (sleep runtime, restore, sleep remainder)
@@ -183,9 +177,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 5: Single-threaded mode with FIFO (should fail/exit)
@@ -215,9 +207,7 @@ wait_for_boost_detected "${STALLD_LOG_DL}"
 deadline_boosts=$(grep -c "boost" "${STALLD_LOG_DL}" || echo 0)
 log "ℹ INFO: SCHED_DEADLINE boosts: $deadline_boosts"
 
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 # Run with FIFO
 STALLD_LOG_FIFO="/tmp/stalld_test_force_fifo_comparison_$$.log"
@@ -231,9 +221,7 @@ wait_for_boost_detected "${STALLD_LOG_FIFO}"
 fifo_boosts=$(grep -c "boost" "${STALLD_LOG_FIFO}" || echo 0)
 log "ℹ INFO: SCHED_FIFO boosts: $fifo_boosts"
 
-kill -TERM "${STARVE_PID}" 2>/dev/null
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 log "ℹ INFO: Comparison complete (DEADLINE: $deadline_boosts, FIFO: $fifo_boosts)"
 

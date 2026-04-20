@@ -70,9 +70,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null || true
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: Custom runtime (10,000 ns = 10 microseconds, less than default)
@@ -98,9 +96,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null || true
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 3: Larger runtime (100,000 ns = 100 microseconds)
@@ -126,9 +122,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null || true
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Runtime < period (valid configuration)
@@ -156,9 +150,7 @@ else
 fi
 
 # Cleanup
-kill -TERM "${STARVE_PID}" 2>/dev/null || true
-wait "${STARVE_PID}" 2>/dev/null || true
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 5: Runtime > period (should error or be rejected)

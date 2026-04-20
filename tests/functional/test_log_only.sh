@@ -76,9 +76,7 @@ else
 fi
 
 # Cleanup
-kill ${STARVGEN_PID} 2>/dev/null
-wait ${STARVGEN_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVGEN_PID}"
 
 echo ""
 echo "Log file contents:"

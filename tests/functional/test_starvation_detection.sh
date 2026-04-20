@@ -94,9 +94,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 2: Context Switch Count Tracking
@@ -148,9 +146,7 @@ else
 fi
 
 # Cleanup
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
-stop_stalld
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 3: Task Merging (Timestamp Preservation)
@@ -209,8 +205,7 @@ else
 fi
 
 # Cleanup starvation generator
-kill -TERM ${STARVE_PID} 2>/dev/null
-wait ${STARVE_PID} 2>/dev/null
+cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
 # Test 4: Multiple CPUs Detection
@@ -275,11 +270,7 @@ else
     fi
 
     # Cleanup
-    kill -TERM ${STARVE_PID0} 2>/dev/null
-    kill -TERM ${STARVE_PID1} 2>/dev/null
-    wait ${STARVE_PID0} 2>/dev/null
-    wait ${STARVE_PID1} 2>/dev/null
-    stop_stalld
+    cleanup_scenario "${STARVE_PID0}" "${STARVE_PID1}"
 fi
 
 #=============================================================================
