@@ -144,14 +144,7 @@ start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 wait_for_starvation_detected "${STALLD_LOG}"
 
 # Find the starved task PID
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-tracked_pid=""
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/status" ]; then
-        tracked_pid=${child_pid}
-        break
-    fi
-done
+tracked_pid=$(find_starved_child "${STARVE_PID}")
 
 if [ -n "${tracked_pid}" ]; then
     log "Tracking starved task PID ${tracked_pid}"
@@ -208,19 +201,11 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a
 log "Creating starvation that will be boosted"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
+# Find tracked task while it's guaranteed to be starving
+tracked_pid=$(find_starved_child "${STARVE_PID}")
+
 # Wait for starvation detection
 wait_for_starvation_detected "${STALLD_LOG}"
-
-# Find tracked task
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-tracked_pid=""
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/status" ]; then
-        tracked_pid=${child_pid}
-        break
-    fi
-done
-
 if [ -n "${tracked_pid}" ]; then
     # Wait for boost to complete and task to starve again
     sleep 5

@@ -64,14 +64,7 @@ log "Creating starvation with SCHED_FIFO tasks (blocker prio 80, blockee prio 1)
 start_starvation_gen -c ${TEST_CPU} -p 80 -b 1 -n 1 -d 20
 
 # Find the starved task
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-tracked_pid=""
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/sched" ]; then
-        tracked_pid=${child_pid}
-        break
-    fi
-done
+tracked_pid=$(find_starved_child "${STARVE_PID}")
 
 if [ -n "${tracked_pid}" ]; then
     log "Tracking task PID ${tracked_pid}"

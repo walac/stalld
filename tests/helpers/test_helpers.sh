@@ -126,6 +126,34 @@ cleanup_scenario() {
 	stop_stalld
 }
 
+# Find the child of a starvation_gen process most likely to be starving.
+# When multiple children exist, selects the one with the lowest scheduling
+# priority (highest kernel prio value) since that task loses the CPU to
+# higher-priority siblings.
+# Usage: tracked_pid=$(find_starved_child <parent_pid>)
+find_starved_child() {
+	local parent_pid=$1
+	local candidate=""
+	local max_prio=-100
+	local prio
+	for child in $(pgrep -P "${parent_pid}" 2>/dev/null); do
+		if [ -d "/proc/${child}" ]; then
+			prio=$(get_sched_priority "${child}" 2>/dev/null)
+			prio=${prio:--1}
+			if [ "${prio}" -gt "${max_prio}" ] 2>/dev/null; then
+				candidate="${child}"
+				max_prio="${prio}"
+			fi
+		fi
+	done
+
+	if [ -n "${candidate}" ]; then
+		echo "${candidate}"
+		return 0
+	fi
+	return 1
+}
+
 # Assert that stalld detects a starving task within the timeout.
 # Usage: assert_starvation_detected <log_file> <message> [timeout] [cpu]
 assert_starvation_detected() {
@@ -1187,7 +1215,7 @@ start_starvation_gen() {
 }
 
 # Export functions for use in tests
-export -f start_test end_test test_section cleanup_scenario assert_starvation_detected assert_boost_detected
+export -f start_test end_test test_section cleanup_scenario find_starved_child assert_starvation_detected assert_boost_detected
 export -f pass fail assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running

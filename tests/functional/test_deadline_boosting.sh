@@ -114,28 +114,22 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 15
 
+# Try to find the boosted task PID before it gets boosted
+tracked_pid=$(find_starved_child "${STARVE_PID}")
+
 # Wait for boosting
 log "Waiting for boost detection..."
 wait_for_boost_detected "${STALLD_LOG}"
-
-# Try to find the boosted task PID
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-log "Starvation generator children PIDs: ${STARVE_CHILDREN}"
-
 boosted_task_found=0
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/sched" ]; then
-        policy=$(get_sched_policy ${child_pid})
-        log "Child PID ${child_pid} policy: ${policy}"
+if [ -n "${tracked_pid}" ] && [ -f "/proc/${tracked_pid}/sched" ]; then
+    policy=$(get_sched_policy ${tracked_pid})
+    log "Child PID ${tracked_pid} policy: ${policy}"
 
-        # Policy 6 = SCHED_DEADLINE
-        if [ "$policy" = "6" ]; then
-            pass "Task PID ${child_pid} boosted to SCHED_DEADLINE (policy 6)"
-            boosted_task_found=1
-            break
-        fi
+    if [ "$policy" = "6" ]; then
+        pass "Task PID ${tracked_pid} boosted to SCHED_DEADLINE (policy 6)"
+        boosted_task_found=1
     fi
-done
+fi
 
 if [ ${boosted_task_found} -eq 0 ]; then
     log "⚠ INFO: Could not verify DEADLINE policy in /proc (timing issue or boost already expired)"
@@ -166,20 +160,12 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
+# Find a starved task before it gets boosted
+tracked_pid=$(find_starved_child "${STARVE_PID}")
+
 # Wait for boosting
 log "Waiting for boost detection..."
 wait_for_boost_detected "${STALLD_LOG}"
-
-# Find a starved task
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-tracked_pid=""
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/status" ]; then
-        tracked_pid=${child_pid}
-        break
-    fi
-done
-
 if [ -n "${tracked_pid}" ]; then
     log "Tracking task PID ${tracked_pid}"
 
@@ -234,14 +220,7 @@ start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
 
 # Find a starved task and verify initial policy
 sleep 2
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-tracked_pid=""
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/sched" ]; then
-        tracked_pid=${child_pid}
-        break
-    fi
-done
+tracked_pid=$(find_starved_child "${STARVE_PID}")
 
 if [ -n "${tracked_pid}" ]; then
     log "Tracking task PID ${tracked_pid} for policy changes"

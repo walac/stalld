@@ -91,8 +91,7 @@ rm -f "${STALLD_LOG}"
 # Create starvation FIRST
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 15
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-log "Starvation generator children PIDs: ${STARVE_CHILDREN}"
+tracked_pid=$(find_starved_child "${STARVE_PID}")
 
 log "Starting stalld with -F flag (FIFO boosting)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
@@ -102,21 +101,17 @@ log "Waiting for boost detection..."
 wait_for_boost_detected "${STALLD_LOG}"
 
 fifo_task_found=0
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/sched" ]; then
-        policy=$(get_sched_policy ${child_pid})
-        log "Child PID ${child_pid} policy: ${policy} (1=SCHED_FIFO)"
+if [ -n "${tracked_pid}" ] && [ -f "/proc/${tracked_pid}/sched" ]; then
+    policy=$(get_sched_policy ${tracked_pid})
+    log "Child PID ${tracked_pid} policy: ${policy} (1=SCHED_FIFO)"
 
-        # Policy 1 = SCHED_FIFO
-        if [ "$policy" = "1" ]; then
-            priority=$(get_sched_priority ${child_pid})
-            pass "Task PID ${child_pid} boosted to SCHED_FIFO (policy 1)"
-            log "        Priority: ${priority}"
-            fifo_task_found=1
-            break
-        fi
+    if [ "$policy" = "1" ]; then
+        priority=$(get_sched_priority ${tracked_pid})
+        pass "Task PID ${tracked_pid} boosted to SCHED_FIFO (policy 1)"
+        log "        Priority: ${priority}"
+        fifo_task_found=1
     fi
-done
+fi
 
 if [ ${fifo_task_found} -eq 0 ]; then
     log "⚠ INFO: Could not verify FIFO policy in /proc (timing issue or boost already expired)"
@@ -196,14 +191,7 @@ CLEANUP_FILES+=("${STALLD_LOG_DEADLINE}")
 
 # Create starvation FIRST
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 15
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-deadline_tracked_pid=""
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/status" ]; then
-        deadline_tracked_pid=${child_pid}
-        break
-    fi
-done
+deadline_tracked_pid=$(find_starved_child "${STARVE_PID}")
 
 ctxt_before_deadline=0
 if [ -n "${deadline_tracked_pid}" ]; then
@@ -239,14 +227,7 @@ CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
 
 # Create starvation FIRST
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 15
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-fifo_tracked_pid=""
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/status" ]; then
-        fifo_tracked_pid=${child_pid}
-        break
-    fi
-done
+fifo_tracked_pid=$(find_starved_child "${STARVE_PID}")
 
 ctxt_before_fifo=0
 if [ -n "${fifo_tracked_pid}" ]; then

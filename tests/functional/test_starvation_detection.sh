@@ -116,31 +116,22 @@ log "Waiting for starvation detection..."
 wait_for_starvation_detected "${STALLD_LOG}"
 
 # Try to find the starved task PID from starvation_gen children
-# The blockee thread is what gets starved
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-if [ -n "${STARVE_CHILDREN}" ]; then
-    # Get context switch count for one of the starved tasks
-    for child_pid in ${STARVE_CHILDREN}; do
-        if [ -f "/proc/${child_pid}/status" ]; then
-            ctxt_before=$(get_ctxt_switches ${child_pid})
-            log "Found starved task PID ${child_pid}, context switches: ${ctxt_before}"
+tracked_pid=$(find_starved_child "${STARVE_PID}")
+if [ -n "${tracked_pid}" ]; then
+    ctxt_before=$(get_ctxt_switches ${tracked_pid})
+    log "Found starved task PID ${tracked_pid}, context switches: ${ctxt_before}"
 
-            # Wait a bit
-            sleep 2
+    sleep 2
 
-            # Check context switches again - should be same or very low change
-            ctxt_after=$(get_ctxt_switches ${child_pid})
-            log "Context switches after 2s: ${ctxt_after}"
+    ctxt_after=$(get_ctxt_switches ${tracked_pid})
+    log "Context switches after 2s: ${ctxt_after}"
 
-            ctxt_delta=$((ctxt_after - ctxt_before))
-            if [ ${ctxt_delta} -lt 5 ]; then
-                pass "Context switch count remained low (delta: ${ctxt_delta})"
-            else
-                fail "Context switches increased significantly (delta: ${ctxt_delta})"
-            fi
-            break
-        fi
-    done
+    ctxt_delta=$((ctxt_after - ctxt_before))
+    if [ ${ctxt_delta} -lt 5 ]; then
+        pass "Context switch count remained low (delta: ${ctxt_delta})"
+    else
+        fail "Context switches increased significantly (delta: ${ctxt_delta})"
+    fi
 else
     log "⚠ WARNING: Could not find starved task PIDs to verify context switches"
 fi

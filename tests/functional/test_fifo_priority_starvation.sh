@@ -107,16 +107,7 @@ log "Creating FIFO-on-FIFO starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 1 -d 20
 
 # Find the starved task (blockee) PID
-STARVE_CHILDREN=$(pgrep -P ${STARVE_PID} 2>/dev/null)
-blockee_pid=""
-for child_pid in ${STARVE_CHILDREN}; do
-    if [ -f "/proc/${child_pid}/status" ]; then
-        # Check if it's the lower priority task (blockee)
-        # The blockee should have lower priority than blocker
-        blockee_pid=${child_pid}
-        break
-    fi
-done
+blockee_pid=$(find_starved_child "${STARVE_PID}")
 
 ctxt_before=0
 if [ -n "${blockee_pid}" ]; then
