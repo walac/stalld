@@ -47,10 +47,7 @@ CLEANUP_FILES+=("${STALLD_LOG}")
 #=============================================================================
 # Test 1: FIFO Boost with -F Flag
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: FIFO Boost with -F Flag"
-log "=========================================="
+test_section "Test 1: FIFO Boost with -F Flag"
 
 threshold=5
 # Create starvation FIRST (before stalld starts)
@@ -88,10 +85,7 @@ stop_stalld
 #=============================================================================
 # Test 2: FIFO Priority Verification
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: FIFO Priority Verification"
-log "=========================================="
+test_section "Test 2: FIFO Priority Verification"
 
 threshold=5
 rm -f "${STALLD_LOG}"
@@ -144,10 +138,7 @@ stop_stalld
 #=============================================================================
 # Test 3: FIFO Emulation Behavior
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: FIFO Emulation Behavior"
-log "=========================================="
+test_section "Test 3: FIFO Emulation Behavior"
 log "FIFO emulation cycles: boost→sleep(runtime)→restore→sleep(remainder)"
 
 threshold=5
@@ -198,10 +189,7 @@ stop_stalld
 #=============================================================================
 # Test 4: FIFO vs DEADLINE Comparison
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: FIFO vs DEADLINE Effectiveness Comparison"
-log "=========================================="
+test_section "Test 4: FIFO vs DEADLINE Effectiveness Comparison"
 
 threshold=5
 boost_duration=3
@@ -317,10 +305,7 @@ fi
 #=============================================================================
 # Test 5: Single-Threaded Mode Fails with FIFO
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Single-Threaded Mode with FIFO (Should Fail)"
-log "=========================================="
+test_section "Test 5: Single-Threaded Mode with FIFO (Should Fail)"
 
 log "Attempting to start stalld with -F without -A (single-threaded + FIFO)"
 STALLD_LOG_FAIL="/tmp/stalld_test_fifo_fail_$$.log"
@@ -342,10 +327,7 @@ fi
 #=============================================================================
 # Final Summary
 #=============================================================================
-log ""
-log "=========================================="
-log "Test Summary"
-log "=========================================="
+test_section "Test Summary"
 log "Total failures: ${TEST_FAILED}"
 
 end_test

@@ -44,10 +44,7 @@ fi
 #=============================================================================
 # Test 1: Default behavior (should use SCHED_DEADLINE)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Default behavior (no -F, should use SCHED_DEADLINE)"
-log "=========================================="
+test_section "Test 1: Default behavior (no -F, should use SCHED_DEADLINE)"
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (default, no -F)"
@@ -82,10 +79,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Force FIFO mode (-F)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Force FIFO mode (-F)"
-log "=========================================="
+test_section "Test 2: Force FIFO mode (-F)"
 
 # Note: Single-threaded mode only works with SCHED_DEADLINE (dies with FIFO)
 # So we need to use aggressive mode (-A) when testing FIFO
@@ -123,10 +117,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Verify FIFO priority setting
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Verify FIFO priority is set"
-log "=========================================="
+test_section "Test 3: Verify FIFO priority is set"
 
 STALLD_LOG3="/tmp/stalld_test_force_fifo_test3_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG3}")
@@ -160,10 +151,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Verify FIFO emulation behavior (sleep runtime, restore, sleep remainder)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: FIFO emulation behavior"
-log "=========================================="
+test_section "Test 4: FIFO emulation behavior"
 
 boost_duration=3
 long_starvation=12
@@ -202,10 +190,7 @@ stop_stalld
 #=============================================================================
 # Test 5: Single-threaded mode with FIFO (should fail/exit)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Single-threaded mode with FIFO (should fail)"
-log "=========================================="
+test_section "Test 5: Single-threaded mode with FIFO (should fail)"
 
 log "Testing single-threaded mode (-O) with -F (should exit)"
 assert_stalld_rejects "Single-threaded mode rejected FIFO" -f -v -c "${TEST_CPU}" -t ${threshold} -F -O
@@ -213,10 +198,7 @@ assert_stalld_rejects "Single-threaded mode rejected FIFO" -f -v -c "${TEST_CPU}
 #=============================================================================
 # Test 6: Compare effectiveness (informational)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 6: FIFO vs DEADLINE comparison (informational)"
-log "=========================================="
+test_section "Test 6: FIFO vs DEADLINE comparison (informational)"
 
 comparison_duration=2
 comparison_starvation=8

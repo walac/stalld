@@ -50,10 +50,7 @@ CLEANUP_FILES+=("${STALLD_LOG}")
 #=============================================================================
 # Test 1: Basic DEADLINE Boost Detection
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Basic DEADLINE Boost Detection"
-log "=========================================="
+test_section "Test 1: Basic DEADLINE Boost Detection"
 
 threshold=5
 log "Starting stalld with ${threshold}s threshold (default DEADLINE boosting)"
@@ -98,10 +95,7 @@ stop_stalld
 #=============================================================================
 # Test 2: DEADLINE Parameters Verification
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: DEADLINE Parameters Verification"
-log "=========================================="
+test_section "Test 2: DEADLINE Parameters Verification"
 
 threshold=5
 # Custom DEADLINE parameters
@@ -163,10 +157,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Task Makes Progress During Boost
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Task Makes Progress During Boost"
-log "=========================================="
+test_section "Test 3: Task Makes Progress During Boost"
 
 threshold=5
 boost_duration=5
@@ -234,10 +225,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Policy Restoration After Boost
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Policy Restoration After Boost"
-log "=========================================="
+test_section "Test 4: Policy Restoration After Boost"
 
 threshold=5
 boost_duration=3
@@ -315,10 +303,7 @@ stop_stalld
 #=============================================================================
 # Test 5: Multiple Simultaneous Boosts
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Multiple Simultaneous Boosts"
-log "=========================================="
+test_section "Test 5: Multiple Simultaneous Boosts"
 
 if [ ${NUM_CPUS} -lt 2 ]; then
     log "⚠ SKIP: Need at least 2 CPUs for this test (have ${NUM_CPUS})"
@@ -385,10 +370,7 @@ fi
 #=============================================================================
 # Final Summary
 #=============================================================================
-log ""
-log "=========================================="
-log "Test Summary"
-log "=========================================="
+test_section "Test Summary"
 log "Total failures: ${TEST_FAILED}"
 
 end_test

@@ -50,10 +50,7 @@ CLEANUP_FILES+=("${STALLD_LOG}")
 #=============================================================================
 # Test 1: Restore SCHED_FIFO Policy (starvation_gen creates SCHED_FIFO threads)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Restore SCHED_FIFO Policy"
-log "=========================================="
+test_section "Test 1: Restore SCHED_FIFO Policy"
 
 threshold=5
 boost_duration=3
@@ -159,10 +156,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Restore Original RT Policy (SCHED_FIFO)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Restore Original SCHED_FIFO Policy"
-log "=========================================="
+test_section "Test 2: Restore Original SCHED_FIFO Policy"
 log "Creating a SCHED_FIFO task that gets starved, verify restoration"
 
 threshold=5
@@ -273,10 +267,7 @@ stop_stalld
 #=============================================================================
 # Test 3: SCHED_OTHER Policy Restoration
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Restore SCHED_OTHER Policy"
-log "=========================================="
+test_section "Test 3: Restore SCHED_OTHER Policy"
 log "Test that SCHED_OTHER tasks are correctly restored after boosting"
 
 threshold=5
@@ -304,10 +295,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Restoration Timing Verification
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Restoration Timing Verification"
-log "=========================================="
+test_section "Test 4: Restoration Timing Verification"
 
 threshold=5
 boost_duration=4  # 4 second boost
@@ -360,10 +348,7 @@ sleep 1
 #=============================================================================
 # Test 5: Task Exit During Boost
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Graceful Handling of Task Exit During Boost"
-log "=========================================="
+test_section "Test 5: Graceful Handling of Task Exit During Boost"
 
 threshold=10
 boost_duration=5  # Task will exit during boost (after 8s, boost is 5s)
@@ -414,10 +399,7 @@ stop_stalld
 #=============================================================================
 # Final Summary
 #=============================================================================
-log ""
-log "=========================================="
-log "Test Summary"
-log "=========================================="
+test_section "Test Summary"
 log "Total failures: ${TEST_FAILED}"
 
 end_test

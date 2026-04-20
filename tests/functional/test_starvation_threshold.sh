@@ -55,10 +55,7 @@ fi
 #=============================================================================
 # Test 1: Custom threshold (5 seconds)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Custom threshold of 5 seconds"
-log "=========================================="
+test_section "Test 1: Custom threshold of 5 seconds"
 
 threshold=5
 
@@ -91,10 +88,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Verify no detection before threshold
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: No detection before threshold"
-log "=========================================="
+test_section "Test 2: No detection before threshold"
 
 threshold=10
 STALLD_LOG2="/tmp/stalld_test_threshold_test2_$$.log"
@@ -135,10 +129,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Shorter threshold (3 seconds)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Shorter threshold (3 seconds)"
-log "=========================================="
+test_section "Test 3: Shorter threshold (3 seconds)"
 
 threshold=3
 STALLD_LOG3="/tmp/stalld_test_threshold_test3_$$.log"
@@ -174,10 +165,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Invalid threshold values
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Invalid threshold values"
-log "=========================================="
+test_section "Test 4: Invalid threshold values"
 
 # Test with zero threshold
 log "Testing with threshold = 0"

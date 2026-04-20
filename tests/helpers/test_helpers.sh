@@ -105,6 +105,15 @@ end_test() {
 	fi
 }
 
+# Print a section banner for a test sub-section or summary block.
+test_section() {
+	local title="$1"
+	log ""
+	log "=========================================="
+	log "${title}"
+	log "=========================================="
+}
+
 # Record a test pass with a description message.
 #
 # Usage: pass "description"
@@ -1129,7 +1138,7 @@ start_starvation_gen() {
 }
 
 # Export functions for use in tests
-export -f start_test end_test
+export -f start_test end_test test_section
 export -f pass fail assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running

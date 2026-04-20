@@ -34,10 +34,7 @@ CLEANUP_FILES+=("${STALLD_LOG}")
 #=============================================================================
 # Test 1: Default pidfile location (no -P specified)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Default behavior (no -P specified)"
-log "=========================================="
+test_section "Test 1: Default behavior (no -P specified)"
 
 start_stalld -l -t 5
 
@@ -71,10 +68,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Custom pidfile location
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Custom pidfile location"
-log "=========================================="
+test_section "Test 2: Custom pidfile location"
 
 custom_pidfile="/tmp/stalld_test_pidfile_custom_$$.pid"
 CLEANUP_FILES+=("${custom_pidfile}")
@@ -105,8 +99,7 @@ else
 fi
 
 # Test 3: Verify pidfile removed on clean shutdown
-log ""
-log "Test 3: Verify pidfile removed on clean shutdown"
+test_section "Test 3: Verify pidfile removed on clean shutdown"
 stop_stalld
 
 if [ ! -f "${custom_pidfile}" ]; then
@@ -119,10 +112,7 @@ fi
 #=============================================================================
 # Test 4: Custom pidfile in /tmp
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Custom pidfile in /tmp directory"
-log "=========================================="
+test_section "Test 4: Custom pidfile in /tmp directory"
 
 tmp_pidfile="/tmp/stalld_test_tmp_$$.pid"
 CLEANUP_FILES+=("${tmp_pidfile}")
@@ -153,10 +143,7 @@ stop_stalld
 #=============================================================================
 # Test 5: Test with foreground mode
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Pidfile with foreground mode (-f)"
-log "=========================================="
+test_section "Test 5: Pidfile with foreground mode (-f)"
 
 fg_pidfile="/tmp/stalld_test_pidfile_foreground_$$.pid"
 CLEANUP_FILES+=("${fg_pidfile}")
@@ -187,10 +174,7 @@ stop_stalld
 #=============================================================================
 # Test 6: Invalid pidfile path (permission denied)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 6: Invalid pidfile path (permission denied)"
-log "=========================================="
+test_section "Test 6: Invalid pidfile path (permission denied)"
 
 # Use a non-existent parent directory so fopen() fails even as root
 invalid_pidfile="/nonexistent_${$}/stalld.pid"
@@ -220,10 +204,7 @@ chmod 755 "${test_dir}"
 #=============================================================================
 # Test 7: Verify pidfile is readable by other processes
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 7: Verify pidfile is readable"
-log "=========================================="
+test_section "Test 7: Verify pidfile is readable"
 
 readable_pidfile="/tmp/stalld_test_pidfile_readable_$$.pid"
 CLEANUP_FILES+=("${readable_pidfile}")

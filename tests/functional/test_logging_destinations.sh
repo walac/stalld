@@ -28,7 +28,7 @@ has_stalld_log() {
 }
 
 # Test 1: Verbose mode (-v) logs to stdout/stderr
-echo "Test 1: Verbose mode (-v) logs to stdout"
+test_section "Test 1: Verbose mode (-v) logs to stdout"
 
 LOG_FILE="/tmp/stalld_test_verbose_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
@@ -52,8 +52,7 @@ fi
 stop_stalld
 
 # Test 2: Kernel message log (-k)
-echo ""
-echo "Test 2: Kernel message log (-k)"
+test_section "Test 2: Kernel message log (-k)"
 
 # Clear dmesg if possible (requires root)
 if command -v dmesg >/dev/null 2>&1; then
@@ -86,8 +85,7 @@ else
 fi
 
 # Test 3: Syslog (-s, default)
-echo ""
-echo "Test 3: Syslog (-s, default)"
+test_section "Test 3: Syslog (-s, default)"
 
 # Check if syslog is available
 SYSLOG_FILE=""
@@ -144,8 +142,7 @@ else
 fi
 
 # Test 4: Combined logging (-v -k -s)
-echo ""
-echo "Test 4: Combined logging modes"
+test_section "Test 4: Combined logging modes"
 
 LOG_FILE="/tmp/stalld_test_combined_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")

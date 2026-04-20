@@ -56,10 +56,7 @@ CLEANUP_FILES+=("${STALLD_LOG}")
 #=============================================================================
 # Test 1: Timestamp Preservation for Non-Progressing Tasks
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Timestamp Preservation Across Cycles"
-log "=========================================="
+test_section "Test 1: Timestamp Preservation Across Cycles"
 log "Task merging: same PID + same ctxsw = preserved timestamp"
 
 threshold=3
@@ -134,10 +131,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Same PID + Same Context Switches = Merged
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Merge Condition Verification"
-log "=========================================="
+test_section "Test 2: Merge Condition Verification"
 log "Merging occurs when: PID matches AND context switches unchanged"
 
 threshold=5
@@ -207,10 +201,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Task Making Progress (No Merge)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: No Merge When Task Makes Progress"
-log "=========================================="
+test_section "Test 3: No Merge When Task Makes Progress"
 log "When context switches change, timestamp should reset"
 
 threshold=5
@@ -262,10 +253,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Multiple CPUs with Independent Task Merging
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Per-CPU Independent Task Merging"
-log "=========================================="
+test_section "Test 4: Per-CPU Independent Task Merging"
 
 NUM_CPUS=$(get_num_cpus)
 if [ ${NUM_CPUS} -lt 2 ]; then
@@ -345,10 +333,7 @@ fi
 #=============================================================================
 # Final Summary
 #=============================================================================
-log ""
-log "=========================================="
-log "Test Summary"
-log "=========================================="
+test_section "Test Summary"
 log "Task merging function: merge_tasks_info() in stalld.c:370-397"
 log "Merge logic: if (PID == PID && ctxsw == ctxsw) preserve timestamp"
 log ""

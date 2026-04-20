@@ -85,10 +85,7 @@ fi
 # Test 1: eBPF Backend Task Extraction
 #=============================================================================
 if [ ${BPF_AVAILABLE} -eq 1 ]; then
-    log ""
-    log "=========================================="
-    log "Test 1: eBPF Backend Task Extraction"
-    log "=========================================="
+    test_section "Test 1: eBPF Backend Task Extraction"
 
     threshold=5
     log "Starting stalld with eBPF backend (queue_track)"
@@ -128,10 +125,7 @@ if [ ${BPF_AVAILABLE} -eq 1 ]; then
     wait ${STARVE_PID} 2>/dev/null
     stop_stalld
 else
-    log ""
-    log "=========================================="
-    log "Test 1: eBPF Backend - SKIPPED"
-    log "=========================================="
+    test_section "Test 1: eBPF Backend - SKIPPED"
     log "eBPF backend not available on this system"
 fi
 
@@ -139,10 +133,7 @@ fi
 # Test 2: sched_debug Backend Task Extraction
 #=============================================================================
 if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
-    log ""
-    log "=========================================="
-    log "Test 2: sched_debug Backend Task Extraction"
-    log "=========================================="
+    test_section "Test 2: sched_debug Backend Task Extraction"
 
     threshold=5
     log "Starting stalld with sched_debug backend"
@@ -187,10 +178,7 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     wait ${STARVE_PID} 2>/dev/null
     stop_stalld
 else
-    log ""
-    log "=========================================="
-    log "Test 2: sched_debug Backend - SKIPPED"
-    log "=========================================="
+    test_section "Test 2: sched_debug Backend - SKIPPED"
     log "sched_debug backend not available on this system"
 fi
 
@@ -198,10 +186,7 @@ fi
 # Test 3: Backend Comparison (Both Should Detect Same Starvation)
 #=============================================================================
 if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
-    log ""
-    log "=========================================="
-    log "Test 3: Backend Comparison"
-    log "=========================================="
+    test_section "Test 3: Backend Comparison"
     log "Testing that both backends detect the same starvation condition"
 
     threshold=5
@@ -261,20 +246,14 @@ if [ ${BPF_AVAILABLE} -eq 1 ] && [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
         fail "One or both backends failed to detect starvation"
     fi
 else
-    log ""
-    log "=========================================="
-    log "Test 3: Backend Comparison - SKIPPED"
-    log "=========================================="
+    test_section "Test 3: Backend Comparison - SKIPPED"
     log "Both backends required for comparison test"
 fi
 
 #=============================================================================
 # Test 4: Verify Task Field Extraction (PID, comm, priority, switches)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Task Field Extraction Verification"
-log "=========================================="
+test_section "Test 4: Task Field Extraction Verification"
 
 # Use whichever backend is available
 if [ ${BPF_AVAILABLE} -eq 1 ]; then
@@ -344,10 +323,7 @@ fi
 # Test 5: Kernel Format Handling (sched_debug backend)
 #=============================================================================
 if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
-    log ""
-    log "=========================================="
-    log "Test 5: Kernel Format Detection (sched_debug)"
-    log "=========================================="
+    test_section "Test 5: Kernel Format Detection (sched_debug)"
 
     threshold=5
     rm -f "${STALLD_LOG_SCHED}"
@@ -394,20 +370,14 @@ if [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ]; then
     wait ${STARVE_PID} 2>/dev/null
     stop_stalld
 else
-    log ""
-    log "=========================================="
-    log "Test 5: Kernel Format Detection - SKIPPED"
-    log "=========================================="
+    test_section "Test 5: Kernel Format Detection - SKIPPED"
     log "sched_debug backend required for format detection tests"
 fi
 
 #=============================================================================
 # Final Summary
 #=============================================================================
-log ""
-log "=========================================="
-log "Test Summary"
-log "=========================================="
+test_section "Test Summary"
 log "Backends tested:"
 [ ${BPF_AVAILABLE} -eq 1 ] && log "  - eBPF (queue_track): available"
 [ ${SCHED_DEBUG_AVAILABLE} -eq 1 ] && log "  - sched_debug: available"

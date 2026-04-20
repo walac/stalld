@@ -57,10 +57,7 @@ CLEANUP_FILES+=("${STALLD_LOG}")
 #=============================================================================
 # Test 1: Basic Starvation Detection
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Basic Starvation Detection"
-log "=========================================="
+test_section "Test 1: Basic Starvation Detection"
 
 threshold=5
 
@@ -104,10 +101,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Context Switch Count Tracking
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Context Switch Count Tracking"
-log "=========================================="
+test_section "Test 2: Context Switch Count Tracking"
 
 rm -f "${STALLD_LOG}"
 threshold=5
@@ -161,10 +155,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Task Merging (Timestamp Preservation)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Task Merging - Timestamp Preservation"
-log "=========================================="
+test_section "Test 3: Task Merging - Timestamp Preservation"
 
 rm -f "${STALLD_LOG}"
 threshold=3
@@ -224,10 +215,7 @@ wait ${STARVE_PID} 2>/dev/null
 #=============================================================================
 # Test 4: Multiple CPUs Detection
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Multiple CPUs Detection"
-log "=========================================="
+test_section "Test 4: Multiple CPUs Detection"
 
 if [ ${NUM_CPUS} -lt 2 ]; then
     log "⚠ SKIP: Need at least 2 CPUs for this test (have ${NUM_CPUS})"
@@ -297,10 +285,7 @@ fi
 #=============================================================================
 # Test 5: No False Positives (Task Making Progress)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: No False Positives"
-log "=========================================="
+test_section "Test 5: No False Positives"
 
 rm -f "${STALLD_LOG}"
 threshold=5
@@ -341,10 +326,7 @@ stop_stalld
 #=============================================================================
 # Test 6: Edge Case - Task Exits During Monitoring
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 6: Task Exits During Monitoring"
-log "=========================================="
+test_section "Test 6: Task Exits During Monitoring"
 
 rm -f "${STALLD_LOG}"
 threshold=10
@@ -379,10 +361,7 @@ stop_stalld
 #=============================================================================
 # Final Summary
 #=============================================================================
-log ""
-log "=========================================="
-log "Test Summary"
-log "=========================================="
+test_section "Test Summary"
 log "Total failures: ${TEST_FAILED}"
 
 end_test

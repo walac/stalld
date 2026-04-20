@@ -51,10 +51,7 @@ fi
 #=============================================================================
 # Test 1: Default duration (should be 3 seconds)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Default boost duration (no -d specified)"
-log "=========================================="
+test_section "Test 1: Default boost duration (no -d specified)"
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (default boost duration)"
@@ -80,10 +77,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Short duration (1 second)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Short boost duration of 1 second"
-log "=========================================="
+test_section "Test 2: Short boost duration of 1 second"
 
 short_duration=1
 STALLD_LOG2="/tmp/stalld_test_boost_duration_test2_$$.log"
@@ -111,10 +105,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Long duration (10 seconds)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Long boost duration of 10 seconds"
-log "=========================================="
+test_section "Test 3: Long boost duration of 10 seconds"
 
 long_duration=10
 long_starvation=20
@@ -144,10 +135,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Verify task policy is restored after boost duration
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Verify policy restoration after boost duration"
-log "=========================================="
+test_section "Test 4: Verify policy restoration after boost duration"
 
 threshold=3
 duration=2
@@ -176,10 +164,7 @@ stop_stalld
 #=============================================================================
 # Test 5: Invalid duration values
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Invalid duration values"
-log "=========================================="
+test_section "Test 5: Invalid duration values"
 
 # Test with zero duration
 log "Testing with duration = 0"

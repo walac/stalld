@@ -51,10 +51,7 @@ fi
 #=============================================================================
 # Test 1: Default runtime (should be 20,000 ns = 20 microseconds)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Default runtime (no -r specified)"
-log "=========================================="
+test_section "Test 1: Default runtime (no -r specified)"
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (default boost runtime)"
@@ -80,10 +77,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Custom runtime (10,000 ns = 10 microseconds, less than default)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Custom runtime of 10,000 ns (10μs)"
-log "=========================================="
+test_section "Test 2: Custom runtime of 10,000 ns (10μs)"
 
 custom_runtime=10000
 STALLD_LOG2="/tmp/stalld_test_boost_runtime_test2_$$.log"
@@ -111,10 +105,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Larger runtime (100,000 ns = 100 microseconds)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Larger runtime of 100,000 ns (100μs)"
-log "=========================================="
+test_section "Test 3: Larger runtime of 100,000 ns (100μs)"
 
 large_runtime=100000
 STALLD_LOG3="/tmp/stalld_test_boost_runtime_test3_$$.log"
@@ -142,10 +133,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Runtime < period (valid configuration)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Runtime < period (valid)"
-log "=========================================="
+test_section "Test 4: Runtime < period (valid)"
 
 # Default period is 1,000,000,000 ns, so runtime of 500,000 ns should be valid
 valid_runtime=500000
@@ -175,10 +163,7 @@ stop_stalld
 #=============================================================================
 # Test 5: Runtime > period (should error or be rejected)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Runtime > period (invalid)"
-log "=========================================="
+test_section "Test 5: Runtime > period (invalid)"
 
 invalid_runtime=2000000000
 period=1000000000
@@ -204,10 +189,7 @@ fi
 #=============================================================================
 # Test 6: Invalid runtime (0)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 6: Invalid runtime value (0)"
-log "=========================================="
+test_section "Test 6: Invalid runtime value (0)"
 
 INVALID_LOG2="/tmp/stalld_test_boost_runtime_invalid2_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG2}")
@@ -225,10 +207,7 @@ fi
 #=============================================================================
 # Test 7: Negative runtime
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 7: Invalid runtime value (negative)"
-log "=========================================="
+test_section "Test 7: Invalid runtime value (negative)"
 
 INVALID_LOG3="/tmp/stalld_test_boost_runtime_invalid3_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG3}")

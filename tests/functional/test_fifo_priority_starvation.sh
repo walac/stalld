@@ -51,10 +51,7 @@ CLEANUP_FILES+=("${STALLD_LOG}")
 #=============================================================================
 # Test 1: Basic FIFO-on-FIFO Starvation Detection
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Basic FIFO-on-FIFO Starvation Detection"
-log "=========================================="
+test_section "Test 1: Basic FIFO-on-FIFO Starvation Detection"
 log "Testing: FIFO:10 blocker starves FIFO:5 blockee"
 
 threshold=5
@@ -101,10 +98,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Boosting Effectiveness
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Boosting Allows Progress"
-log "=========================================="
+test_section "Test 2: Boosting Allows Progress"
 log "Verify boosting allows FIFO:5 task to make progress despite FIFO:10 blocker"
 
 rm -f "${STALLD_LOG}"
@@ -168,10 +162,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Starvation Duration Tracking
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Starvation Duration Tracking"
-log "=========================================="
+test_section "Test 3: Starvation Duration Tracking"
 log "Verify duration accumulates correctly (task merging)"
 
 rm -f "${STALLD_LOG}"
@@ -232,10 +223,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Close Priority Gap
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Close Priority Gap (FIFO:6 vs FIFO:5)"
-log "=========================================="
+test_section "Test 4: Close Priority Gap (FIFO:6 vs FIFO:5)"
 log "Testing edge case with only 1 priority difference"
 
 rm -f "${STALLD_LOG}"
@@ -270,10 +258,7 @@ stop_stalld
 #=============================================================================
 # Test 5: Correct Task Boosted
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Verify Correct Task is Boosted"
-log "=========================================="
+test_section "Test 5: Verify Correct Task is Boosted"
 log "Ensure stalld boosts the blockee (FIFO:5), not the blocker (FIFO:10)"
 
 rm -f "${STALLD_LOG}"
@@ -317,10 +302,7 @@ stop_stalld
 #=============================================================================
 # Final Summary
 #=============================================================================
-log ""
-log "=========================================="
-log "Test Summary"
-log "=========================================="
+test_section "Test Summary"
 log "Total failures: ${TEST_FAILED}"
 
 if [ -n "${STALLD_TEST_BACKEND}" ] && [ "${STALLD_TEST_BACKEND}" = "queue_track" ]; then

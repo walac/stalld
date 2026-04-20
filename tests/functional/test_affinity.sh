@@ -70,10 +70,7 @@ CLEANUP_FILES+=("${STALLD_LOG}")
 #=============================================================================
 # Test 1: Default behavior (no -a specified)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Default behavior (no affinity restriction)"
-log "=========================================="
+test_section "Test 1: Default behavior (no affinity restriction)"
 
 start_stalld -f -v -l -t 5
 sleep 2
@@ -93,10 +90,7 @@ stop_stalld
 #=============================================================================
 # Test 2: Single CPU affinity
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: Single CPU affinity (-a 0)"
-log "=========================================="
+test_section "Test 2: Single CPU affinity (-a 0)"
 
 STALLD_LOG2="/tmp/stalld_test_affinity_test2_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG2}")
@@ -117,10 +111,7 @@ stop_stalld
 #=============================================================================
 # Test 3: Multi-CPU affinity (CPU list)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Multi-CPU affinity (-a 0,2)"
-log "=========================================="
+test_section "Test 3: Multi-CPU affinity (-a 0,2)"
 
 if [ "$num_cpus" -ge 4 ]; then
     STALLD_LOG3="/tmp/stalld_test_affinity_test3_$$.log"
@@ -147,10 +138,7 @@ fi
 #=============================================================================
 # Test 4: CPU range affinity
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: CPU range affinity (-a 0-2)"
-log "=========================================="
+test_section "Test 4: CPU range affinity (-a 0-2)"
 
 if [ "$num_cpus" -ge 4 ]; then
     STALLD_LOG4="/tmp/stalld_test_affinity_test4_$$.log"
@@ -176,10 +164,7 @@ fi
 #=============================================================================
 # Test 5: Verify stalld actually runs on specified CPU
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Verify stalld threads run on specified CPU"
-log "=========================================="
+test_section "Test 5: Verify stalld threads run on specified CPU"
 
 if [ "$num_cpus" -ge 2 ]; then
     test_cpu=1
@@ -212,10 +197,7 @@ fi
 #=============================================================================
 # Test 6: Combined with CPU monitoring (-c and -a)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 6: Combined affinity and monitoring (-a 0 -c 1)"
-log "=========================================="
+test_section "Test 6: Combined affinity and monitoring (-a 0 -c 1)"
 
 if [ "$num_cpus" -ge 2 ]; then
     STALLD_LOG6="/tmp/stalld_test_affinity_test6_$$.log"
@@ -248,10 +230,7 @@ fi
 #=============================================================================
 # Test 7: Invalid CPU affinity
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 7: Invalid CPU affinity (-a 999)"
-log "=========================================="
+test_section "Test 7: Invalid CPU affinity (-a 999)"
 
 invalid_cpu=999
 INVALID_LOG="/tmp/stalld_test_affinity_invalid_$$.log"
@@ -275,10 +254,7 @@ fi
 #=============================================================================
 # Test 8: Verify affinity persists
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 8: Verify affinity persists over time"
-log "=========================================="
+test_section "Test 8: Verify affinity persists over time"
 
 STALLD_LOG8="/tmp/stalld_test_affinity_test8_$$.log"
 CLEANUP_FILES+=("${STALLD_LOG8}")

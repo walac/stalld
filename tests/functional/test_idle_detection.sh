@@ -75,10 +75,7 @@ log "Reads: /proc/stat for per-CPU idle time"
 #=============================================================================
 # Test 1: Idle CPUs Skipped (No Parsing)
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 1: Idle CPUs Skipped"
-log "=========================================="
+test_section "Test 1: Idle CPUs Skipped"
 log "Idle CPUs should be skipped to reduce overhead"
 
 threshold=5
@@ -110,10 +107,7 @@ stop_stalld
 #=============================================================================
 # Test 2: /proc/stat Parsing
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 2: /proc/stat Idle Time Parsing"
-log "=========================================="
+test_section "Test 2: /proc/stat Idle Time Parsing"
 
 # Read idle time for test CPU
 idle_time1=$(get_cpu_idle_time ${TEST_CPU})
@@ -143,10 +137,7 @@ fi
 #=============================================================================
 # Test 3: Monitoring Resumes When CPU Becomes Busy
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 3: Monitoring Resumes for Busy CPUs"
-log "=========================================="
+test_section "Test 3: Monitoring Resumes for Busy CPUs"
 
 threshold=5
 rm -f "${STALLD_LOG}"
@@ -181,10 +172,7 @@ stop_stalld
 #=============================================================================
 # Test 4: Idle Detection Overhead Reduction
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 4: Idle Detection Reduces Overhead"
-log "=========================================="
+test_section "Test 4: Idle Detection Reduces Overhead"
 log "Comparing overhead with and without idle detection (informational)"
 
 # This is informational - we can't easily measure overhead in tests
@@ -203,10 +191,7 @@ log "        Function: cpu_had_idle_time() and get_cpu_busy_list()"
 #=============================================================================
 # Test 5: Idle Detection with Multiple CPUs
 #=============================================================================
-log ""
-log "=========================================="
-log "Test 5: Per-CPU Independent Idle Detection"
-log "=========================================="
+test_section "Test 5: Per-CPU Independent Idle Detection"
 
 NUM_CPUS=$(get_num_cpus)
 if [ ${NUM_CPUS} -lt 2 ]; then
@@ -259,10 +244,7 @@ fi
 #=============================================================================
 # Final Summary
 #=============================================================================
-log ""
-log "=========================================="
-log "Test Summary"
-log "=========================================="
+test_section "Test Summary"
 log "Idle detection functions:"
 log "  - cpu_had_idle_time() in stalld.c:226-260"
 log "  - get_cpu_busy_list() in stalld.c:262-308"

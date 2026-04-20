@@ -35,8 +35,7 @@ fi
 echo "System has $num_cpus CPUs"
 
 # Test 1: Single CPU monitoring
-echo ""
-echo "Test 1: Single CPU monitoring (-c 0)"
+test_section "Test 1: Single CPU monitoring (-c 0)"
 rm -f "${STALLD_LOG}"
 start_stalld_with_log "${STALLD_LOG}" -f -v -c 0 -l -t 5
 
@@ -51,8 +50,7 @@ stop_stalld
 
 # Test 2: CPU list (comma-separated)
 if [ "$num_cpus" -ge 4 ]; then
-    echo ""
-    echo "Test 2: CPU list monitoring (-c 0,2)"
+    test_section "Test 2: CPU list monitoring (-c 0,2)"
     rm -f "${STALLD_LOG}"
     start_stalld_with_log "${STALLD_LOG}" -f -v -c 0,2 -l -t 5
 
@@ -79,8 +77,7 @@ fi
 
 # Test 3: CPU range
 if [ "$num_cpus" -ge 4 ]; then
-    echo ""
-    echo "Test 3: CPU range monitoring (-c 0-2)"
+    test_section "Test 3: CPU range monitoring (-c 0-2)"
     rm -f "${STALLD_LOG}"
     start_stalld_with_log "${STALLD_LOG}" -f -v -c 0-2 -l -t 5
 
@@ -111,8 +108,7 @@ fi
 
 # Test 4: Combined format (list and range)
 if [ "$num_cpus" -ge 6 ]; then
-    echo ""
-    echo "Test 4: Combined format (-c 0,2-4)"
+    test_section "Test 4: Combined format (-c 0,2-4)"
     rm -f "${STALLD_LOG}"
     start_stalld_with_log "${STALLD_LOG}" -f -v -c 0,2-4 -l -t 5
 
@@ -136,8 +132,7 @@ else
 fi
 
 # Test 5: Invalid CPU number (should handle gracefully)
-echo ""
-echo "Test 5: Invalid CPU number (-c 999)"
+test_section "Test 5: Invalid CPU number (-c 999)"
 invalid_cpu=999
 
 # Create temporary log file for this specific test
@@ -156,8 +151,7 @@ fi
 
 # Test 6: Verify non-selected CPUs are NOT monitored
 if [ "$num_cpus" -ge 2 ]; then
-    echo ""
-    echo "Test 6: Verify non-selected CPUs not monitored (-c 0)"
+    test_section "Test 6: Verify non-selected CPUs not monitored (-c 0)"
     rm -f "${STALLD_LOG}"
     start_stalld_with_log "${STALLD_LOG}" -f -v -c 0 -l -t 5
 
