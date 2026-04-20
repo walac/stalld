@@ -14,44 +14,14 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-start_test "Task Merging Logic"
-
-# Setup test environment
-setup_test_environment
-
-# Require root for this test
-require_root
-
-# Check RT throttling
-if ! check_rt_throttling; then
-    echo -e "${YELLOW}SKIP: RT throttling must be disabled for this test${NC}"
-    exit 77
-fi
-
-# Pick a CPU for testing
-TEST_CPU=$(pick_test_cpu)
-log "Using CPU ${TEST_CPU} for testing"
-
-# Pick a different CPU for stalld to run on (avoid interference)
-STALLD_CPU=0
-if [ ${TEST_CPU} -eq 0 ]; then
-    STALLD_CPU=1
-fi
-log "Stalld will run on CPU ${STALLD_CPU}"
+init_functional_test "Task Merging Logic" "test_merge"
 
 # Check for DL-server (kernel automatic starvation handling)
-# If DL-server is present, the kernel handles starvation automatically,
-# so stalld won't detect starvation and we can't test task merging logic
 if [ -d "/sys/kernel/debug/sched/fair_server" ]; then
     echo -e "${YELLOW}SKIP: DL-server detected - kernel handles starvation automatically${NC}"
     echo "      Task merging cannot be tested when DL-server prevents starvation"
     exit 77
 fi
-
-# Setup paths
-STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
-STALLD_LOG="/tmp/stalld_test_merge_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG}")
 
 #=============================================================================
 # Test 1: Timestamp Preservation for Non-Progressing Tasks

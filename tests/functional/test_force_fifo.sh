@@ -13,33 +13,7 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-start_test "Force FIFO Option (-F)"
-
-# Setup test environment
-setup_test_environment
-
-# Require root for this test
-require_root
-
-# Check RT throttling
-if ! check_rt_throttling; then
-    echo -e "${YELLOW}SKIP: RT throttling must be disabled for this test${NC}"
-    exit 77
-fi
-
-# Pick a CPU for testing
-TEST_CPU=$(pick_test_cpu)
-log "Using CPU ${TEST_CPU} for testing"
-
-# Setup paths
-STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
-STALLD_LOG="/tmp/stalld_test_force_fifo_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG}")
-
-if [ ! -x "${STARVE_GEN}" ]; then
-    echo -e "${YELLOW}SKIP: starvation_gen not found or not executable${NC}"
-    exit 77
-fi
+init_functional_test "Force FIFO Option (-F)" "test_force_fifo"
 
 #=============================================================================
 # Test 1: Default behavior (should use SCHED_DEADLINE)

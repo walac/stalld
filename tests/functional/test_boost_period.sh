@@ -10,40 +10,7 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-start_test "Boost Period Option (-p)"
-
-# Setup test environment
-setup_test_environment
-
-# Require root for this test
-require_root
-
-# Check RT throttling
-if ! check_rt_throttling; then
-    echo -e "${YELLOW}SKIP: RT throttling must be disabled for this test${NC}"
-    exit 77
-fi
-
-# Pick a CPU for testing
-TEST_CPU=$(pick_test_cpu)
-log "Using CPU ${TEST_CPU} for testing"
-
-# Pick a different CPU for stalld to run on (avoid interference)
-STALLD_CPU=0
-if [ ${TEST_CPU} -eq 0 ]; then
-    STALLD_CPU=1
-fi
-log "Stalld will run on CPU ${STALLD_CPU}"
-
-# Setup paths
-STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
-STALLD_LOG="/tmp/stalld_test_boost_period_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG}")
-
-if [ ! -x "${STARVE_GEN}" ]; then
-    echo -e "${YELLOW}SKIP: starvation_gen not found or not executable${NC}"
-    exit 77
-fi
+init_functional_test "Boost Period Option (-p)" "test_boost_period"
 
 #=============================================================================
 # Test 1: Default period (should be 1,000,000,000 ns = 1 second)
@@ -144,12 +111,6 @@ test_section "Test 5: Invalid period value (0)"
 INVALID_LOG="/tmp/stalld_test_boost_period_invalid_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
 
-# Add backend flag for consistency
-BACKEND_FLAG=""
-if [ -n "${STALLD_TEST_BACKEND}" ]; then
-    BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
-fi
-
 timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p 0 > "${INVALID_LOG}" 2>&1
 ret=$?
 
@@ -164,10 +125,9 @@ fi
 #=============================================================================
 test_section "Test 6: Invalid period value (negative)"
 
-INVALID_LOG2="/tmp/stalld_test_boost_period_invalid2_$$.log"
-CLEANUP_FILES+=("${INVALID_LOG2}")
+rm -f "${INVALID_LOG}"
 
-timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p -1000000 > "${INVALID_LOG2}" 2>&1
+timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -t $threshold -p -1000000 > "${INVALID_LOG}" 2>&1
 ret=$?
 
 if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then

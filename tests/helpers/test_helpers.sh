@@ -1154,8 +1154,19 @@ init_functional_test() {
 	STALLD_LOG="/tmp/stalld_${log_suffix}_$$.log"
 	CLEANUP_FILES+=("${STALLD_LOG}")
 
+	if [ ! -x "${STARVE_GEN}" ]; then
+		echo -e "${YELLOW}SKIP: starvation_gen not found or not executable${NC}"
+		exit 77
+	fi
+
+	# Build backend flag for direct stalld invocations
+	BACKEND_FLAG=""
+	if [ -n "${STALLD_TEST_BACKEND}" ]; then
+		BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
+	fi
+
 	# Export variables for use in test
-	export TEST_CPU STALLD_CPU STARVE_GEN STALLD_LOG
+	export TEST_CPU STALLD_CPU STARVE_GEN STALLD_LOG BACKEND_FLAG
 }
 
 # Start starvation_gen in background with readiness detection

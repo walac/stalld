@@ -21,38 +21,10 @@ get_starved_pid() {
     grep "starved on CPU" "$log_file" | tail -1 | sed -E 's/.*\[([0-9]+)\].*/\1/' | head -1
 }
 
-start_test "Starvation Detection Logic"
-
-# Setup test environment
-setup_test_environment
-
-# Require root for this test
-require_root
-
-# Check RT throttling
-if ! check_rt_throttling; then
-    echo -e "${YELLOW}SKIP: RT throttling must be disabled for this test${NC}"
-    exit 77
-fi
-
-# Pick a CPU for testing
-TEST_CPU=$(pick_test_cpu)
-log "Using CPU ${TEST_CPU} for testing"
-
-# Pick a different CPU for stalld to run on (avoid interference)
-STALLD_CPU=0
-if [ ${TEST_CPU} -eq 0 ]; then
-    STALLD_CPU=1
-fi
-log "Stalld will run on CPU ${STALLD_CPU}"
+init_functional_test "Starvation Detection Logic" "test_detection"
 
 # Get number of CPUs for multi-CPU tests
 NUM_CPUS=$(get_num_cpus)
-
-# Setup paths
-STARVE_GEN="${TEST_ROOT}/helpers/starvation_gen"
-STALLD_LOG="/tmp/stalld_test_detection_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG}")
 
 #=============================================================================
 # Test 1: Basic Starvation Detection

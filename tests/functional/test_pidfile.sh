@@ -13,23 +13,7 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
-start_test "PID File Option (-P)"
-
-# Setup test environment
-setup_test_environment
-
-# Require root for this test
-require_root
-
-# Check RT throttling
-if ! check_rt_throttling; then
-    echo -e "${YELLOW}SKIP: RT throttling must be disabled for this test${NC}"
-    exit 77
-fi
-
-# Setup paths
-STALLD_LOG="/tmp/stalld_test_pidfile_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG}")
+init_functional_test "PID File Option (-P)" "test_pidfile"
 
 #=============================================================================
 # Test 1: Default pidfile location (no -P specified)
@@ -76,9 +60,6 @@ CLEANUP_FILES+=("${custom_pidfile}")
 # Ensure pidfile doesn't exist before test
 rm -f "${custom_pidfile}"
 
-STALLD_LOG2="/tmp/stalld_test_pidfile_test2_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG2}")
-
 log "Starting stalld with custom pidfile: ${custom_pidfile}"
 start_stalld -l -t 5 --pidfile "${custom_pidfile}"
 sleep 2
@@ -118,9 +99,6 @@ tmp_pidfile="/tmp/stalld_test_tmp_$$.pid"
 CLEANUP_FILES+=("${tmp_pidfile}")
 rm -f "${tmp_pidfile}"
 
-STALLD_LOG4="/tmp/stalld_test_pidfile_test4_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG4}")
-
 log "Starting stalld with /tmp pidfile: ${tmp_pidfile}"
 start_stalld -l -t 5 --pidfile "${tmp_pidfile}"
 sleep 2
@@ -148,9 +126,6 @@ test_section "Test 5: Pidfile with foreground mode (-f)"
 fg_pidfile="/tmp/stalld_test_pidfile_foreground_$$.pid"
 CLEANUP_FILES+=("${fg_pidfile}")
 rm -f "${fg_pidfile}"
-
-STALLD_LOG5="/tmp/stalld_test_pidfile_test5_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG5}")
 
 log "Starting stalld in foreground mode with pidfile: ${fg_pidfile}"
 start_stalld -f -v -l -t 5 --pidfile "${fg_pidfile}"
@@ -182,12 +157,6 @@ invalid_pidfile="/nonexistent_${$}/stalld.pid"
 INVALID_LOG="/tmp/stalld_test_pidfile_invalid_$$.log"
 CLEANUP_FILES+=("${INVALID_LOG}")
 
-# Add backend flag for consistency
-BACKEND_FLAG=""
-if [ -n "${STALLD_TEST_BACKEND}" ]; then
-    BACKEND_FLAG="-b ${STALLD_TEST_BACKEND}"
-fi
-
 log "Testing invalid pidfile path: ${invalid_pidfile}"
 timeout 5 ${TEST_ROOT}/../stalld -f -v ${BACKEND_FLAG} -l -t 5 --pidfile "${invalid_pidfile}" > "${INVALID_LOG}" 2>&1
 ret=$?
@@ -198,9 +167,6 @@ else
     fail "stalld did not reject invalid pidfile path"
 fi
 
-# Cleanup
-chmod 755 "${test_dir}"
-
 #=============================================================================
 # Test 7: Verify pidfile is readable by other processes
 #=============================================================================
@@ -209,9 +175,6 @@ test_section "Test 7: Verify pidfile is readable"
 readable_pidfile="/tmp/stalld_test_pidfile_readable_$$.pid"
 CLEANUP_FILES+=("${readable_pidfile}")
 rm -f "${readable_pidfile}"
-
-STALLD_LOG7="/tmp/stalld_test_pidfile_test7_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG7}")
 
 log "Starting stalld with readable pidfile: ${readable_pidfile}"
 start_stalld -l -t 5 --pidfile "${readable_pidfile}"
