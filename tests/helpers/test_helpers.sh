@@ -548,10 +548,6 @@ cleanup() {
 	# Stop stalld
 	stop_stalld
 
-	# Kill any starvation generators first (these often have child processes)
-	# Use pkill which handles process trees better
-	pkill -9 -f starvation_gen 2>/dev/null || true
-
 	# Small delay to let processes terminate
 	sleep 0.2
 
