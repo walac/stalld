@@ -139,13 +139,9 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a $
 # Wait for multiple detection cycles
 log "Waiting for first detection cycle..."
 wait_for_starvation_detected "${STALLD_LOG}"
-log "First detection cycle should have occurred"
-log "Waiting for second detection cycle..."
-wait_for_starvation_detected "${STALLD_LOG}"
-log "Second detection cycle should have occurred"
-log "Waiting for third detection cycle..."
-wait_for_starvation_detected "${STALLD_LOG}"
-log "Third detection cycle should have occurred"
+log "First detection cycle occurred, waiting for additional cycles..."
+wait_for_n_log_matches "starved on CPU" 3 "${STALLD_LOG}"
+log "Multiple detection cycles should have occurred"
 
 # Check if we see accumulating starvation time in logs
 # Task merging means the timestamp is preserved, so duration increases

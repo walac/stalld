@@ -668,6 +668,25 @@ wait_for_boost_detected() {
 	wait_for_log_message "boosted pid" "${timeout}" "${log_file}"
 }
 
+# Wait until a log file contains at least N matches of a pattern.
+#
+# Usage: wait_for_n_log_matches <pattern> <count> <log_file> [timeout]
+wait_for_n_log_matches() {
+	local pattern=$1
+	local count=$2
+	local log_file=$3
+	local timeout=${4:-30}
+	local end=$((SECONDS + timeout))
+
+	while [ $SECONDS -lt $end ]; do
+		local matches
+		matches=$(grep -c "${pattern}" "${log_file}" 2>/dev/null || true)
+		[ "${matches:-0}" -ge "${count}" ] && return 0
+		sleep 1
+	done
+	return 1
+}
+
 # Get thread scheduling policy
 get_thread_policy() {
 	local pid=$1
@@ -1250,7 +1269,7 @@ export -f pass fail assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running
 export -f start_stalld stop_stalld kill_existing_stalld cleanup
-export -f wait_for_log_message wait_for_stalld_ready wait_for_starvation_detected wait_for_boost_detected
+export -f wait_for_log_message wait_for_stalld_ready wait_for_starvation_detected wait_for_boost_detected wait_for_n_log_matches
 export -f get_thread_policy get_thread_priority
 export -f create_cpu_load
 export -f detect_default_backend is_backend_available get_available_backends start_stalld_with_backend
