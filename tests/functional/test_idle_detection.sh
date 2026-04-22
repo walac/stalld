@@ -140,23 +140,25 @@ fi
 cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
-# Test 4: Idle Detection Overhead Reduction
+# Test 4: Idle CPUs Are Skipped
 #=============================================================================
-test_section "Test 4: Idle Detection Reduces Overhead"
-log "Comparing overhead with and without idle detection (informational)"
+test_section "Test 4: Idle CPUs Are Skipped"
 
-# This is informational - we can't easily measure overhead in tests
-log "With idle detection (default):"
-log "  - /proc/stat read before parsing"
-log "  - Idle CPUs skipped (no sched_debug/BPF parsing)"
-log "  - Reduces CPU usage when system mostly idle"
-log ""
-log "Without idle detection would:"
-log "  - Always parse all CPUs"
-log "  - Higher overhead even when CPUs idle"
+rm -f "${STALLD_LOG}"
+threshold=3
 
-log "ℹ INFO: Idle detection enabled by default for efficiency"
-log "        Function: cpu_had_idle_time() and get_cpu_busy_list()"
+log "Starting stalld with idle detection on an idle CPU"
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
+sleep 3
+
+if grep -q "skipping" "${STALLD_LOG}"; then
+    pass "Idle CPU correctly skipped"
+else
+    fail "No skipping messages for idle CPU"
+fi
+
+cleanup_scenario
 
 #=============================================================================
 # Test 5: Idle Detection with Multiple CPUs
