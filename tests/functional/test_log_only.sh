@@ -61,13 +61,7 @@ echo "Waiting for starvation detection..."
 assert_starvation_detected "${LOG_FILE}" "stalld detected and logged starvation"
 
 # Check that stalld did NOT boost (should not see "boosted" message with -l)
-if ! grep -q "boosted" "${LOG_FILE}"; then
-	pass "stalld did not boost in log-only mode"
-else
-	fail "stalld boosted despite -l flag"
-	echo "Log contents:"
-	cat "${LOG_FILE}"
-fi
+assert_log_contains --negate "${LOG_FILE}" "boosted" "stalld did not boost in log-only mode"
 
 # Cleanup
 cleanup_scenario "${STARVGEN_PID}"

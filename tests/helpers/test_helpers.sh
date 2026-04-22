@@ -191,6 +191,44 @@ assert_boost_detected() {
 	fi
 }
 
+# Assert that a log file contains (or does not contain) a pattern.
+#
+# Usage: assert_log_contains [--negate] [--ignore-case] <log_file> <pattern> <message>
+assert_log_contains() {
+	local negate=0
+	local grep_opts="-q -e"
+	while true; do
+		case "$1" in
+			--negate) negate=1; shift ;;
+			--ignore-case) grep_opts="-q -i -e"; shift ;;
+			*) break ;;
+		esac
+	done
+	local log_file=$1
+	local pattern=$2
+	local message=$3
+
+	local found=0
+	grep ${grep_opts} "${pattern}" -- "${log_file}" 2>/dev/null && found=1
+
+	if [ $negate -eq 1 ]; then
+		found=$((1 - found))
+	fi
+
+	if [ $found -eq 1 ]; then
+		pass "${message}"
+		return 0
+	else
+		fail "${message}"
+		if [ $negate -eq 1 ]; then
+			log "    Pattern '${pattern}' found in ${log_file} but should not be"
+		else
+			log "    Pattern '${pattern}' not found in ${log_file}"
+		fi
+		return 1
+	fi
+}
+
 # Assert that stalld rejects invalid arguments and exits non-zero.
 # Usage: assert_stalld_rejects <message> [stalld_args...]
 assert_stalld_rejects() {
@@ -1260,7 +1298,8 @@ start_starvation_gen() {
 }
 
 # Export functions for use in tests
-export -f start_test end_test test_section cleanup_scenario find_starved_child assert_starvation_detected assert_boost_detected assert_stalld_rejects
+export -f start_test end_test test_section cleanup_scenario find_starved_child
+export -f assert_starvation_detected assert_boost_detected assert_stalld_rejects assert_log_contains
 export -f pass fail assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running

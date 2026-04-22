@@ -47,18 +47,10 @@ if wait_for_starvation_detected "${STALLD_LOG}"; then
     pass "Starvation detected"
 
     # Verify correct CPU is logged
-    if grep "starved on CPU ${TEST_CPU}" "${STALLD_LOG}"; then
-        pass "Correct CPU ID logged (CPU ${TEST_CPU})"
-    else
-        fail "Wrong CPU ID in log"
-    fi
+    assert_log_contains "${STALLD_LOG}" "starved on CPU ${TEST_CPU}" "Correct CPU ID logged (CPU ${TEST_CPU})"
 
     # Verify duration is logged
-    if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}"; then
-        pass "Starvation duration logged"
-    else
-        fail "Starvation duration not logged"
-    fi
+    assert_log_contains "${STALLD_LOG}" "starved on CPU ${TEST_CPU} for [0-9]" "Starvation duration logged"
 else
     fail "Starvation not detected"
     log "Log contents:"
@@ -249,15 +241,9 @@ sleep $((threshold + 3))
 
 # Verify this task was NOT reported as starved
 # Since it's making progress, stalld shouldn't detect it
-if ! grep "starved" "${STALLD_LOG}"; then
-    pass "No false positive - task making progress not reported as starved"
-else
-    if grep "${BUSY_PID}" "${STALLD_LOG}" | grep -q "starved"; then
-        fail "False positive - progress-making task ${BUSY_PID} reported as starved"
-    else
-        pass "No false positive - starvation detected from other tasks, not ours"
-    fi
-fi
+assert_log_contains --negate "${STALLD_LOG}" \
+    "${BUSY_PID}.*starved" \
+    "No false positive - progress-making task not reported as starved"
 
 kill ${BUSY_PID} 2>/dev/null
 wait ${BUSY_PID} 2>/dev/null
@@ -289,13 +275,7 @@ else
 fi
 
 # Check for error messages
-if grep -iE "error|segfault|crash" "${STALLD_LOG}"; then
-    fail "Error messages found in log"
-    log "Errors:"
-    grep -iE "error|segfault|crash" "${STALLD_LOG}"
-else
-    pass "No error messages in log"
-fi
+assert_log_contains --negate --ignore-case "${STALLD_LOG}" "error\|segfault\|crash" "No error messages in log"
 
 stop_stalld
 

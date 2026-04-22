@@ -41,9 +41,7 @@ if assert_process_running "${STALLD_PID}" "stalld should be running"; then
 		pass "verbose mode produces output"
 
 		# Should contain initialization messages
-		if grep -q -E "(stalld|version|monitoring)" "${LOG_FILE}"; then
-			pass "output contains expected messages"
-		fi
+		assert_log_contains "${LOG_FILE}" "stalld\|version\|monitoring" "output contains expected messages"
 	else
 		fail "no output in verbose mode"
 	fi

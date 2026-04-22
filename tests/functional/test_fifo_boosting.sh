@@ -38,11 +38,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
     pass "Boosting occurred with -F flag"
 
     # Verify SCHED_FIFO was used
-    if grep -q "SCHED_FIFO" "${STALLD_LOG}"; then
-        pass "SCHED_FIFO boosting used (as requested by -F)"
-    else
-        fail "SCHED_FIFO not mentioned in boost message"
-    fi
+    assert_log_contains "${STALLD_LOG}" "SCHED_FIFO" "SCHED_FIFO boosting used (as requested by -F)"
 else
     fail "No boosting detected with -F flag"
     log "Log contents:"
@@ -88,11 +84,7 @@ fi
 if [ ${fifo_task_found} -eq 0 ]; then
     log "⚠ INFO: Could not verify FIFO policy in /proc (timing issue or boost already expired)"
     # FIFO emulation cycles between FIFO and OTHER, so we may catch it in OTHER state
-    if grep -q "boosted.*SCHED_FIFO" "${STALLD_LOG}"; then
-        pass "SCHED_FIFO boost confirmed in logs"
-    else
-        fail "No SCHED_FIFO boost detected"
-    fi
+    assert_log_contains "${STALLD_LOG}" "boosted.*SCHED_FIFO" "SCHED_FIFO boost confirmed in logs"
 fi
 
 # Cleanup

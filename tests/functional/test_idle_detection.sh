@@ -152,11 +152,7 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a $
 
 sleep 3
 
-if grep -q "skipping" "${STALLD_LOG}"; then
-    pass "Idle CPU correctly skipped"
-else
-    fail "No skipping messages for idle CPU"
-fi
+assert_log_contains "${STALLD_LOG}" "skipping" "Idle CPU correctly skipped"
 
 cleanup_scenario
 

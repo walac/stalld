@@ -40,11 +40,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
     pass "Boosting occurred"
 
     # Verify SCHED_DEADLINE was used
-    if grep -q "SCHED_DEADLINE" "${STALLD_LOG}"; then
-        pass "SCHED_DEADLINE boosting used (default)"
-    else
-        fail "SCHED_DEADLINE not mentioned in boost message"
-    fi
+    assert_log_contains "${STALLD_LOG}" "SCHED_DEADLINE" "SCHED_DEADLINE boosting used (default)"
 
     # Verify boost happened after threshold
     # (starvation logged, then boosting)
@@ -106,11 +102,7 @@ fi
 if [ ${boosted_task_found} -eq 0 ]; then
     log "⚠ INFO: Could not verify DEADLINE policy in /proc (timing issue or boost already expired)"
     # Still check if boost happened in logs
-    if grep -q "boosted.*SCHED_DEADLINE" "${STALLD_LOG}"; then
-        pass "SCHED_DEADLINE boost confirmed in logs"
-    else
-        fail "No SCHED_DEADLINE boost detected"
-    fi
+    assert_log_contains "${STALLD_LOG}" "boosted.*SCHED_DEADLINE" "SCHED_DEADLINE boost confirmed in logs"
 fi
 
 # Cleanup
@@ -165,11 +157,7 @@ else
 fi
 
 # Verify boost happened
-if grep -q "boosted" "${STALLD_LOG}"; then
-    pass "Boost occurred as expected"
-else
-    fail "No boost detected"
-fi
+assert_log_contains "${STALLD_LOG}" "boosted" "Boost occurred as expected"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -285,13 +273,6 @@ else
 
     if [ ${boost_count} -ge 2 ]; then
         pass "Multiple boost events detected (${boost_count})"
-
-        # Verify both CPUs mentioned
-        if grep -q "CPU ${CPU0}" "${STALLD_LOG}" && grep -q "CPU ${CPU1}" "${STALLD_LOG}"; then
-            pass "Boosts occurred on both CPUs"
-        else
-            log "⚠ INFO: Could not verify boosts on both specific CPUs"
-        fi
 
         # Verify independent boost cycles
         if [ ${boost_count} -gt 2 ]; then

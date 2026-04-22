@@ -44,18 +44,10 @@ if wait_for_starvation_detected "${STALLD_LOG}"; then
     pass "FIFO-on-FIFO starvation detected"
 
     # Verify correct CPU is logged
-    if grep "starved on CPU ${TEST_CPU}" "${STALLD_LOG}"; then
-        pass "Correct CPU ID logged (CPU ${TEST_CPU})"
-    else
-        fail "Wrong CPU ID in log"
-    fi
+    assert_log_contains "${STALLD_LOG}" "starved on CPU ${TEST_CPU}" "Correct CPU ID logged (CPU ${TEST_CPU})"
 
     # Verify duration is logged
-    if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}"; then
-        pass "Starvation duration logged"
-    else
-        fail "Starvation duration not logged"
-    fi
+    assert_log_contains "${STALLD_LOG}" "starved on CPU ${TEST_CPU} for [0-9]" "Starvation duration logged"
 else
     fail "FIFO-on-FIFO starvation not detected"
     log "Log contents:"
@@ -106,13 +98,7 @@ log "Context switch delta: ${ctxt_delta}"
 if [ ${ctxt_delta} -gt 0 ]; then
     pass "Blockee task made progress (${ctxt_delta} context switches)"
 else
-    log "⚠ WARNING: Could not verify progress (timing issue or blockee not found)"
-    # Check if boosting occurred at least
-    if grep -q "boosted" "${STALLD_LOG}"; then
-        log "ℹ INFO: Boosting did occur according to logs"
-    else
-        fail "No boosting detected"
-    fi
+    assert_log_contains "${STALLD_LOG}" "boosted" "Boosting occurred despite no measurable progress"
 fi
 
 # Cleanup

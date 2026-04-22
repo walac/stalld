@@ -30,20 +30,8 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-if wait_for_boost_detected "${STALLD_LOG}"; then
-    log "Boosting occurred"
-
-    # Look for SCHED_DEADLINE indicators
-    if grep -qi "deadline\|SCHED_DEADLINE" "${STALLD_LOG}"; then
-        pass "SCHED_DEADLINE used by default"
-    elif grep -qi "fifo\|SCHED_FIFO" "${STALLD_LOG}"; then
-        log "⚠ WARNING: SCHED_FIFO used instead of SCHED_DEADLINE"
-    else
-        log "ℹ INFO: Scheduling policy not explicitly mentioned in logs"
-    fi
-else
-    log "⚠ WARNING: No boosting detected in default mode"
-fi
+assert_boost_detected "${STALLD_LOG}" "Boosting occurred in default mode"
+assert_log_contains --ignore-case "${STALLD_LOG}" "sched_deadline" "SCHED_DEADLINE used by default"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -66,20 +54,8 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-if wait_for_boost_detected "${STALLD_LOG2}"; then
-    log "Boosting occurred with -F flag"
-
-    # Look for SCHED_FIFO indicators
-    if grep -qi "fifo\|SCHED_FIFO" "${STALLD_LOG2}"; then
-        pass "SCHED_FIFO used with -F flag"
-    elif grep -qi "deadline\|SCHED_DEADLINE" "${STALLD_LOG2}"; then
-        fail "SCHED_DEADLINE used despite -F flag"
-    else
-        log "⚠ WARNING: Scheduling policy not explicitly mentioned in logs"
-    fi
-else
-    log "⚠ WARNING: No boosting detected with -F flag"
-fi
+assert_boost_detected "${STALLD_LOG2}" "Boosting occurred with -F flag"
+assert_log_contains --ignore-case "${STALLD_LOG2}" "sched_fifo" "SCHED_FIFO used with -F flag"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -134,21 +110,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${long_starvation}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${long_starvation}
 
 # Wait for detection and boosting
-if wait_for_boost_detected "${STALLD_LOG4}"; then
-    log "Boosting detected, waiting for duration cycle"
-
-    # Wait for boost duration + buffer to see restoration
-    sleep 5
-
-    # Check for restoration messages (part of FIFO emulation)
-    if grep -qi "restor\|unboosted\|normal\|original" "${STALLD_LOG4}"; then
-        pass "FIFO emulation with restoration detected"
-    else
-        log "ℹ INFO: FIFO boosting completed (restoration may be implicit)"
-    fi
-else
-    log "⚠ WARNING: No boosting detected for FIFO emulation test"
-fi
+assert_boost_detected "${STALLD_LOG4}" "FIFO emulation boosting detected"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"

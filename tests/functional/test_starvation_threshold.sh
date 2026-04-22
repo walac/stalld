@@ -70,13 +70,9 @@ wait "${STARVE_PID}" 2>/dev/null || true
 sleep 2
 
 # Check that starvation_gen was NOT detected (duration less than threshold)
-if ! grep -qE "starvation_gen.*starved on CPU ${TEST_CPU}|starved on CPU ${TEST_CPU}.*starvation_gen" "${STALLD_LOG}"; then
-    pass "No starvation detected for duration less than threshold"
-else
-    fail "Starvation detected before threshold"
-    log "Found starvation_gen task in logs:"
-    grep -E "starvation_gen.*starved on CPU|starved on CPU.*starvation_gen" "${STALLD_LOG}"
-fi
+assert_log_contains --negate "${STALLD_LOG}" \
+    "starvation_gen.*starved on CPU ${TEST_CPU}\|starved on CPU ${TEST_CPU}.*starvation_gen" \
+    "No starvation detected for duration less than threshold"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"

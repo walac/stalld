@@ -44,14 +44,7 @@ test_backend_flag() {
 		return 1
 	fi
 
-	if grep -q "${expected_msg}" "${log_file}"; then
-		pass "${description}"
-	else
-		fail "Backend message not found (${description})"
-		echo "  Expected: ${expected_msg}"
-		echo "  Log contents:"
-		cat "${log_file}"
-	fi
+	assert_log_contains "${log_file}" "${expected_msg}" "${description}"
 
 	stop_stalld
 }
