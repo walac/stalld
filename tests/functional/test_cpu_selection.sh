@@ -13,6 +13,10 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 # Parse command-line options
 parse_test_options "$@" || exit $?
 
+is_cpu_monitored() {
+    grep -q "adding cpu ${1}$" "$STALLD_LOG"
+}
+
 start_test "CPU Selection (-c option)"
 
 # Setup test environment
@@ -40,7 +44,7 @@ rm -f "${STALLD_LOG}"
 start_stalld_with_log "${STALLD_LOG}" -f -v -c 0 -l -t 5
 
 # Check that stalld mentions CPU 0
-if grep -q "cpu 0" "$STALLD_LOG"; then
+if is_cpu_monitored 0; then
     pass "stalld monitoring CPU 0"
 else
     fail "stalld not monitoring CPU 0"
@@ -57,10 +61,10 @@ if [ "$num_cpus" -ge 4 ]; then
     # Check for CPU 0 and CPU 2 in output
     cpu0_found=0
     cpu2_found=0
-    if grep -q "cpu 0" "$STALLD_LOG"; then
+    if is_cpu_monitored 0; then
         cpu0_found=1
     fi
-    if grep -q "cpu 2" "$STALLD_LOG"; then
+    if is_cpu_monitored 2; then
         cpu2_found=1
     fi
 
@@ -85,13 +89,13 @@ if [ "$num_cpus" -ge 4 ]; then
     cpu0_found=0
     cpu1_found=0
     cpu2_found=0
-    if grep -q "cpu 0" "$STALLD_LOG"; then
+    if is_cpu_monitored 0; then
         cpu0_found=1
     fi
-    if grep -q "cpu 1" "$STALLD_LOG"; then
+    if is_cpu_monitored 1; then
         cpu1_found=1
     fi
-    if grep -q "cpu 2" "$STALLD_LOG"; then
+    if is_cpu_monitored 2; then
         cpu2_found=1
     fi
 
@@ -115,7 +119,7 @@ if [ "$num_cpus" -ge 6 ]; then
     # Should monitor CPUs 0, 2, 3, 4
     monitored_cpus=0
     for cpu in 0 2 3 4; do
-        if grep -q "cpu $cpu" "$STALLD_LOG"; then
+        if is_cpu_monitored ${cpu}; then
             ((monitored_cpus++))
         fi
     done
@@ -143,8 +147,8 @@ if [ "$num_cpus" -ge 2 ]; then
     rm -f "${STALLD_LOG}"
     start_stalld_with_log "${STALLD_LOG}" -f -v -c 0 -l -t 5
 
-    # Check that CPU 1 is NOT mentioned (or mentioned as "not monitoring")
-    if ! grep -q "cpu 1" "$STALLD_LOG" || grep -q "not monitoring.*cpu 1" "$STALLD_LOG"; then
+    # Check that CPU 1 is NOT being monitored
+    if ! is_cpu_monitored 1; then
         pass "stalld not monitoring non-selected CPU 1"
     else
         fail "stalld appears to be monitoring CPU 1 when only CPU 0 selected"
