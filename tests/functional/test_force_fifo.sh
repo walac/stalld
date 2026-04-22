@@ -207,22 +207,8 @@ log "=========================================="
 log "Test 5: Single-threaded mode with FIFO (should fail)"
 log "=========================================="
 
-# Try to run stalld with -F but without -A (single-threaded mode)
-# According to CLAUDE.md, this should die/exit
-FIFO_SINGLE_LOG="/tmp/stalld_test_force_fifo_single_$$.log"
-CLEANUP_FILES+=("${FIFO_SINGLE_LOG}")
-
-log "Testing single-threaded mode with -F (should exit)"
-timeout 5 ${TEST_ROOT}/../stalld -f -v -c "${TEST_CPU}" -t ${threshold} -F > "${FIFO_SINGLE_LOG}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "single-threaded mode rejected FIFO"
-elif grep -qiE "single.*thread|falling back|adaptive" "${FIFO_SINGLE_LOG}"; then
-    pass "stalld detected incompatibility and fell back to adaptive mode"
-else
-    fail "stalld silently accepted FIFO in single-threaded mode"
-fi
+log "Testing single-threaded mode (-O) with -F (should exit)"
+assert_stalld_rejects "Single-threaded mode rejected FIFO" -f -v -c "${TEST_CPU}" -t ${threshold} -F -O
 
 #=============================================================================
 # Test 6: Compare effectiveness (informational)
