@@ -241,31 +241,26 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a $
 # Create a task that gets CPU time but isn't starved
 # Use a SCHED_OTHER task with lower priority that still gets scheduled
 log "Creating a busy task that should NOT be starved"
-(
-    taskset -c ${TEST_CPU} bash -c 'for i in {1..100}; do sleep 0.1; done' &
-    BUSY_PID=$!
+taskset -c ${TEST_CPU} bash -c 'for i in {1..100}; do sleep 0.1; done' &
+BUSY_PID=$!
 
-    # Wait beyond threshold
-    sleep $((threshold + 3))
+# Wait beyond threshold
+sleep $((threshold + 3))
 
-    # Verify this task was NOT reported as starved
-    # Since it's making progress, stalld shouldn't detect it
-    if ! grep "starved" "${STALLD_LOG}"; then
-        pass "No false positive - task making progress not reported as starved"
+# Verify this task was NOT reported as starved
+# Since it's making progress, stalld shouldn't detect it
+if ! grep "starved" "${STALLD_LOG}"; then
+    pass "No false positive - task making progress not reported as starved"
+else
+    if grep "${BUSY_PID}" "${STALLD_LOG}" | grep -q "starved"; then
+        fail "False positive - progress-making task ${BUSY_PID} reported as starved"
     else
-        # Check if our specific task was reported
-        log "Log shows starvation, checking if it's our progress-making task..."
-        log "Log contents:"
-        cat "${STALLD_LOG}"
-        # This is not necessarily a failure - there might be other starved tasks
-        log "⚠ INFO: Starvation detected, but may be from other tasks"
+        pass "No false positive - starvation detected from other tasks, not ours"
     fi
+fi
 
-    kill ${BUSY_PID} 2>/dev/null
-    wait ${BUSY_PID} 2>/dev/null
-) &
-SUBSHELL_PID=$!
-wait ${SUBSHELL_PID}
+kill ${BUSY_PID} 2>/dev/null
+wait ${BUSY_PID} 2>/dev/null
 
 stop_stalld
 
