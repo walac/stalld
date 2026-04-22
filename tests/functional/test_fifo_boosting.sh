@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Test: SCHED_FIFO Boosting Mechanism
-# Verify stalld correctly boosts starving tasks using SCHED_FIFO with -F flag,
-# implements FIFO emulation, and compares with DEADLINE effectiveness
+# Verify stalld correctly boosts starving tasks using SCHED_FIFO with -F flag
+# and implements FIFO emulation behavior
 #
 # Copyright (C) 2025 Red Hat Inc
 
@@ -138,126 +138,6 @@ fi
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
-
-#=============================================================================
-# Test 4: FIFO vs DEADLINE Comparison
-#=============================================================================
-test_section "Test 4: FIFO vs DEADLINE Effectiveness Comparison"
-
-threshold=5
-boost_duration=3
-
-# Test with DEADLINE first
-log ""
-log "Running with SCHED_DEADLINE boosting..."
-STALLD_LOG_DEADLINE="/tmp/stalld_test_deadline_compare_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG_DEADLINE}")
-
-# Create starvation FIRST
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 15
-deadline_tracked_pid=$(find_starved_child "${STARVE_PID}")
-
-ctxt_before_deadline=0
-if [ -n "${deadline_tracked_pid}" ]; then
-    ctxt_before_deadline=$(get_ctxt_switches ${deadline_tracked_pid})
-fi
-
-# NOW start stalld
-start_stalld_with_log "${STALLD_LOG_DEADLINE}" -f -v -g 1 -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration}
-
-# Wait for boost detection, then let boost run to completion
-log "Waiting for DEADLINE boost detection..."
-wait_for_boost_detected "${STALLD_LOG_DEADLINE}"
-sleep $((boost_duration + 1))
-
-ctxt_after_deadline=0
-if [ -n "${deadline_tracked_pid}" ] && [ -f "/proc/${deadline_tracked_pid}/status" ]; then
-    ctxt_after_deadline=$(get_ctxt_switches ${deadline_tracked_pid})
-fi
-
-deadline_progress=$((ctxt_after_deadline - ctxt_before_deadline))
-log "DEADLINE progress: ${deadline_progress} context switches"
-
-cleanup_scenario "${STARVE_PID}"
-
-# Small delay between tests
-sleep 2
-
-# Test with FIFO
-log ""
-log "Running with SCHED_FIFO boosting..."
-STALLD_LOG_FIFO="/tmp/stalld_test_fifo_compare_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
-
-# Create starvation FIRST
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d 15
-fifo_tracked_pid=$(find_starved_child "${STARVE_PID}")
-
-ctxt_before_fifo=0
-if [ -n "${fifo_tracked_pid}" ]; then
-    ctxt_before_fifo=$(get_ctxt_switches ${fifo_tracked_pid})
-fi
-
-# NOW start stalld
-start_stalld_with_log "${STALLD_LOG_FIFO}" -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration}
-
-# Wait for boost detection, then let boost run to completion
-log "Waiting for FIFO boost detection..."
-wait_for_boost_detected "${STALLD_LOG_FIFO}"
-sleep $((boost_duration + 1))
-
-ctxt_after_fifo=0
-if [ -n "${fifo_tracked_pid}" ] && [ -f "/proc/${fifo_tracked_pid}/status" ]; then
-    ctxt_after_fifo=$(get_ctxt_switches ${fifo_tracked_pid})
-fi
-
-fifo_progress=$((ctxt_after_fifo - ctxt_before_fifo))
-log "FIFO progress: ${fifo_progress} context switches"
-
-cleanup_scenario "${STARVE_PID}"
-
-# Compare effectiveness
-log ""
-log "Comparison Results:"
-log "  DEADLINE: ${deadline_progress} context switches"
-log "  FIFO: ${fifo_progress} context switches"
-
-if [ ${deadline_progress} -gt 0 ] && [ ${fifo_progress} -gt 0 ]; then
-    pass "Both DEADLINE and FIFO allowed tasks to make progress"
-
-    # Both should be effective, but exact numbers may vary
-    if [ ${deadline_progress} -gt ${fifo_progress} ]; then
-        log "ℹ INFO: DEADLINE showed more progress than FIFO"
-    elif [ ${fifo_progress} -gt ${deadline_progress} ]; then
-        log "ℹ INFO: FIFO showed more progress than DEADLINE"
-    else
-        log "ℹ INFO: DEADLINE and FIFO showed similar progress"
-    fi
-else
-    log "⚠ WARNING: One or both methods did not show progress (may be timing issue)"
-fi
-
-#=============================================================================
-# Test 5: Single-Threaded Mode Fails with FIFO
-#=============================================================================
-test_section "Test 5: Single-Threaded Mode with FIFO (Should Fail)"
-
-log "Attempting to start stalld with -F without -A (single-threaded + FIFO)"
-STALLD_LOG_FAIL="/tmp/stalld_test_fifo_fail_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG_FAIL}")
-
-# Try to start stalld with -F but without -A (single-threaded mode)
-# This should fail because single-threaded mode only works with DEADLINE
-timeout 5 ${TEST_ROOT}/../stalld -f -v -F -t 5 -c ${TEST_CPU} > "${STALLD_LOG_FAIL}" 2>&1
-ret=$?
-
-if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
-    pass "stalld rejected FIFO in single-threaded mode"
-elif grep -qiE "single.*thread|falling back|adaptive" "${STALLD_LOG_FAIL}"; then
-    pass "stalld detected incompatibility and fell back to adaptive mode"
-else
-    fail "stalld silently accepted FIFO in single-threaded mode"
-fi
 
 #=============================================================================
 # Final Summary

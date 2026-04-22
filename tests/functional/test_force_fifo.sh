@@ -76,18 +76,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for detection and boosting
-wait_for_boost_detected "${STALLD_LOG3}"
-
-# Check logs for priority information
-if grep -qi "priority\|prio" "${STALLD_LOG3}"; then
-    log "ℹ INFO: Priority information found in logs"
-fi
-
-if grep -q "boost" "${STALLD_LOG3}"; then
-    pass "FIFO boosting with priority setting completed"
-else
-    log "⚠ WARNING: No boosting detected"
-fi
+assert_boost_detected "${STALLD_LOG3}" "FIFO boosting with priority setting completed"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -122,44 +111,6 @@ test_section "Test 5: Single-threaded mode with FIFO (should fail)"
 
 log "Testing single-threaded mode (-O) with -F (should exit)"
 assert_stalld_rejects "Single-threaded mode rejected FIFO" -f -v -c "${TEST_CPU}" -t ${threshold} -F -O
-
-#=============================================================================
-# Test 6: Compare effectiveness (informational)
-#=============================================================================
-test_section "Test 6: FIFO vs DEADLINE comparison (informational)"
-
-comparison_duration=2
-comparison_starvation=8
-
-# Run with DEADLINE
-STALLD_LOG_DL="/tmp/stalld_test_force_fifo_deadline_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG_DL}")
-
-log "Running comparison test with SCHED_DEADLINE"
-start_stalld_with_log "${STALLD_LOG_DL}" -f -v -c "${TEST_CPU}" -t ${threshold} -d ${comparison_duration}
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${comparison_starvation}
-wait_for_boost_detected "${STALLD_LOG_DL}"
-
-deadline_boosts=$(grep -c "boost" "${STALLD_LOG_DL}" || echo 0)
-log "ℹ INFO: SCHED_DEADLINE boosts: $deadline_boosts"
-
-cleanup_scenario "${STARVE_PID}"
-
-# Run with FIFO
-STALLD_LOG_FIFO="/tmp/stalld_test_force_fifo_comparison_$$.log"
-CLEANUP_FILES+=("${STALLD_LOG_FIFO}")
-
-log "Running comparison test with SCHED_FIFO"
-start_stalld_with_log "${STALLD_LOG_FIFO}" -f -v -c "${TEST_CPU}" -t ${threshold} -F -A -d ${comparison_duration}
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${comparison_starvation}
-wait_for_boost_detected "${STALLD_LOG_FIFO}"
-
-fifo_boosts=$(grep -c "boost" "${STALLD_LOG_FIFO}" || echo 0)
-log "ℹ INFO: SCHED_FIFO boosts: $fifo_boosts"
-
-cleanup_scenario "${STARVE_PID}"
-
-log "ℹ INFO: Comparison complete (DEADLINE: $deadline_boosts, FIFO: $fifo_boosts)"
 
 log ""
 log "All force FIFO tests completed"

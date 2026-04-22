@@ -183,13 +183,6 @@ if [ "$num_cpus" -ge 2 ]; then
         log "⚠ WARNING: stalld affinity ($affinity) doesn't match requested (0)"
     fi
 
-    # Verify it's monitoring CPU 1 by checking logs
-    if grep -q "cpu 1" "${STALLD_LOG}" || grep -q "monitoring.*1" "${STALLD_LOG}"; then
-        log "ℹ INFO: stalld monitoring CPU 1 as requested"
-    else
-        log "ℹ INFO: CPU 1 monitoring not explicitly confirmed in logs"
-    fi
-
     stop_stalld
 else
     log "⊘ SKIP: Test 6 requires at least 2 CPUs"

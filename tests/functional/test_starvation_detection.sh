@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Test: Starvation Detection Logic
-# Verify stalld correctly detects starving tasks, tracks context switches,
-# and implements task merging (timestamp preservation)
+# Verify stalld correctly detects starving tasks and tracks context switches
 #
 # Copyright (C) 2025 Red Hat Inc
 
@@ -13,13 +12,6 @@ source "${TEST_ROOT}/helpers/test_helpers.sh"
 
 # Parse command-line options
 parse_test_options "$@" || exit $?
-
-# Helper to extract starved task PID from stalld logs (test-specific)
-get_starved_pid() {
-    local log_file=$1
-    # Look for pattern like "starvation_gen-12345 starved on CPU"
-    grep "starved on CPU" "$log_file" | tail -1 | sed -E 's/.*\[([0-9]+)\].*/\1/' | head -1
-}
 
 init_functional_test "Starvation Detection Logic" "test_detection"
 
@@ -104,68 +96,9 @@ fi
 cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
-# Test 3: Task Merging (Timestamp Preservation)
+# Test 3: Multiple CPUs Detection
 #=============================================================================
-test_section "Test 3: Task Merging - Timestamp Preservation"
-
-rm -f "${STALLD_LOG}"
-threshold=3
-
-# Create long starvation to trigger multiple detection cycles
-starvation_duration=15
-log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
-
-log "Starting stalld with ${threshold}s threshold (log-only mode)"
-log "Will monitor for multiple detection cycles to verify timestamp preservation"
-start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
-
-# Wait for first detection cycle
-log "Waiting for first detection cycle..."
-wait_for_starvation_detected "${STALLD_LOG}"
-log "First detection cycle should have occurred"
-# Wait for additional detection cycles
-sleep 4
-log "Second detection cycle should have occurred"
-sleep 4
-log "Third detection cycle should have occurred"
-
-# Stop stalld to flush output buffers before checking log
-stop_stalld
-
-# Check if we see accumulating starvation time in logs
-# Task merging means the timestamp is preserved, so duration increases
-report_count=$(grep -cE "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}")
-if [ "${report_count}" -ge 2 ]; then
-    pass "Multiple starvation reports found (${report_count} reports)"
-
-    # Extract starvation durations from log
-    durations=$(grep -oE "starved on CPU ${TEST_CPU} for [0-9]+" "${STALLD_LOG}" | grep -oE "[0-9]+$")
-    log "Starvation durations observed: $(echo $durations | tr '\n' ' ')"
-
-    # Verify durations are increasing (timestamp preserved = duration accumulates)
-    first_duration=$(echo "$durations" | head -1)
-    last_duration=$(echo "$durations" | tail -1)
-
-    if [ ${last_duration} -gt ${first_duration} ]; then
-        pass "Starvation duration increased (${first_duration}s -> ${last_duration}s)"
-        log "        This confirms task merging preserved the timestamp"
-    else
-        fail "Starvation duration did not increase (timestamp may have been reset)"
-    fi
-else
-    fail "Not enough starvation reports to verify task merging (found ${report_count}, need >= 2)"
-    log "Log contents:"
-    cat "${STALLD_LOG}"
-fi
-
-# Cleanup starvation generator
-cleanup_scenario "${STARVE_PID}"
-
-#=============================================================================
-# Test 4: Multiple CPUs Detection
-#=============================================================================
-test_section "Test 4: Multiple CPUs Detection"
+test_section "Test 3: Multiple CPUs Detection"
 
 if [ ${NUM_CPUS} -lt 2 ]; then
     log "⚠ SKIP: Need at least 2 CPUs for this test (have ${NUM_CPUS})"
@@ -221,9 +154,9 @@ else
 fi
 
 #=============================================================================
-# Test 5: No False Positives (Task Making Progress)
+# Test 4: No False Positives (Task Making Progress)
 #=============================================================================
-test_section "Test 5: No False Positives"
+test_section "Test 4: No False Positives"
 
 rm -f "${STALLD_LOG}"
 threshold=5
@@ -251,9 +184,9 @@ wait ${BUSY_PID} 2>/dev/null
 stop_stalld
 
 #=============================================================================
-# Test 6: Edge Case - Task Exits During Monitoring
+# Test 5: Edge Case - Task Exits During Monitoring
 #=============================================================================
-test_section "Test 6: Task Exits During Monitoring"
+test_section "Test 5: Task Exits During Monitoring"
 
 rm -f "${STALLD_LOG}"
 threshold=10

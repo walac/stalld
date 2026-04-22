@@ -16,13 +16,6 @@ parse_test_options "$@" || exit $?
 
 init_functional_test "Task Merging Logic" "test_merge"
 
-# Check for DL-server (kernel automatic starvation handling)
-if [ -d "/sys/kernel/debug/sched/fair_server" ]; then
-    echo -e "${YELLOW}SKIP: DL-server detected - kernel handles starvation automatically${NC}"
-    echo "      Task merging cannot be tested when DL-server prevents starvation"
-    exit 77
-fi
-
 #=============================================================================
 # Test 1: Timestamp Preservation for Non-Progressing Tasks
 #=============================================================================
@@ -158,51 +151,9 @@ fi
 cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
-# Test 3: Task Making Progress (No Merge)
+# Test 3: Multiple CPUs with Independent Task Merging
 #=============================================================================
-test_section "Test 3: No Merge When Task Makes Progress"
-log "When context switches change, timestamp should reset"
-
-threshold=5
-rm -f "${STALLD_LOG}"
-start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d 2
-
-# Create starvation that will get boosted (allowing progress)
-log "Creating starvation that will be boosted"
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
-
-# Find tracked task while it's guaranteed to be starving
-tracked_pid=$(find_starved_child "${STARVE_PID}")
-
-# Wait for starvation detection
-wait_for_starvation_detected "${STALLD_LOG}"
-if [ -n "${tracked_pid}" ]; then
-    # Wait for boost to complete and task to starve again
-    sleep 5
-
-    # If task was boosted, context switches should have changed
-    # meaning timestamp should reset for next starvation period
-    if grep -q "boosted" "${STALLD_LOG}"; then
-        pass "Task was boosted (made progress)"
-
-        # Check if we see a new starvation period starting
-        # (This is harder to verify, but context switches changing = no merge)
-        log "ℹ INFO: When task makes progress (ctxsw changes), timestamp resets"
-        log "        Next starvation detection starts new timing period"
-    else
-        log "ℹ INFO: No boost occurred (may be timing dependent)"
-    fi
-else
-    log "⚠ INFO: Could not track task for progress test"
-fi
-
-# Cleanup
-cleanup_scenario "${STARVE_PID}"
-
-#=============================================================================
-# Test 4: Multiple CPUs with Independent Task Merging
-#=============================================================================
-test_section "Test 4: Per-CPU Independent Task Merging"
+test_section "Test 3: Per-CPU Independent Task Merging"
 
 NUM_CPUS=$(get_num_cpus)
 if [ ${NUM_CPUS} -lt 2 ]; then

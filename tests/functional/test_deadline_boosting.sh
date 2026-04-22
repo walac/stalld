@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Test: SCHED_DEADLINE Boosting Mechanism
-# Verify stalld correctly boosts starving tasks using SCHED_DEADLINE,
-# applies correct parameters, and restores policies after boost duration
+# Verify stalld correctly boosts starving tasks using SCHED_DEADLINE
+# and applies correct parameters
 #
 # Copyright (C) 2025 Red Hat Inc
 
@@ -146,11 +146,10 @@ if [ -n "${tracked_pid}" ]; then
 
     # Verify task made progress (context switches increased)
     ctxt_delta=$((ctxt_after - ctxt_before))
-    if [ ${ctxt_delta} -gt 5 ]; then
+    if [ ${ctxt_delta} -gt 0 ]; then
         pass "Task made progress during boost (${ctxt_delta} context switches)"
     else
-        log "⚠ INFO: Limited progress detected (${ctxt_delta} context switches)"
-        log "        This may be acceptable depending on boost parameters"
+        fail "No progress during boost (${ctxt_delta} context switches)"
     fi
 else
     log "⚠ WARNING: Could not track starved task PID for progress verification"
@@ -163,78 +162,9 @@ assert_log_contains "${STALLD_LOG}" "boosted" "Boost occurred as expected"
 cleanup_scenario "${STARVE_PID}"
 
 #=============================================================================
-# Test 4: Policy Restoration After Boost
+# Test 4: Multiple Simultaneous Boosts
 #=============================================================================
-test_section "Test 4: Policy Restoration After Boost"
-
-threshold=5
-boost_duration=3
-
-log "Starting stalld with ${boost_duration}s boost duration"
-rm -f "${STALLD_LOG}"
-start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration}
-
-# Create starvation
-log "Creating starvation on CPU ${TEST_CPU}"
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 20
-
-# Find a starved task and verify initial policy
-sleep 2
-tracked_pid=$(find_starved_child "${STARVE_PID}")
-
-if [ -n "${tracked_pid}" ]; then
-    log "Tracking task PID ${tracked_pid} for policy changes"
-
-    # Verify initial policy is SCHED_OTHER (0)
-    initial_policy=$(get_sched_policy ${tracked_pid})
-    log "Initial policy: ${initial_policy} (0=SCHED_OTHER)"
-
-    if [ "$initial_policy" != "0" ]; then
-        log "⚠ WARNING: Initial policy is not SCHED_OTHER (got ${initial_policy})"
-    fi
-
-    # Wait for starvation detection and boosting
-    wait_for_boost_detected "${STALLD_LOG}"
-
-    # Check if policy changed to DEADLINE during boost
-    boosted_policy=$(get_sched_policy ${tracked_pid})
-    log "Policy during boost window: ${boosted_policy} (6=SCHED_DEADLINE)"
-
-    if [ "$boosted_policy" = "6" ]; then
-        pass "Policy changed to SCHED_DEADLINE during boost"
-    else
-        log "⚠ INFO: Policy is ${boosted_policy} (may have already restored or not yet boosted)"
-    fi
-
-    # Wait for boost duration to expire
-    log "Waiting for boost duration (${boost_duration}s) to expire..."
-    sleep $((boost_duration + 2))
-
-    # Verify policy restored
-    if [ -f "/proc/${tracked_pid}/sched" ]; then
-        restored_policy=$(get_sched_policy ${tracked_pid})
-        log "Policy after boost: ${restored_policy}"
-
-        if [ "$restored_policy" = "0" ]; then
-            pass "Policy restored to SCHED_OTHER (0)"
-        else
-            log "⚠ INFO: Policy is ${restored_policy} after boost"
-            log "        (task may have exited or restoration timing differs)"
-        fi
-    else
-        log "⚠ INFO: Task exited, cannot verify final policy restoration"
-    fi
-else
-    log "⚠ WARNING: Could not track task for policy restoration test"
-fi
-
-# Cleanup
-cleanup_scenario "${STARVE_PID}"
-
-#=============================================================================
-# Test 5: Multiple Simultaneous Boosts
-#=============================================================================
-test_section "Test 5: Multiple Simultaneous Boosts"
+test_section "Test 4: Multiple Simultaneous Boosts"
 
 if [ ${NUM_CPUS} -lt 2 ]; then
     log "⚠ SKIP: Need at least 2 CPUs for this test (have ${NUM_CPUS})"

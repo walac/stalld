@@ -27,18 +27,7 @@ log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection and boosting
-if wait_for_boost_detected "${STALLD_LOG}"; then
-    pass "Boosting occurred with default period"
-
-    # Try to find period value in logs
-    if grep -qi "period" "${STALLD_LOG}"; then
-        log "ℹ INFO: Period information found in logs"
-    fi
-else
-    fail "No boosting detected"
-    log "Log contents:"
-    cat "${STALLD_LOG}"
-fi
+assert_boost_detected "${STALLD_LOG}" "Boosting occurred with default period"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
