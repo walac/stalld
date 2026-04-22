@@ -22,15 +22,15 @@ test_section "Test 1: Default boost duration (no -d specified)"
 
 threshold=3
 log "Starting stalld with ${threshold}s threshold (default boost duration)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -l
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold}
 
 # Create starvation
 starvation_duration=15
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for starvation detection
-assert_starvation_detected "${STALLD_LOG}" "Starvation detection occurred with default duration"
+# Wait for actual boosting
+assert_boost_detected "${STALLD_LOG}" "Boost with default duration"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -44,14 +44,14 @@ short_duration=1
 rm -f "${STALLD_LOG}"
 
 log "Starting stalld with ${threshold}s threshold and ${short_duration}s boost duration"
-start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${short_duration} -l
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${short_duration}
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
-# Wait for starvation detection
-assert_starvation_detected "${STALLD_LOG}" "Starvation detection with ${short_duration}s duration"
+# Wait for actual boosting
+assert_boost_detected "${STALLD_LOG}" "Boost with ${short_duration}s duration"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -67,14 +67,14 @@ threshold=10
 rm -f "${STALLD_LOG}"
 
 log "Starting stalld with ${threshold}s threshold and ${long_duration}s boost duration"
-start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${long_duration} -l
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${long_duration}
 
 # Create starvation
 log "Creating starvation on CPU ${TEST_CPU} for ${long_starvation}s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${long_starvation}
 
-# Wait for starvation detection
-assert_starvation_detected "${STALLD_LOG}" "Starvation detection with ${long_duration}s duration"
+# Wait for actual boosting
+assert_boost_detected "${STALLD_LOG}" "Boost with ${long_duration}s duration"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -89,14 +89,14 @@ duration=2
 rm -f "${STALLD_LOG}"
 
 log "Starting stalld with ${threshold}s threshold and ${duration}s boost duration"
-start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${duration} -l
+start_stalld_with_log "${STALLD_LOG}" -f -v -c "${TEST_CPU}" -a ${STALLD_CPU} -t ${threshold} -d ${duration}
 
 # Create starvation with a specific task we can track
 log "Creating starvation on CPU ${TEST_CPU} for 15s"
 start_starvation_gen -c "${TEST_CPU}" -p 80 -n 1 -d 15
 
-# Wait for starvation detection
-assert_starvation_detected "${STALLD_LOG}" "Starvation detection with ${duration}s boost duration"
+# Wait for actual boosting
+assert_boost_detected "${STALLD_LOG}" "Boost with ${duration}s boost duration"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
