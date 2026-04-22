@@ -244,12 +244,39 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -t $threshold -c ${TEST_CPU} -a ${ST
 log "Creating SCHED_OTHER starvation (RT blocker prio 80, SCHED_OTHER blockee)"
 start_starvation_gen -c ${TEST_CPU} -p 80 -o -n 1 -d 20
 
-# Wait for starvation_gen to complete
-log "Waiting for starvation test to complete..."
-wait ${STARVE_PID} 2>/dev/null || true
+# Find the starved SCHED_OTHER task
+tracked_pid=$(find_starved_child "${STARVE_PID}")
 
-# Check if blockee completed (proves SCHED_OTHER → boost → SCHED_OTHER restoration worked)
-# The starvation_gen output will show if blockees completed
+if [ -n "${tracked_pid}" ]; then
+    initial_policy=$(get_sched_policy ${tracked_pid})
+    log "Tracking task PID ${tracked_pid}, initial policy: ${initial_policy} (expected: 0=SCHED_OTHER)"
+
+    # Wait for boost
+    log "Waiting for starvation detection and boost..."
+    if wait_for_boost_detected "${STALLD_LOG}"; then
+        pass "SCHED_OTHER task boosted"
+
+        # Wait for boost to expire and policy to be restored
+        sleep $((boost_duration + 1))
+
+        if [ -f "/proc/${tracked_pid}/sched" ]; then
+            final_policy=$(get_sched_policy ${tracked_pid})
+            log "Policy after boost: ${final_policy}"
+
+            if [ "$final_policy" = "0" ]; then
+                pass "Policy restored to SCHED_OTHER (0)"
+            else
+                fail "Policy not restored to SCHED_OTHER (got ${final_policy})"
+            fi
+        else
+            log "⚠ INFO: Task exited before restoration check"
+        fi
+    else
+        fail "No boost detected for SCHED_OTHER task"
+    fi
+else
+    log "⚠ WARNING: Could not find starved task to track"
+fi
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
