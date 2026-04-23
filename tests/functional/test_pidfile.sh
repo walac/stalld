@@ -34,11 +34,7 @@ for pidfile in /var/run/stalld.pid /run/stalld.pid; do
 
         # Verify PID matches
         pid_from_file=$(cat "$pidfile")
-        if [ "$pid_from_file" = "${STALLD_PID}" ]; then
-            pass "Default pidfile contains correct PID"
-        else
-            fail "Default pidfile PID ($pid_from_file) doesn't match stalld PID (${STALLD_PID})"
-        fi
+        assert_success "Default pidfile contains correct PID" test "$pid_from_file" = "${STALLD_PID}"
         break
     fi
 done
@@ -70,11 +66,7 @@ if [ -f "${custom_pidfile}" ]; then
 
     # Verify content
     pid_from_file=$(cat "${custom_pidfile}")
-    if [ "$pid_from_file" = "${STALLD_PID}" ]; then
-        pass "Custom pidfile contains correct PID ($pid_from_file)"
-    else
-        fail "Custom pidfile PID ($pid_from_file) doesn't match stalld PID (${STALLD_PID})"
-    fi
+    assert_success "Custom pidfile contains correct PID" test "$pid_from_file" = "${STALLD_PID}"
 else
     fail "Custom pidfile not created at ${custom_pidfile}"
 fi
@@ -107,11 +99,7 @@ if [ -f "${tmp_pidfile}" ]; then
     pass "Pidfile created in /tmp directory"
 
     pid_from_file=$(cat "${tmp_pidfile}")
-    if [ "$pid_from_file" = "${STALLD_PID}" ]; then
-        pass "/tmp pidfile contains correct PID"
-    else
-        fail "/tmp pidfile has incorrect PID"
-    fi
+    assert_success "/tmp pidfile contains correct PID" test "$pid_from_file" = "${STALLD_PID}"
 else
     fail "Pidfile not created in /tmp"
 fi
@@ -135,11 +123,7 @@ if [ -f "${fg_pidfile}" ]; then
     pass "Pidfile created in foreground mode"
 
     pid_from_file=$(cat "${fg_pidfile}")
-    if [ "$pid_from_file" = "${STALLD_PID}" ]; then
-        pass "Foreground mode pidfile contains correct PID"
-    else
-        fail "Foreground mode pidfile has incorrect PID"
-    fi
+    assert_success "Foreground mode pidfile contains correct PID" test "$pid_from_file" = "${STALLD_PID}"
 else
     log "⚠ WARNING: Pidfile not created in foreground mode (may be expected)"
 fi

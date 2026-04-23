@@ -68,11 +68,7 @@ if [ "$num_cpus" -ge 4 ]; then
         cpu2_found=1
     fi
 
-    if [ "$cpu0_found" -eq 1 ] && [ "$cpu2_found" -eq 1 ]; then
-        pass "stalld monitoring CPUs 0 and 2"
-    else
-        fail "stalld not monitoring specified CPUs (0: $cpu0_found, 2: $cpu2_found)"
-    fi
+    assert_success "stalld monitoring CPUs 0 and 2" test "$cpu0_found" -eq 1 -a "$cpu2_found" -eq 1
 
     stop_stalld
 else
@@ -99,11 +95,7 @@ if [ "$num_cpus" -ge 4 ]; then
         cpu2_found=1
     fi
 
-    if [ "$cpu0_found" -eq 1 ] && [ "$cpu1_found" -eq 1 ] && [ "$cpu2_found" -eq 1 ]; then
-        pass "stalld monitoring CPUs 0-2"
-    else
-        fail "stalld not monitoring specified CPU range (0: $cpu0_found, 1: $cpu1_found, 2: $cpu2_found)"
-    fi
+    assert_success "stalld monitoring CPUs 0-2" test "$cpu0_found" -eq 1 -a "$cpu1_found" -eq 1 -a "$cpu2_found" -eq 1
 
     stop_stalld
 else
@@ -124,11 +116,7 @@ if [ "$num_cpus" -ge 6 ]; then
         fi
     done
 
-    if [ "$monitored_cpus" -eq 4 ]; then
-        pass "stalld monitoring combined CPU specification (0,2-4)"
-    else
-        fail "stalld not monitoring all specified CPUs (found $monitored_cpus/4)"
-    fi
+    assert_success "stalld monitoring combined CPU specification (0,2-4)" test "$monitored_cpus" -eq 4
 
     stop_stalld
 else
@@ -148,11 +136,7 @@ if [ "$num_cpus" -ge 2 ]; then
     start_stalld_with_log "${STALLD_LOG}" -f -v -c 0 -l -t 5
 
     # Check that CPU 1 is NOT being monitored
-    if ! is_cpu_monitored 1; then
-        pass "stalld not monitoring non-selected CPU 1"
-    else
-        fail "stalld appears to be monitoring CPU 1 when only CPU 0 selected"
-    fi
+    assert_success --negate "stalld not monitoring non-selected CPU 1" is_cpu_monitored 1
 
     stop_stalld
 fi

@@ -41,14 +41,6 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
 
     # Verify SCHED_DEADLINE was used
     assert_log_contains "${STALLD_LOG}" "SCHED_DEADLINE" "SCHED_DEADLINE boosting used (default)"
-
-    # Verify boost happened after threshold
-    # (starvation logged, then boosting)
-    if grep -q "starved" "${STALLD_LOG}"; then
-        pass "Starvation detected before boosting"
-    else
-        log "⚠ WARNING: No starvation message before boost"
-    fi
 else
     fail "No boosting detected"
     log "Log contents:"
@@ -146,11 +138,7 @@ if [ -n "${tracked_pid}" ]; then
 
     # Verify task made progress (context switches increased)
     ctxt_delta=$((ctxt_after - ctxt_before))
-    if [ ${ctxt_delta} -gt 0 ]; then
-        pass "Task made progress during boost (${ctxt_delta} context switches)"
-    else
-        fail "No progress during boost (${ctxt_delta} context switches)"
-    fi
+    assert_success "Task made progress during boost" test ${ctxt_delta} -gt 0
 else
     log "⚠ WARNING: Could not track starved task PID for progress verification"
 fi

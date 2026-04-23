@@ -248,6 +248,38 @@ assert_stalld_rejects() {
 	rm -f "${log}"
 }
 
+# Assert that a command exits successfully (or unsuccessfully with --negate).
+#
+# Without --negate the assertion passes when the command returns zero.
+# With --negate the assertion passes when the command returns non-zero.
+#
+# Usage: assert_success <message> <command> [args...]
+#        assert_success --negate <message> <command> [args...]
+assert_success() {
+	local negate=0
+	if [ "$1" = "--negate" ]; then
+		negate=1
+		shift
+	fi
+	local message=$1
+	shift
+
+	"$@" >/dev/null 2>&1
+	local success=$(( $? == 0 ))
+
+	if [ $negate -eq 1 ]; then
+		success=$((1 - success))
+	fi
+
+	if [ $success -eq 1 ]; then
+		pass "${message}"
+		return 0
+	else
+		fail "${message}"
+		return 1
+	fi
+}
+
 # Record a test pass with a description message.
 #
 # Usage: pass "description"
@@ -1299,7 +1331,7 @@ start_starvation_gen() {
 
 # Export functions for use in tests
 export -f start_test end_test test_section cleanup_scenario find_starved_child
-export -f assert_starvation_detected assert_boost_detected assert_stalld_rejects assert_log_contains
+export -f assert_starvation_detected assert_boost_detected assert_stalld_rejects assert_log_contains assert_success
 export -f pass fail assert_equals assert_contains assert_not_contains
 export -f assert_file_exists assert_file_not_exists
 export -f assert_process_running assert_process_not_running

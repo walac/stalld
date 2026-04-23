@@ -83,11 +83,7 @@ if [ -n "${tracked_pid}" ]; then
     log "Context switches after 2s: ${ctxt_after}"
 
     ctxt_delta=$((ctxt_after - ctxt_before))
-    if [ ${ctxt_delta} -lt 5 ]; then
-        pass "Context switch count remained low (delta: ${ctxt_delta})"
-    else
-        fail "Context switches increased significantly (delta: ${ctxt_delta})"
-    fi
+    assert_success "Context switch count remained low" test ${ctxt_delta} -lt 5
 else
     log "⚠ WARNING: Could not find starved task PIDs to verify context switches"
 fi

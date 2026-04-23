@@ -60,12 +60,7 @@ sleep 2
 default_affinity=$(check_affinity "${STALLD_PID}")
 log "ℹ INFO: Default affinity: $default_affinity"
 
-# Typically should be all CPUs
-if [ -n "$default_affinity" ]; then
-    pass "stalld has default affinity: $default_affinity"
-else
-    log "⚠ WARNING: Could not determine default affinity"
-fi
+assert_success "stalld has default affinity" test -n "$default_affinity"
 
 stop_stalld
 
@@ -79,11 +74,7 @@ sleep 2
 
 affinity=$(check_affinity "${STALLD_PID}")
 
-if [ "$affinity" = "0" ]; then
-    pass "stalld restricted to CPU 0"
-else
-    fail "stalld affinity ($affinity) doesn't match requested (0)"
-fi
+assert_success "stalld restricted to CPU 0" test "$affinity" = "0"
 
 stop_stalld
 
@@ -99,12 +90,7 @@ if [ "$num_cpus" -ge 4 ]; then
     affinity=$(check_affinity "${STALLD_PID}")
 
     # Accept either "0,2" or "0-2" or "2,0" (different systems may report differently)
-    if echo "$affinity" | grep -qE '^0,2$|^0-2$|^2,0$'; then
-        pass "stalld restricted to CPUs 0,2 (affinity: $affinity)"
-    else
-        log "⚠ WARNING: stalld affinity ($affinity) may not match requested (0,2) - format may vary"
-        # Not failing as different systems may report differently
-    fi
+    assert_success "stalld restricted to CPUs 0,2" test -n "$(echo "$affinity" | grep -E '^0,2$|^0-2$|^2,0$')"
 
     stop_stalld
 else
@@ -123,11 +109,7 @@ if [ "$num_cpus" -ge 4 ]; then
     affinity=$(check_affinity "${STALLD_PID}")
 
     # Accept various formats: "0-2", "0,1,2", etc.
-    if echo "$affinity" | grep -qE '0.*1.*2|0-2'; then
-        pass "stalld restricted to CPU range 0-2 (affinity: $affinity)"
-    else
-        log "⚠ WARNING: stalld affinity ($affinity) may not match requested (0-2) - format may vary"
-    fi
+    assert_success "stalld restricted to CPU range 0-2" test -n "$(echo "$affinity" | grep -E '0.*1.*2|0-2')"
 
     stop_stalld
 else
@@ -153,11 +135,7 @@ if [ "$num_cpus" -ge 2 ]; then
         log "ℹ INFO: Found $child_threads threads for stalld"
     fi
 
-    if [ "$affinity" = "$test_cpu" ]; then
-        pass "stalld process affinity set to CPU $test_cpu"
-    else
-        log "⚠ WARNING: stalld affinity ($affinity) doesn't exactly match CPU $test_cpu"
-    fi
+    assert_success "stalld process affinity set to CPU $test_cpu" test "$affinity" = "$test_cpu"
 
     stop_stalld
 else
@@ -177,11 +155,7 @@ if [ "$num_cpus" -ge 2 ]; then
 
     affinity=$(check_affinity "${STALLD_PID}")
 
-    if [ "$affinity" = "0" ]; then
-        pass "stalld affinity to CPU 0 while monitoring CPU 1"
-    else
-        log "⚠ WARNING: stalld affinity ($affinity) doesn't match requested (0)"
-    fi
+    assert_success "stalld affinity to CPU 0 while monitoring CPU 1" test "$affinity" = "0"
 
     stop_stalld
 else
@@ -212,11 +186,7 @@ sleep 3
 affinity_end=$(check_affinity "${STALLD_PID}")
 log "ℹ INFO: Affinity after 3s: $affinity_end"
 
-if [ "$affinity_start" = "$affinity_end" ]; then
-    pass "CPU affinity persisted over time"
-else
-    log "⚠ WARNING: CPU affinity changed (start: $affinity_start, end: $affinity_end)"
-fi
+assert_success "CPU affinity persisted over time" test "$affinity_start" = "$affinity_end"
 
 stop_stalld
 

@@ -131,30 +131,18 @@ log "Multiple detection cycles should have occurred"
 
 # Check if we see accumulating starvation time in logs
 # Task merging means the timestamp is preserved, so duration increases
-if grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}" | wc -l | grep -q "[2-9]"; then
-    pass "Multiple starvation reports found"
+assert_success "Multiple starvation reports found" \
+    test -n "$(grep -E "starved on CPU ${TEST_CPU} for [0-9]+ seconds" "${STALLD_LOG}" | sed -n '2p')"
 
-    # Extract starvation durations from log
-    durations=$(grep -oE "starved on CPU ${TEST_CPU} for [0-9]+" "${STALLD_LOG}" | grep -oE "[0-9]+$")
-    log "Starvation durations observed: $(echo $durations | tr '\n' ' ')"
+# Extract starvation durations from log
+durations=$(grep -oE "starved on CPU ${TEST_CPU} for [0-9]+" "${STALLD_LOG}" | grep -oE "[0-9]+$")
+log "Starvation durations observed: $(echo $durations | tr '\n' ' ')"
 
-    # Verify durations are increasing (timestamp preserved = duration accumulates)
-    first_duration=$(echo "$durations" | head -1)
-    last_duration=$(echo "$durations" | tail -1)
+# Verify durations are increasing (timestamp preserved = duration accumulates)
+first_duration=$(echo "$durations" | head -1)
+last_duration=$(echo "$durations" | tail -1)
 
-    if [ ${last_duration} -gt ${first_duration} ]; then
-        pass "Starvation duration increased (${first_duration}s -> ${last_duration}s)"
-        log "        This confirms task merging preserved the timestamp"
-    else
-        fail "Starvation duration did not increase (timestamp may have been reset)"
-    fi
-else
-    log "⚠ WARNING: Not enough starvation reports to verify task merging"
-    log "        (May be due to queue_track backend limitation)"
-    if [ -n "${STALLD_TEST_BACKEND}" ] && [ "${STALLD_TEST_BACKEND}" = "queue_track" ]; then
-        log "        NOTE: queue_track backend has known issues with SCHED_FIFO detection"
-    fi
-fi
+assert_success "Starvation duration increased" test "${last_duration}" -gt "${first_duration}"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
@@ -215,14 +203,6 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a $
 log "Waiting for boost detection..."
 if wait_for_boost_detected "${STALLD_LOG}"; then
     pass "Boosting occurred"
-
-    # Try to verify the correct task was boosted
-    # stalld logs should show the blockee task name (starvation_gen thread)
-    if grep "boosted.*starvation_gen" "${STALLD_LOG}"; then
-        pass "starvation_gen task was boosted (likely the blockee)"
-    else
-        log "ℹ INFO: Could not verify specific task from logs"
-    fi
 else
     log "⚠ WARNING: No boosting detected in logs"
     log "        (May be due to queue_track backend limitation)"

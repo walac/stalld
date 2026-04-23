@@ -46,11 +46,7 @@ if [ -n "${tracked_pid}" ]; then
     initial_prio=$(get_sched_priority ${tracked_pid})
     log "Initial policy: ${initial_policy} (expected: 1=SCHED_FIFO), prio: ${initial_prio}"
 
-    if [ "$initial_policy" = "1" ]; then
-        pass "Initial policy is SCHED_FIFO"
-    else
-        log "⚠ WARNING: Initial policy is ${initial_policy}, not SCHED_FIFO (1)"
-    fi
+    assert_success "Initial policy is SCHED_FIFO" test "$initial_policy" = "1"
 
     # Wait for starvation detection and boosting
     log "Waiting for starvation detection and boost..."
@@ -61,11 +57,7 @@ if [ -n "${tracked_pid}" ]; then
         boosted_policy=$(get_sched_policy ${tracked_pid})
         log "Policy during boost: ${boosted_policy}"
 
-        if [ "$boosted_policy" = "6" ]; then
-            pass "Task boosted to SCHED_DEADLINE (6)"
-        else
-            log "ℹ INFO: Policy is ${boosted_policy} (may be between boost cycles)"
-        fi
+        assert_success "Task boosted to SCHED_DEADLINE (6)" test "$boosted_policy" = "6"
     fi
 
     # Wait for boost duration to complete
@@ -102,11 +94,7 @@ if [ -n "${tracked_pid}" ] && [ -f "/proc/${tracked_pid}/sched" ]; then
 
     if [ "$final_policy" = "1" ]; then
         pass "Policy restored to SCHED_FIFO (1)"
-        if [ "$final_prio" = "$initial_prio" ]; then
-            pass "Priority restored to ${initial_prio}"
-        else
-            log "⚠ INFO: Priority is ${final_prio} (initial was ${initial_prio})"
-        fi
+        assert_success "Priority restored to ${initial_prio}" test "$final_prio" = "$initial_prio"
     else
         log "ℹ INFO: Final policy is ${final_policy} (task may have exited)"
     fi
@@ -153,11 +141,7 @@ if [ -n "${tracked_pid}" ]; then
             final_policy=$(get_sched_policy ${tracked_pid})
             log "Policy after boost: ${final_policy}"
 
-            if [ "$final_policy" = "0" ]; then
-                pass "Policy restored to SCHED_OTHER (0)"
-            else
-                fail "Policy not restored to SCHED_OTHER (got ${final_policy})"
-            fi
+            assert_success "Policy restored to SCHED_OTHER (0)" test "$final_policy" = "0"
         else
             log "⚠ INFO: Task exited before restoration check"
         fi
@@ -199,11 +183,7 @@ if wait_for_boost_detected "${STALLD_LOG}"; then
     sleep 1
 
     # Verify stalld is still running and didn't crash after task exit
-    if assert_process_running "${STALLD_PID}" "stalld still running after task exit"; then
-        pass "stalld handled task exit during boost gracefully"
-    else
-        fail "stalld crashed or exited after task died during boost"
-    fi
+    assert_success "stalld handled task exit during boost gracefully" kill -0 ${STALLD_PID}
 
 else
     log "⚠ WARNING: No boost detected in this test run"

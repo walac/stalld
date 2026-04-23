@@ -149,11 +149,7 @@ start_stalld_with_log "${LOG_FILE}" -f -v -k -s -l -t 5
 
 if assert_process_running "${STALLD_PID}" "stalld with combined logging should be running"; then
 	# Verify verbose output
-	if [ -s "${LOG_FILE}" ]; then
-		pass "combined logging produces output"
-	else
-		fail "no output with combined logging"
-	fi
+	assert_success "combined logging produces output" test -s "${LOG_FILE}"
 fi
 
 stop_stalld
