@@ -115,7 +115,4 @@ assert_stalld_rejects "Zero threshold rejected with error" -f -v -t 0
 log "Testing with threshold = -5"
 assert_stalld_rejects "Negative threshold rejected with error" -f -v -t -5
 
-log ""
-log "All starvation threshold tests completed"
-
 end_test

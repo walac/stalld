@@ -117,10 +117,4 @@ else
     cleanup_scenario "${STARVE_PID}"
 fi
 
-#=============================================================================
-# Final Summary
-#=============================================================================
-test_section "Test Summary"
-log "Total failures: ${TEST_FAILED}"
-
 end_test

@@ -66,10 +66,4 @@ assert_log_contains --negate "${LOG_FILE}" "boosted" "stalld did not boost in lo
 # Cleanup
 cleanup_scenario "${STARVGEN_PID}"
 
-echo ""
-echo "Log file contents:"
-echo "=================="
-cat "${LOG_FILE}"
-echo "=================="
-
 end_test

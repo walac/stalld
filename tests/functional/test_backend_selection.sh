@@ -40,8 +40,6 @@ test_backend_flag() {
 
 	if ! wait_for_stalld_ready "${log_file}" 15; then
 		fail "stalld failed to start (${description})"
-		stop_stalld
-		return 1
 	fi
 
 	assert_log_contains "${log_file}" "${expected_msg}" "${description}"

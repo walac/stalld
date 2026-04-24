@@ -149,7 +149,4 @@ log "ℹ INFO: Pidfile permissions: $perms"
 
 stop_stalld
 
-log ""
-log "All pidfile tests completed"
-
 end_test

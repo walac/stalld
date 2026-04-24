@@ -204,17 +204,4 @@ fi
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
 
-#=============================================================================
-# Final Summary
-#=============================================================================
-test_section "Test Summary"
-log "Total failures: ${TEST_FAILED}"
-
-if [ -n "${STALLD_TEST_BACKEND}" ] && [ "${STALLD_TEST_BACKEND}" = "queue_track" ]; then
-    log ""
-    log "NOTE: queue_track backend has known limitations with SCHED_FIFO task detection."
-    log "      For reliable FIFO-on-FIFO testing, use the sched_debug backend:"
-    log "      ./test_fifo_priority_starvation.sh -b sched_debug"
-fi
-
 end_test

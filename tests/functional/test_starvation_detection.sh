@@ -193,10 +193,4 @@ assert_log_contains --negate --ignore-case "${STALLD_LOG}" "error\|segfault\|cra
 
 stop_stalld
 
-#=============================================================================
-# Final Summary
-#=============================================================================
-test_section "Test Summary"
-log "Total failures: ${TEST_FAILED}"
-
 end_test

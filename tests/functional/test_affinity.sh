@@ -190,7 +190,4 @@ assert_success "CPU affinity persisted over time" test "$affinity_start" = "$aff
 
 stop_stalld
 
-log ""
-log "All affinity tests completed"
-
 end_test

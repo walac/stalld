@@ -112,7 +112,4 @@ assert_stalld_rejects "Zero duration rejected with error" -f -v -t ${threshold} 
 log "Testing with duration = -5"
 assert_stalld_rejects "Negative duration rejected with error" -f -v -t ${threshold} -d -5
 
-log ""
-log "All boost duration tests completed"
-
 end_test

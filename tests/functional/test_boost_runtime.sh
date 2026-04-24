@@ -127,7 +127,4 @@ test_section "Test 7: Invalid runtime value (negative)"
 log "Testing with runtime = -5000"
 assert_stalld_rejects "Negative runtime rejected with error" -f -v -t ${threshold} -r -5000
 
-log ""
-log "All boost runtime tests completed"
-
 end_test

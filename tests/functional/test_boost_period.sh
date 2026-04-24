@@ -106,10 +106,4 @@ test_section "Test 6: Invalid period value (negative)"
 
 assert_stalld_rejects "Negative period rejected with error" -f -v -t $threshold -p -1000000
 
-#=============================================================================
-# Final Summary
-#=============================================================================
-test_section "Test Summary"
-log "Total failures: ${TEST_FAILED}"
-
 end_test

@@ -112,7 +112,4 @@ test_section "Test 5: Single-threaded mode with FIFO (should fail)"
 log "Testing single-threaded mode (-O) with -F (should exit)"
 assert_stalld_rejects "Single-threaded mode rejected FIFO" -f -v -c "${TEST_CPU}" -t ${threshold} -F -O
 
-log ""
-log "All force FIFO tests completed"
-
 end_test
