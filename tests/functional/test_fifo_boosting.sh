@@ -34,16 +34,8 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -N -F -A -t $threshold -c ${TES
 
 # Wait for boosting
 log "Waiting for boost detection..."
-if wait_for_boost_detected "${STALLD_LOG}"; then
-    pass "Boosting occurred with -F flag"
-
-    # Verify SCHED_FIFO was used
-    assert_log_contains "${STALLD_LOG}" "SCHED_FIFO" "SCHED_FIFO boosting used (as requested by -F)"
-else
-    fail "No boosting detected with -F flag"
-    log "Log contents:"
-    cat "${STALLD_LOG}"
-fi
+assert_boost_detected "${STALLD_LOG}" "Boosting occurred with -F flag"
+assert_log_contains "${STALLD_LOG}" "SCHED_FIFO" "SCHED_FIFO boosting used (as requested by -F)"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"

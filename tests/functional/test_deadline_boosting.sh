@@ -36,16 +36,8 @@ start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for boosting
 log "Waiting for boost detection..."
-if wait_for_boost_detected "${STALLD_LOG}"; then
-    pass "Boosting occurred"
-
-    # Verify SCHED_DEADLINE was used
-    assert_log_contains "${STALLD_LOG}" "SCHED_DEADLINE" "SCHED_DEADLINE boosting used (default)"
-else
-    fail "No boosting detected"
-    log "Log contents:"
-    cat "${STALLD_LOG}"
-fi
+assert_boost_detected "${STALLD_LOG}" "Boosting occurred"
+assert_log_contains "${STALLD_LOG}" "SCHED_DEADLINE" "SCHED_DEADLINE boosting used (default)"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"

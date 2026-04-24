@@ -35,19 +35,9 @@ start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -
 
 # Wait for starvation detection
 log "Waiting for starvation detection..."
-if wait_for_starvation_detected "${STALLD_LOG}"; then
-    pass "Starvation detected"
-
-    # Verify correct CPU is logged
-    assert_log_contains "${STALLD_LOG}" "starved on CPU ${TEST_CPU}" "Correct CPU ID logged (CPU ${TEST_CPU})"
-
-    # Verify duration is logged
-    assert_log_contains "${STALLD_LOG}" "starved on CPU ${TEST_CPU} for [0-9]" "Starvation duration logged"
-else
-    fail "Starvation not detected"
-    log "Log contents:"
-    cat "${STALLD_LOG}"
-fi
+assert_starvation_detected "${STALLD_LOG}" "Starvation detected"
+assert_log_contains "${STALLD_LOG}" "starved on CPU ${TEST_CPU}" "Correct CPU ID logged (CPU ${TEST_CPU})"
+assert_log_contains "${STALLD_LOG}" "starved on CPU ${TEST_CPU} for [0-9]" "Starvation duration logged"
 
 # Cleanup
 cleanup_scenario "${STARVE_PID}"
