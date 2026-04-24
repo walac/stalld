@@ -35,17 +35,9 @@ CLEANUP_FILES+=("${LOG_FILE}")
 
 start_stalld_with_log "${LOG_FILE}" -f -v -l -t 5
 
-if assert_process_running "${STALLD_PID}" "stalld should be running"; then
-	# Check that output was written to our log file
-	if [ -s "${LOG_FILE}" ]; then
-		pass "verbose mode produces output"
-
-		# Should contain initialization messages
-		assert_log_contains "${LOG_FILE}" "stalld\|version\|monitoring" "output contains expected messages"
-	else
-		fail "no output in verbose mode"
-	fi
-fi
+assert_process_running "${STALLD_PID}" "stalld should be running"
+assert_success "verbose mode produces output" test -s "${LOG_FILE}"
+assert_log_contains "${LOG_FILE}" "stalld\|version\|monitoring" "output contains expected messages"
 
 stop_stalld
 
@@ -147,10 +139,8 @@ CLEANUP_FILES+=("${LOG_FILE}")
 
 start_stalld_with_log "${LOG_FILE}" -f -v -k -s -l -t 5
 
-if assert_process_running "${STALLD_PID}" "stalld with combined logging should be running"; then
-	# Verify verbose output
-	assert_success "combined logging produces output" test -s "${LOG_FILE}"
-fi
+assert_process_running "${STALLD_PID}" "stalld with combined logging should be running"
+assert_success "combined logging produces output" test -s "${LOG_FILE}"
 
 stop_stalld
 

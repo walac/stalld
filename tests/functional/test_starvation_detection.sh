@@ -186,12 +186,7 @@ start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 3
 # Wait for task to exit
 sleep 5
 
-# Verify stalld is still running (didn't crash)
-if assert_process_running "${STALLD_PID}" "stalld still running after task exit"; then
-    pass "stalld handled task exit gracefully"
-else
-    fail "stalld crashed or exited unexpectedly"
-fi
+assert_process_running "${STALLD_PID}" "stalld still running after task exit"
 
 # Check for error messages
 assert_log_contains --negate --ignore-case "${STALLD_LOG}" "error\|segfault\|crash" "No error messages in log"

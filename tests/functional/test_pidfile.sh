@@ -60,16 +60,10 @@ log "Starting stalld with custom pidfile: ${custom_pidfile}"
 start_stalld -l -t 5 --pidfile "${custom_pidfile}"
 sleep 2
 
-# Verify pidfile was created
-if [ -f "${custom_pidfile}" ]; then
-    pass "Custom pidfile created at ${custom_pidfile}"
+assert_file_exists "${custom_pidfile}" "Custom pidfile created at ${custom_pidfile}"
 
-    # Verify content
-    pid_from_file=$(cat "${custom_pidfile}")
-    assert_success "Custom pidfile contains correct PID" test "$pid_from_file" = "${STALLD_PID}"
-else
-    fail "Custom pidfile not created at ${custom_pidfile}"
-fi
+pid_from_file=$(cat "${custom_pidfile}")
+assert_success "Custom pidfile contains correct PID" test "$pid_from_file" = "${STALLD_PID}"
 
 # Test 3: Verify pidfile removed on clean shutdown
 test_section "Test 3: Verify pidfile removed on clean shutdown"
@@ -95,14 +89,10 @@ log "Starting stalld with /tmp pidfile: ${tmp_pidfile}"
 start_stalld -l -t 5 --pidfile "${tmp_pidfile}"
 sleep 2
 
-if [ -f "${tmp_pidfile}" ]; then
-    pass "Pidfile created in /tmp directory"
+assert_file_exists "${tmp_pidfile}" "Pidfile created in /tmp directory"
 
-    pid_from_file=$(cat "${tmp_pidfile}")
-    assert_success "/tmp pidfile contains correct PID" test "$pid_from_file" = "${STALLD_PID}"
-else
-    fail "Pidfile not created in /tmp"
-fi
+pid_from_file=$(cat "${tmp_pidfile}")
+assert_success "/tmp pidfile contains correct PID" test "$pid_from_file" = "${STALLD_PID}"
 
 stop_stalld
 
@@ -151,20 +141,11 @@ log "Starting stalld with readable pidfile: ${readable_pidfile}"
 start_stalld -l -t 5 --pidfile "${readable_pidfile}"
 sleep 2
 
-if [ -f "${readable_pidfile}" ]; then
-    # Try to read the pidfile as a regular user would
-    if cat "${readable_pidfile}" > /dev/null 2>&1; then
-        pass "Pidfile is readable"
+assert_file_exists "${readable_pidfile}" "Pidfile created"
+assert_success "Pidfile is readable" cat "${readable_pidfile}"
 
-        # Check permissions
-        perms=$(stat -c "%a" "${readable_pidfile}" 2>/dev/null || stat -f "%Lp" "${readable_pidfile}" 2>/dev/null)
-        log "ℹ INFO: Pidfile permissions: $perms"
-    else
-        fail "Pidfile not readable"
-    fi
-else
-    fail "Pidfile not created"
-fi
+perms=$(stat -c "%a" "${readable_pidfile}" 2>/dev/null || stat -f "%Lp" "${readable_pidfile}" 2>/dev/null)
+log "ℹ INFO: Pidfile permissions: $perms"
 
 stop_stalld
 
