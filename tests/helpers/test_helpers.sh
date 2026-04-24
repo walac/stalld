@@ -164,12 +164,10 @@ assert_starvation_detected() {
 
 	if wait_for_starvation_detected "${log_file}" "${timeout}" "${cpu}"; then
 		pass "${message}"
-		return 0
 	else
-		fail "${message}"
 		log "Log contents:"
 		cat "${log_file}"
-		return 1
+		fail "${message}"
 	fi
 }
 
@@ -182,12 +180,10 @@ assert_boost_detected() {
 
 	if wait_for_boost_detected "${log_file}" "${timeout}"; then
 		pass "${message}"
-		return 0
 	else
-		fail "${message}"
 		log "Log contents:"
 		cat "${log_file}"
-		return 1
+		fail "${message}"
 	fi
 }
 
@@ -217,15 +213,13 @@ assert_log_contains() {
 
 	if [ $found -eq 1 ]; then
 		pass "${message}"
-		return 0
 	else
-		fail "${message}"
 		if [ $negate -eq 1 ]; then
 			log "    Pattern '${pattern}' found in ${log_file} but should not be"
 		else
 			log "    Pattern '${pattern}' not found in ${log_file}"
 		fi
-		return 1
+		fail "${message}"
 	fi
 }
 
@@ -236,14 +230,15 @@ assert_stalld_rejects() {
 	shift
 
 	local log="/tmp/stalld_reject_$$.log"
+	CLEANUP_FILES+=("${log}")
 	timeout 5 ${TEST_ROOT}/../stalld ${BACKEND_FLAG} "$@" > "${log}" 2>&1
 	local ret=$?
 	if [ $ret -ne 0 ] && [ $ret -ne 124 ]; then
 		pass "${message}"
 	else
-		fail "${message}"
 		log "stalld output:"
 		cat "${log}"
+		fail "${message}"
 	fi
 	rm -f "${log}"
 }
@@ -273,10 +268,8 @@ assert_success() {
 
 	if [ $success -eq 1 ]; then
 		pass "${message}"
-		return 0
 	else
 		fail "${message}"
-		return 1
 	fi
 }
 
@@ -289,13 +282,15 @@ pass() {
 	TEST_PASSED=$((TEST_PASSED + 1))
 }
 
-# Record a test failure with a description message.
+# Record a test failure and abort the test immediately.
 #
 # Usage: fail "description"
 fail() {
 	local message=${1:-""}
 	log "✗ FAIL: ${message}"
 	TEST_FAILED=$((TEST_FAILED + 1))
+	end_test
+	exit 1
 }
 
 # Assert functions
@@ -306,12 +301,10 @@ assert_equals() {
 
 	if [ "${expected}" == "${actual}" ]; then
 		pass "${message}"
-		return 0
 	else
-		fail "${message}"
 		log "    Expected: ${expected}"
 		log "    Actual:   ${actual}"
-		return 1
+		fail "${message}"
 	fi
 }
 
@@ -322,11 +315,9 @@ assert_contains() {
 
 	if echo "${haystack}" | grep -q "${needle}"; then
 		pass "${message}"
-		return 0
 	else
-		fail "${message}"
 		log "    String '${needle}' not found"
-		return 1
+		fail "${message}"
 	fi
 }
 
@@ -337,11 +328,9 @@ assert_not_contains() {
 
 	if ! echo "${haystack}" | grep -q "${needle}"; then
 		pass "${message}"
-		return 0
 	else
-		fail "${message}"
 		log "    String '${needle}' found but should not be present"
-		return 1
+		fail "${message}"
 	fi
 }
 
@@ -351,10 +340,8 @@ assert_file_exists() {
 
 	if [ -f "${file}" ]; then
 		pass "${message}"
-		return 0
 	else
 		fail "${message}"
-		return 1
 	fi
 }
 
@@ -364,10 +351,8 @@ assert_file_not_exists() {
 
 	if [ ! -f "${file}" ]; then
 		pass "${message}"
-		return 0
 	else
 		fail "${message}"
-		return 1
 	fi
 }
 
@@ -377,10 +362,8 @@ assert_process_running() {
 
 	if kill -0 ${pid} 2>/dev/null; then
 		pass "${message}"
-		return 0
 	else
 		fail "${message}"
-		return 1
 	fi
 }
 
@@ -390,10 +373,8 @@ assert_process_not_running() {
 
 	if ! kill -0 ${pid} 2>/dev/null; then
 		pass "${message}"
-		return 0
 	else
 		fail "${message}"
-		return 1
 	fi
 }
 
