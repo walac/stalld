@@ -1239,6 +1239,8 @@ int main(int argc, char **argv)
 
 	write_pidfile();
 
+	log_msg("monitoring started\n");
+
 	/* The less likely first. */
 	if (config_aggressive)
 		aggressive_main(cpus, config_nr_cpus);
