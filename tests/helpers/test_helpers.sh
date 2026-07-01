@@ -45,7 +45,7 @@ log() {
 	local message="$*"
 
 	# Echo to stdout with timestamp
-	echo "${timestamp} ${message}"
+	echo -e "${timestamp} ${message}"
 
 	# Also send to journal with stalld tag for easy correlation
 	# Strip ANSI color codes before sending to journal
@@ -418,8 +418,7 @@ start_stalld() {
 		stalld_bin="../stalld"
 	fi
 	if [ ! -x "${stalld_bin}" ]; then
-		echo -e "${RED}ERROR: stalld binary not found at ${stalld_bin}${NC}"
-		return 1
+		fail "stalld binary not found at ${stalld_bin}"
 	fi
 
 	# Parse arguments to find pidfile if specified
@@ -485,12 +484,10 @@ start_stalld() {
 		if [ -f "$pidfile" ]; then
 			STALLD_PID=$(cat "$pidfile" 2>/dev/null)
 			if [ -z "${STALLD_PID}" ]; then
-				echo -e "${RED}ERROR: pidfile exists but is empty${NC}"
-				return 1
+				fail "pidfile exists but is empty"
 			fi
 		else
-			echo -e "${RED}ERROR: pidfile was not created within ${timeout} seconds${NC}"
-			return 1
+			fail "pidfile was not created within ${timeout} seconds"
 		fi
 	else
 		# No pidfile - use pgrep with retries
@@ -540,13 +537,11 @@ start_stalld() {
 
 	# Verify we found a PID and it's running
 	if [ -z "${STALLD_PID}" ]; then
-		echo -e "${RED}ERROR: Could not determine stalld PID${NC}"
-		return 1
+		fail "could not determine stalld PID"
 	fi
 
 	if ! process_alive ${STALLD_PID}; then
-		echo -e "${RED}ERROR: stalld PID ${STALLD_PID} is not running${NC}"
-		return 1
+		fail "stalld PID ${STALLD_PID} is not running"
 	fi
 
 	CLEANUP_PIDS+=("${STALLD_PID}")
@@ -676,8 +671,7 @@ wait_for_log_message() {
 	local log_file=$3
 
 	if [ -z "${log_file}" ]; then
-		echo -e "${RED}ERROR: wait_for_log_message requires a log file${NC}"
-		return 1
+		fail "wait_for_log_message requires a log file"
 	fi
 
 	# Process substitution runs tail in the background so bash
@@ -930,8 +924,7 @@ disable_dl_server() {
 		echo "Disabled DL-server for ${cpu_count} CPUs"
 		return 0
 	else
-		echo -e "${RED}ERROR: Failed to disable DL-server${NC}"
-		return 1
+		fail "failed to disable DL-server"
 	fi
 }
 
@@ -980,8 +973,7 @@ disable_rt_throttling() {
 			echo "Disabled RT throttling"
 			return 0
 		else
-			echo -e "${RED}ERROR: Failed to disable RT throttling (need root?)${NC}"
-			return 1
+			fail "failed to disable RT throttling (need root?)"
 		fi
 	else
 		echo -e "${YELLOW}WARNING: /proc/sys/kernel/sched_rt_runtime_us not found${NC}"
@@ -1173,9 +1165,8 @@ start_stalld_with_log() {
 	CLEANUP_PIDS+=("${STALLD_PID}")
 
 	if ! wait_for_stalld_ready "${log_file}" 15; then
-		echo -e "${RED}ERROR: stalld did not initialize within 15s${NC}"
 		stop_stalld
-		return 1
+		fail "stalld did not initialize within 15s"
 	fi
 }
 
@@ -1272,8 +1263,7 @@ init_functional_test() {
 start_starvation_gen() {
 	local starve_bin="${TEST_ROOT}/helpers/starvation_gen"
 	if [ ! -x "${starve_bin}" ]; then
-		echo -e "${RED}ERROR: starvation_gen not found at ${starve_bin}${NC}"
-		return 1
+		fail "starvation_gen not found at ${starve_bin}"
 	fi
 
 	STARVE_LOG="/tmp/stalld_starvgen_$$.log"
@@ -1293,10 +1283,9 @@ start_starvation_gen() {
 	local elapsed=0
 	while [ $elapsed -lt $timeout ]; do
 		if ! process_alive ${STARVE_PID}; then
-			echo -e "${RED}ERROR: starvation_gen exited prematurely${NC}"
 			echo "  Log contents:"
 			cat "${STARVE_LOG}"
-			return 1
+			fail "starvation_gen exited prematurely"
 		fi
 		if grep -q "Press Ctrl+C to stop early" "${STARVE_LOG}" 2>/dev/null; then
 			echo "starvation_gen ready (PID ${STARVE_PID})"
@@ -1306,7 +1295,6 @@ start_starvation_gen() {
 		elapsed=$((elapsed + 1))
 	done
 
-	echo -e "${RED}ERROR: starvation_gen did not become ready within ${timeout}s${NC}"
 	echo "  Log contents:"
 	cat "${STARVE_LOG}"
 	send_signal TERM ${STARVE_PID}
@@ -1314,7 +1302,7 @@ start_starvation_gen() {
 	if process_alive ${STARVE_PID}; then
 		send_signal KILL ${STARVE_PID}
 	fi
-	return 1
+	fail "starvation_gen did not become ready within ${timeout}s"
 }
 
 # Export functions for use in tests
