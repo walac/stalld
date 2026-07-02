@@ -19,6 +19,7 @@ THREADING_MODE_MATRIX=0  # Threading mode matrix testing disabled by default (en
 THREADING_MODES=("power" "adaptive" "aggressive")  # Threading modes to test
 THREADING_MODE=""  # Specific threading mode to use (empty = default)
 VERBOSE=0  # Run tests with bash -vx for trace output
+FAIL_FAST=0  # Stop on first test failure
 
 # Source test helpers for RT throttling and DL-server management
 source "${TEST_ROOT}/helpers/test_helpers.sh" 2>/dev/null || true
@@ -520,6 +521,10 @@ run_shell_test() {
 			if [ -n "${mode}" ]; then
 				MODE_FAILED["${mode}"]=$((MODE_FAILED["${mode}"] + 1))
 			fi
+			if [ ${FAIL_FAST} -eq 1 ]; then
+				print_summary || true
+				exit 1
+			fi
 		fi
 	fi
 }
@@ -609,6 +614,10 @@ while [[ $# -gt 0 ]]; do
 			VERBOSE=1
 			shift
 			;;
+		--fail-fast)
+			FAIL_FAST=1
+			shift
+			;;
 		--disable-dl-server)
 			DISABLE_DL_SERVER=1
 			shift
@@ -673,6 +682,7 @@ while [[ $# -gt 0 ]]; do
 			echo ""
 			echo "Other Options:"
 			echo "  --verbose            Run tests with bash -vx for trace output"
+			echo "  --fail-fast          Stop on first test failure"
 			echo "  --disable-dl-server  Disable DL-server before running tests"
 			echo "  -h, --help           Show this help"
 			echo ""
