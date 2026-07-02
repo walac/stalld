@@ -209,6 +209,8 @@ assert_log_contains() {
 		else
 			log "    Pattern '${pattern}' not found in ${log_file}"
 		fi
+		log "Log contents:"
+		cat "${log_file}"
 		fail "${message}"
 	fi
 }
