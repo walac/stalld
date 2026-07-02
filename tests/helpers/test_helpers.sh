@@ -1267,21 +1267,21 @@ start_starvation_gen() {
 	# starvation_gen prints "ready" after all threads pass the barrier.
 	# Brief initial sleep covers the fast path, then 1-second polling
 	# for slow/loaded systems.
-	sleep 0.01
+	sleep 0.5
 
 	local timeout=10
 	local elapsed=0
 	while [ $elapsed -lt $timeout ]; do
-		if ! process_alive ${STARVE_PID}; then
-			echo "  Log contents:"
-			cat "${STARVE_LOG}"
-			fail "starvation_gen exited prematurely"
-		fi
 		if grep -q "Press Ctrl+C to stop early" "${STARVE_LOG}" 2>/dev/null; then
 			echo "starvation_gen ready (PID ${STARVE_PID})"
 			return 0
 		fi
 		sleep 1
+		if ! process_alive ${STARVE_PID}; then
+			echo "  Log contents:"
+			cat "${STARVE_LOG}"
+			fail "starvation_gen exited prematurely"
+		fi
 		elapsed=$((elapsed + 1))
 	done
 
