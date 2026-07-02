@@ -18,6 +18,7 @@ BACKENDS=("sched_debug" "queue_track")  # Backends to test
 THREADING_MODE_MATRIX=0  # Threading mode matrix testing disabled by default (enable with --full-matrix)
 THREADING_MODES=("power" "adaptive" "aggressive")  # Threading modes to test
 THREADING_MODE=""  # Specific threading mode to use (empty = default)
+VERBOSE=0  # Run tests with bash -vx for trace output
 
 # Source test helpers for RT throttling and DL-server management
 source "${TEST_ROOT}/helpers/test_helpers.sh" 2>/dev/null || true
@@ -480,8 +481,13 @@ run_shell_test() {
 		test_log="${RESULTS_DIR}/${backend_mode//:/_}_${test_name}.log"
 	fi
 
+	local bash_flags=""
+	if [ ${VERBOSE} -eq 1 ]; then
+		bash_flags="-vx"
+	fi
+
 	local start_time=$SECONDS
-	if bash "${test_path}" > "${test_log}" 2>&1; then
+	if bash ${bash_flags} "${test_path}" > "${test_log}" 2>&1; then
 		local elapsed=$((SECONDS - start_time))
 		echo -e "${GREEN}PASS${NC} (${elapsed}s)" | tee -a "${LOG_FILE}"
 		PASSED_TESTS=$((PASSED_TESTS + 1))
@@ -599,6 +605,10 @@ while [[ $# -gt 0 ]]; do
 			SPECIFIC_TEST="$2"
 			shift 2
 			;;
+		--verbose)
+			VERBOSE=1
+			shift
+			;;
 		--disable-dl-server)
 			DISABLE_DL_SERVER=1
 			shift
@@ -662,6 +672,7 @@ while [[ $# -gt 0 ]]; do
 			echo "                                aggressive - Aggressive (-A)"
 			echo ""
 			echo "Other Options:"
+			echo "  --verbose            Run tests with bash -vx for trace output"
 			echo "  --disable-dl-server  Disable DL-server before running tests"
 			echo "  -h, --help           Show this help"
 			echo ""
