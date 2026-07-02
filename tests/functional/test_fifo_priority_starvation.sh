@@ -27,16 +27,15 @@ test_section "Test 1: Basic FIFO-on-FIFO Starvation Detection"
 log "Testing: FIFO:10 blocker starves FIFO:5 blockee"
 
 threshold=5
-
-# Create starvation BEFORE starting stalld to avoid idle detection race
 starvation_duration=$((threshold + 5))
+
+log "Starting stalld with ${threshold}s threshold (log-only mode)"
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
 log "Creating FIFO-on-FIFO starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
 log "  Blocker: SCHED_FIFO priority 10"
 log "  Blockee: SCHED_FIFO priority 5"
 start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d ${starvation_duration}
-
-log "Starting stalld with ${threshold}s threshold (log-only mode)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for starvation detection
 log "Waiting for starvation detection..."
@@ -57,6 +56,9 @@ rm -f "${STALLD_LOG}"
 threshold=5
 boost_duration=3
 
+log "Starting stalld with boosting enabled"
+start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration}
+
 log "Creating FIFO-on-FIFO starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 1 -d 12
 
@@ -68,9 +70,6 @@ if [ -n "${blockee_pid}" ]; then
     ctxt_before=$(get_ctxt_switches ${blockee_pid})
     log "Blockee task PID ${blockee_pid}, context switches before boost: ${ctxt_before}"
 fi
-
-log "Starting stalld with boosting enabled"
-start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} -d ${boost_duration}
 
 # Wait for detection and boosting
 wait_for_boost_detected "${STALLD_LOG}"
@@ -103,15 +102,14 @@ log "Verify duration accumulates correctly (task merging)"
 
 rm -f "${STALLD_LOG}"
 threshold=3
-
-# Create long starvation to trigger multiple detection cycles
 starvation_duration=12
-log "Creating long FIFO-on-FIFO starvation for ${starvation_duration}s"
-start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 log "Will monitor for multiple detection cycles to verify timestamp preservation"
 start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
+log "Creating long FIFO-on-FIFO starvation for ${starvation_duration}s"
+start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d ${starvation_duration}
 
 # Wait for multiple detection cycles
 log "Waiting for first detection cycle..."
@@ -147,14 +145,13 @@ log "Testing edge case with only 1 priority difference"
 rm -f "${STALLD_LOG}"
 threshold=5
 
-# Test with very close priorities
+log "Starting stalld with ${threshold}s threshold"
+start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
 log "Creating FIFO-on-FIFO starvation with close priorities"
 log "  Blocker: SCHED_FIFO priority 6"
 log "  Blockee: SCHED_FIFO priority 5"
 start_starvation_gen -c ${TEST_CPU} -p 6 -b 5 -n 1 -d $((threshold + 5))
-
-log "Starting stalld with ${threshold}s threshold"
-start_stalld_with_log "${STALLD_LOG}" -f -v -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for starvation detection
 log "Waiting for starvation detection..."
@@ -180,15 +177,12 @@ log "Ensure stalld boosts the blockee (FIFO:5), not the blocker (FIFO:10)"
 rm -f "${STALLD_LOG}"
 threshold=5
 
-log "Creating FIFO-on-FIFO starvation"
-start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d 12 -v
-
-# Extract blocker and blockee PIDs from starvation_gen output
-# The output shows "Blocker TID: <pid>" and "Blockee N TID: <pid>"
-log "Starvation generator PID: ${STARVE_PID}"
-
 log "Starting stalld with boosting enabled"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
+log "Creating FIFO-on-FIFO starvation"
+start_starvation_gen -c ${TEST_CPU} -p 10 -b 5 -n 2 -d 12 -v
+log "Starvation generator PID: ${STARVE_PID}"
 
 # Wait for boosting
 log "Waiting for boost detection..."

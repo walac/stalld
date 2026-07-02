@@ -44,16 +44,12 @@ echo "Stalld will run on CPU ${STALLD_CPU}"
 LOG_FILE="/tmp/stalld_test_log_only_$$.log"
 CLEANUP_FILES+=("${LOG_FILE}")
 
-echo "Creating starvation on CPU ${TEST_CPU} (will run for 10 seconds)"
-
-# Start starvation generator BEFORE stalld to ensure CPU is busy from the start
-start_starvation_gen -c ${TEST_CPU} -p 10 -n 1 -d 10
-STARVGEN_PID=${STARVE_PID}
-
-# Start stalld in log-only mode with verbose output to capture logs
 echo "Starting stalld in log-only mode with 5 second threshold"
 start_stalld_with_log "${LOG_FILE}" -f -v -l -t 5 -c ${TEST_CPU} -a ${STALLD_CPU}
 
+echo "Creating starvation on CPU ${TEST_CPU} (will run for 10 seconds)"
+start_starvation_gen -c ${TEST_CPU} -p 10 -n 1 -d 10
+STARVGEN_PID=${STARVE_PID}
 echo "Starvation generator started (PID ${STARVGEN_PID})"
 echo "Waiting for starvation detection..."
 

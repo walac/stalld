@@ -22,15 +22,13 @@ init_functional_test "SCHED_FIFO Boosting Mechanism" "test_fifo_boost"
 test_section "Test 1: FIFO Boost with -F Flag"
 
 threshold=5
-# Create starvation FIRST (before stalld starts)
 starvation_duration=$((threshold + 5))
-log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with -F flag to force SCHED_FIFO boosting"
-# Note: -F requires non-single-threaded mode (aggressive mode)
-# Use -g 1 for 1-second granularity to ensure timely detection
 start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
+log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for boosting
 log "Waiting for boost detection..."
@@ -48,13 +46,12 @@ test_section "Test 2: FIFO Priority Verification"
 threshold=5
 rm -f "${STALLD_LOG}"
 
-# Create starvation FIRST
+log "Starting stalld with -F flag (FIFO boosting)"
+start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
 log "Creating starvation on CPU ${TEST_CPU}"
 start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 10
 tracked_pid=$(find_starved_child "${STARVE_PID}")
-
-log "Starting stalld with -F flag (FIFO boosting)"
-start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
 
 # Wait for boosting
 log "Waiting for boost detection..."
@@ -101,12 +98,11 @@ log "  Expected cycles: ~5"
 
 rm -f "${STALLD_LOG}"
 
-# Create starvation FIRST
-log "Creating starvation on CPU ${TEST_CPU}"
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 12
-
 start_stalld_with_log "${STALLD_LOG}" -f -v -g 1 -N -F -A -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU} \
     -d ${boost_duration} -p ${boost_period} -r ${boost_runtime}
+
+log "Creating starvation on CPU ${TEST_CPU}"
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 12
 
 # Wait for boosting to start
 log "Waiting for boost detection..."

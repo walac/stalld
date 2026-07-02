@@ -25,15 +25,13 @@ init_functional_test "Starvation Threshold Option (-t)" "test_threshold"
 test_section "Test 1: Custom threshold of 5 seconds"
 
 threshold=5
-
-# Create starvation BEFORE starting stalld (avoid detecting kworker tasks)
 starvation_duration=10
-log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
-# Use -i to ignore kernel workers that may starve before our test tasks
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold}
+
+log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection
 log "Waiting for detection (threshold: ${threshold}s)"
@@ -51,14 +49,13 @@ test_section "Test 2: No detection before threshold"
 threshold=10
 rm -f "${STALLD_LOG}"
 
-# Create starvation BEFORE starting stalld (avoid detecting kworker tasks)
-# Create starvation that will last 6 seconds (less than threshold)
 starvation_duration=6
-log "Creating short starvation (${starvation_duration}s) with threshold of ${threshold}s"
-start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -M -g 1 -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold}
+
+log "Creating short starvation (${starvation_duration}s) with threshold of ${threshold}s"
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation generator to fully complete
 wait "${STARVE_PID}" 2>/dev/null || true
@@ -82,15 +79,13 @@ test_section "Test 3: Shorter threshold (3 seconds)"
 threshold=3
 rm -f "${STALLD_LOG}"
 
-# Create starvation BEFORE starting stalld (avoid detecting kworker tasks)
-# Create starvation for 8 seconds
 starvation_duration=8
-log "Creating starvation for ${starvation_duration}s with threshold of ${threshold}s"
-start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold"
-# Use -i to ignore kernel workers that may starve before our test tasks
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -M -g 1 -i "ksoftirqd,kworker" -c "${TEST_CPU}" -a "${STALLD_CPU}" -t ${threshold}
+
+log "Creating starvation for ${starvation_duration}s with threshold of ${threshold}s"
+start_starvation_gen -c "${TEST_CPU}" -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection
 log "Waiting for detection (threshold: ${threshold}s)"

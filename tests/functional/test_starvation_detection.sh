@@ -24,14 +24,13 @@ NUM_CPUS=$(get_num_cpus)
 test_section "Test 1: Basic Starvation Detection"
 
 threshold=5
-
-# Create starvation BEFORE starting stalld to avoid idle detection race
 starvation_duration=$((threshold + 5))
-log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
+log "Creating starvation on CPU ${TEST_CPU} for ${starvation_duration}s"
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 2 -d ${starvation_duration}
 
 # Wait for starvation detection
 log "Waiting for starvation detection..."
@@ -50,12 +49,11 @@ test_section "Test 2: Context Switch Count Tracking"
 rm -f "${STALLD_LOG}"
 threshold=5
 
-# Create starvation
-log "Creating starvation on CPU ${TEST_CPU}"
-start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 10
-
 log "Starting stalld with ${threshold}s threshold (log-only mode)"
 start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${TEST_CPU} -a ${STALLD_CPU}
+
+log "Creating starvation on CPU ${TEST_CPU}"
+start_starvation_gen -c ${TEST_CPU} -p 80 -n 1 -d 10
 
 # Wait for starvation detection
 log "Waiting for starvation detection..."
@@ -116,6 +114,8 @@ else
     rm -f "${STALLD_LOG}"
     threshold=5
 
+    start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU_MULTI}
+
     # Create starvation on CPU0
     log "Creating starvation on CPU ${CPU0}"
     start_starvation_gen -c ${CPU0} -p 80 -n 1 -d 12
@@ -125,8 +125,6 @@ else
     log "Creating starvation on CPU ${CPU1}"
     start_starvation_gen -c ${CPU1} -p 80 -n 1 -d 12
     STARVE_PID1=${STARVE_PID}
-
-    start_stalld_with_log "${STALLD_LOG}" -f -v -N -l -t $threshold -c ${CPU0},${CPU1} -a ${STALLD_CPU_MULTI}
 
     # Wait for starvation detection on both CPUs
     log "Waiting for starvation detection on CPU ${CPU0}..."
