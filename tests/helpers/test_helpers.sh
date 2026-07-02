@@ -1157,6 +1157,8 @@ start_stalld_with_log() {
 	CLEANUP_PIDS+=("${STALLD_PID}")
 
 	if ! wait_for_stalld_ready "${log_file}" 15; then
+		log "Log contents:"
+		cat "${log_file}"
 		stop_stalld
 		fail "stalld did not initialize within 15s"
 	fi
