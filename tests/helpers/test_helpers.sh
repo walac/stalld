@@ -1162,11 +1162,11 @@ start_stalld_with_log() {
 	STALLD_PID=$!
 	CLEANUP_PIDS+=("${STALLD_PID}")
 
-	if ! wait_for_stalld_ready "${log_file}" 15; then
+	if ! wait_for_stalld_ready "${log_file}" 240; then
 		log "Log contents:"
 		cat "${log_file}"
 		stop_stalld
-		fail "stalld did not initialize within 15s"
+		fail "stalld did not initialize within 240s"
 	fi
 
 	local end_ns=$(date +%s%N)

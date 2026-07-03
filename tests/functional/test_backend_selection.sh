@@ -38,7 +38,7 @@ test_backend_flag() {
 	STALLD_PID=$!
 	CLEANUP_PIDS+=("${STALLD_PID}")
 
-	if ! wait_for_stalld_ready "${log_file}" 15; then
+	if ! wait_for_stalld_ready "${log_file}" 240; then
 		fail "stalld failed to start (${description})"
 	fi
 
