@@ -459,6 +459,8 @@ start_stalld() {
 		esac
 	fi
 
+	local start_ns=$(date +%s%N)
+
 	${stalld_bin} ${args} &
 	local shell_pid=$!
 
@@ -537,7 +539,9 @@ start_stalld() {
 	fi
 
 	CLEANUP_PIDS+=("${STALLD_PID}")
-	echo "stalld started with PID ${STALLD_PID}"
+	local end_ns=$(date +%s%N)
+	local elapsed=$(awk "BEGIN {printf \"%.3f\", (${end_ns} - ${start_ns}) / 1000000000}")
+	log "stalld started with PID ${STALLD_PID} (startup: ${elapsed}s)"
 	return 0
 }
 
@@ -1152,6 +1156,8 @@ start_stalld_with_log() {
 
 	# Start stalld with line-buffered output so tail -f can detect
 	# readiness immediately instead of waiting for the buffer to fill.
+	local start_ns=$(date +%s%N)
+
 	stdbuf -oL ${TEST_ROOT}/../stalld ${stalld_args} > "${log_file}" 2>&1 &
 	STALLD_PID=$!
 	CLEANUP_PIDS+=("${STALLD_PID}")
@@ -1162,6 +1168,10 @@ start_stalld_with_log() {
 		stop_stalld
 		fail "stalld did not initialize within 15s"
 	fi
+
+	local end_ns=$(date +%s%N)
+	local elapsed=$(awk "BEGIN {printf \"%.3f\", (${end_ns} - ${start_ns}) / 1000000000}")
+	log "stalld ready (PID ${STALLD_PID}, startup: ${elapsed}s)"
 }
 
 # Wait for scheduling policy to change to expected value
